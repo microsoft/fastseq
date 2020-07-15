@@ -1,3 +1,32 @@
+<h1 align="Center">
+  <p> FastSeq
+</h1>
+
+FairSeq provides fast and efficient implementations of the popular sequence
+models for text generation, summarization, and translation tasks. It can also
+automatically and significantly optimize the performance of the pupular NLP
+toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by `import fastseq`.
+
+# Requirements and Installation
+* Python version >= 3.6
+* [torch]((http://pytorch.org/)) >= 1.4.0
+* [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
+* [absl-py](https://github.com/abseil/abseil-py) >= 0.9.0
+
+```bash
+git clone https://github.com/microsoft/fastseq
+cd fastseq
+pip install --editable ./
+```
+
+# Run
+
+## Run tests
+```bash
+python tests/optimiser/fairseq/test_fairseq_optimiser.py
+python tests/optimiser/fairseq/benchmark_fairseq_optimiser.py
+```
+
 
 # Contributing
 
