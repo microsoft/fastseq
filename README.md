@@ -2,7 +2,7 @@
   <p> FastSeq
 </h1>
 
-FairSeq provides fast and efficient implementations of the popular sequence
+FairSeq provides fast performance and efficient implementations of the popular sequence
 models for text generation, summarization, and translation tasks. It can also
 automatically and significantly optimize the performance of the pupular NLP
 toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by `import fastseq`.
