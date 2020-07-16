@@ -1,20 +1,30 @@
-from absl.testing import parameterized
+import os
 
 import torch
+from absl.testing import absltest, parameterized
+from fairseq.models.bart.model import BARTModel
 
 import fastseq
-
-from absl.testing import absltest
-from fairseq.models.bart.model import BARTModel
-from fastseq.utils.test_util import TestCaseBase
+from fastseq.utils.file_utils import decompress_file, make_dirs, wget
+from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
+                                      CACHED_BART_MODEL_PATHS, TestCaseBase)
 
 
 class FairseqBeamSearchOptimiserTest(TestCaseBase):
     def setUp(self):
         super(FairseqBeamSearchOptimiserTest, self).setUp()
         # TODO: create a dummy model instead of loading a large-size model.
-        self.bart = BARTModel.from_pretrained('models/bart.large.cnn/',
-                                              checkpoint_file='model.pt')
+        if not os.path.exists(CACHED_BART_MODEL_PATHS['bart.large.cnn']):
+            make_dirs(CACHED_BART_MODEL_DIR, exist_ok=True)
+            tar_model_path = os.path.join(CACHED_BART_MODEL_DIR,
+                                          'bart.large.cnn.tar.gz')
+            with open(tar_model_path, 'xb') as tar_model_file:
+                wget(BART_MODEL_URLS['bart.large.cnn'], tar_model_file)
+            decompress_file(tar_model_path, CACHED_BART_MODEL_DIR)
+
+        self.bart = BARTModel.from_pretrained(
+            CACHED_BART_MODEL_PATHS['bart.large.cnn'],
+            checkpoint_file='model.pt')
         self.source_path = 'tests/optimiser/fairseq/data/cnndm_128.txt'
         self.expected_output_path = 'tests/optimiser/fairseq/data/expected_output.hypo'
         self.expected_output = []

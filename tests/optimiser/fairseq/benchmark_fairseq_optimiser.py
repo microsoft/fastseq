@@ -1,3 +1,4 @@
+import os
 import time
 from absl import logging
 from absl.testing import parameterized
@@ -8,14 +9,24 @@ import fastseq
 
 from absl.testing import absltest
 from fairseq.models.bart.model import BARTModel
-from fastseq.utils.test_util import BenchmarkBase, benchmark
+from fastseq.utils.file_utils import decompress_file, make_dirs, wget
+from fastseq.utils.test_utils import BART_MODEL_URLS, CACHED_BART_MODEL_DIR, CACHED_BART_MODEL_PATHS, BenchmarkBase, benchmark
 
 
 class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
     def setUp(self):
         super(FairseqBeamSearchOptimiserBenchmark, self).setUp()
-        self.bart = BARTModel.from_pretrained('models/bart.large.cnn/',
-                                              checkpoint_file='model.pt')
+        if not os.path.exists(CACHED_BART_MODEL_PATHS['bart.large.cnn']):
+            make_dirs(CACHED_BART_MODEL_DIR, exist_ok=True)
+            tar_model_path = os.path.join(CACHED_BART_MODEL_DIR,
+                                          'bart.large.cnn.tar.gz')
+            with open(tar_model_path, 'xb') as tar_model_file:
+                wget(BART_MODEL_URLS['bart.large.cnn'], tar_model_file)
+            decompress_file(tar_model_path, CACHED_BART_MODEL_DIR)
+
+        self.bart = BARTModel.from_pretrained(
+            CACHED_BART_MODEL_PATHS['bart.large.cnn'],
+            checkpoint_file='model.pt')
         self.source_path = 'tests/optimiser/fairseq/data/cnndm_128.txt'
 
     @parameterized.named_parameters(
