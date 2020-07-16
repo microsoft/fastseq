@@ -7,7 +7,7 @@ extras["fairseq"] = ["fairseq>=0.9.0"]
 
 setup(
     name="fastseq",
-    version="0.1",
+    version="0.0.1",
     author="Microsft AdsBrain Team",
     author_email="fhu@microsoft.com",
     description="Efficient implementations of sequence models with fast performance",
