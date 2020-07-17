@@ -29,6 +29,14 @@ python tests/optimiser/fairseq/benchmark_fairseq_optimiser.py
 python -m unittest discover -s tests/ -p '*.py'
 ```
 
+# Build
+```bash
+# build package
+python setup.py sdist bdist_wheel
+
+# upload package
+python -m twine upload --repository testpypi dist/*
+```
 
 # Contributing
 
