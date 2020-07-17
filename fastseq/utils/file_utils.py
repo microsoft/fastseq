@@ -18,6 +18,14 @@ get_temp_dir = tempfile.TemporaryDirectory
 
 
 def make_dirs(path, mode=0o777, exist_ok=False):
+    """Create the specified directory.
+
+    Args:
+        path (string): the directory path
+        mode (int, optional): the directory mode. Defaults to 0o777.
+        exist_ok (bool, optional): whether it is ok if the input path exits. 
+                                   Defaults to False.
+    """
     try:
         os.makedirs(path, mode, exist_ok)
     except OSError as error:
@@ -25,6 +33,12 @@ def make_dirs(path, mode=0o777, exist_ok=False):
 
 
 def wget(url, target_file_handling):
+    """Download the file from the url to the target file.
+
+    Args:
+        url (string): the url to download the data.
+        target_file_handling (file object): A file handling for writing the data.
+    """
     response = requests.get(url, stream=True)
     if response.status_code == 416:  # Range not satisfiable
         return
@@ -43,6 +57,19 @@ def wget(url, target_file_handling):
 
 
 def decompress_file(input_compressed_file, output_dir):
+    """decompress the compressed files in .tar.gz or .zip formats.
+
+    Args:
+        input_compressed_file (string): file path for the compressed package.
+        output_dir (string): output directory for the decompressed files. 
+
+    Raises:
+        ValueError: if the input file is not in .tar.gz or .zip formats.
+
+    Returns:
+        string: the direcotry path for the decompressed files, which will be the
+                combination of `output_dir` and the name of input compressed package. 
+    """
     lock_file = os.path.join(output_dir, '.lock')
     make_dirs(output_dir, exist_ok=True)
     with FileLock(lock_file):

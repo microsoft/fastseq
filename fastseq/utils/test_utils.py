@@ -9,15 +9,26 @@ from fastseq.utils.api_decorator import get_class
 
 
 class TestCaseBase(parameterized.TestCase):
+    """Base class used for unittest."""
     def tearDown(self):
         print('Log output path: {}'.format(logging.get_log_file_name()))
 
 
 class BenchmarkBase(TestCaseBase):
+    """Base class used for benchmark."""
+
     pass
 
 
 def benchmark(repeat_times=3):
+    """A decorator used to benchmark a method.
+
+    Args:
+        repeat_times (int, optional): repeat times to run the method. Defaults to 3.
+        
+    Returns:
+        function: a function to repeatedly run the method and record the execution metrics.
+    """
     def decorator(func):
         def timeit(*args, **kwargs):
             exec_times = []
