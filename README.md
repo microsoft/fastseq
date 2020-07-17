@@ -25,6 +25,8 @@ pip install --editable ./
 ```bash
 python tests/optimiser/fairseq/test_fairseq_optimiser.py
 python tests/optimiser/fairseq/benchmark_fairseq_optimiser.py
+# run all the tests.
+python -m unittest discover -s tests/ -p '*.py'
 ```
 
 

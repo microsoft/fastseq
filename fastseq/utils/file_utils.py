@@ -48,7 +48,7 @@ def decompress_file(input_compressed_file, output_dir):
     with FileLock(lock_file):
         if is_zipfile(input_compressed_file):
             with ZipFile(input_compressed_file, "r") as zip_file:
-                extracted_folder_name = zip_file.getnames()[0]
+                extracted_folder_name = zip_file.namelist()[0]
                 extracted_dir = os.path.join(output_dir, extracted_folder_name)
                 shutil.rmtree(extracted_dir, ignore_errors=True)
                 zip_file.extractall(output_dir)

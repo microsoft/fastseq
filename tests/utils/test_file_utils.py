@@ -12,7 +12,6 @@ class FileUtilsTest(TestCaseBase):
         self.parent_dir = self.parent_dir_handle.name
 
     def tearDown(self):
-        print("++++++++++++++++++++++++++++++++++++++")
         self.parent_dir_handle.cleanup()
 
     @parameterized.named_parameters({
@@ -32,7 +31,7 @@ class FileUtilsTest(TestCaseBase):
         'https://dl.fbaipublicfiles.com/fairseq/models/bart.base.tar.gz',
         'target_file_name': 'bart.base.tar.gz',
     })
-    def test_wget(self, url, target_file_name):
+    def disable_test_wget(self, url, target_file_name):
         target_file = os.path.join(self.parent_dir, target_file_name)
         with open(target_file, "xb") as output_file:
             wget(url, output_file)
@@ -45,7 +44,7 @@ class FileUtilsTest(TestCaseBase):
         'tar_file_name': 'bart.base.tar.gz',
         'output_folder': 'tar_dir',
     })
-    def test_decompress_file(self, tar_file_url, tar_file_name, output_folder):
+    def test_wget_and_decompress_file(self, tar_file_url, tar_file_name, output_folder):
         # download the tar file.
         tar_file_path = os.path.join(self.parent_dir, tar_file_name)
         with open(tar_file_path, "xb") as tar_file:
