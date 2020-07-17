@@ -1,10 +1,11 @@
 import os
 
 import torch
+from absl import logging
 from absl.testing import absltest, parameterized
-from fairseq.models.bart.model import BARTModel
 
 import fastseq
+from fairseq.models.bart.model import BARTModel
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS, TestCaseBase)
@@ -25,10 +26,14 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         self.bart = BARTModel.from_pretrained(
             CACHED_BART_MODEL_PATHS['bart.large.cnn'],
             checkpoint_file='model.pt')
+
         self.source_path = 'tests/optimiser/fairseq/data/cnndm_128.txt'
+
+        # read the expected output.
         self.expected_output_path = 'tests/optimiser/fairseq/data/expected_output.hypo'
         self.expected_output = []
-        with open(self.expected_output_path) as expected_output_file:
+        with open(self.expected_output_path, 'rt',
+                  encoding="utf-8") as expected_output_file:
             for line in expected_output_file:
                 self.expected_output.append(line.strip())
 
@@ -53,7 +58,7 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         count = 0
         sample_num = (128 / batch_size) * batch_size
         output = []
-        with open(self.source_path) as source:
+        with open(self.source_path, 'rt', encoding="utf-8") as source:
             slines = []
             torch.cuda.synchronize()
             for sline in source:
@@ -76,7 +81,13 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
 
             torch.cuda.synchronize()
             self.assertTrue(len(slines) == 0)
-            self.assertEqual(output, self.expected_output)
+
+            self.assertEqual(len(output), len(self.expected_output))
+
+            for i in range(len(output)):
+                if output[i] != self.expected_output[i]:
+                    logging.error("\n{} \n v.s. \n{}".format(
+                        output[i], self.expected_output[i]))
 
 
 if __name__ == "__main__":

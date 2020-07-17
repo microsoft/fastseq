@@ -1,16 +1,16 @@
 import os
 import time
-from absl import logging
-from absl.testing import parameterized
 
 import torch
+from absl import logging
+from absl.testing import absltest, parameterized
 
 import fastseq
-
-from absl.testing import absltest
 from fairseq.models.bart.model import BARTModel
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
-from fastseq.utils.test_utils import BART_MODEL_URLS, CACHED_BART_MODEL_DIR, CACHED_BART_MODEL_PATHS, BenchmarkBase, benchmark
+from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
+                                      CACHED_BART_MODEL_PATHS, BenchmarkBase,
+                                      benchmark)
 
 
 class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
@@ -61,7 +61,7 @@ class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
         count = 0
         sample_num = (128 / batch_size) * batch_size
         output = []
-        with open(self.source_path) as source:
+        with open(self.source_path, 'r+', encoding="utf-8") as source:
             slines = []
             torch.cuda.synchronize()
             start = time.time()
