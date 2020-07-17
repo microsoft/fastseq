@@ -31,7 +31,7 @@ class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
 
     @parameterized.named_parameters(
         {
-            'testcase_name': 'Normal',
+            'testcase_name': 'BSZ=32',
             'beam_size': 4,
             'batch_size': 32,
             'need_attn': False,
@@ -40,7 +40,16 @@ class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
             'min_len': 55,
             'no_repeat_ngram_size': 3
         }, {
-            'testcase_name': 'LargeBatchSize',
+            'testcase_name': 'BSZ=64',
+            'beam_size': 4,
+            'batch_size': 64,
+            'need_attn': False,
+            'lenpen': 2.0,
+            'max_len_b': 140,
+            'min_len': 55,
+            'no_repeat_ngram_size': 3
+        }, {
+            'testcase_name': 'BSZ=128',
             'beam_size': 4,
             'batch_size': 128,
             'need_attn': False,
