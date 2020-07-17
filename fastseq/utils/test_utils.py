@@ -9,10 +9,11 @@ from fastseq.utils.api_decorator import get_class
 
 
 class TestCaseBase(parameterized.TestCase):
-    pass
+    def tearDown(self):
+        print('Log output path: {}'.format(logging.get_log_file_name()))
 
 
-class BenchmarkBase(parameterized.TestCase):
+class BenchmarkBase(TestCaseBase):
     pass
 
 
