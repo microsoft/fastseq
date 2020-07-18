@@ -2,6 +2,8 @@ import inspect
 import logging
 import sys
 
+from types import ModuleType
+
 from functools import wraps
 
 logger = logging.getLogger(__name__)
@@ -63,7 +65,15 @@ def override_method(method):
                 method.__name__))
 
     def decorator(new_method):
-        setattr(cls, method.__name__, new_method)
+        logger.warning("The method `{}`is replaced by `{}`".format(
+            method.__qualname__, new_method.__qualname__))
+
+        @wraps(new_method)
+        def wrapper(self, *args, **kwargs):
+            return new_method(self, *args, **kwargs)
+
+        setattr(cls, method.__name__, wrapper)
+        return method
 
     return decorator
 
@@ -94,7 +104,7 @@ def add_method(cls):
         logger.warning("A new method `{}`is added to `class {}`".format(
             method.__name__, cls.__name__))
 
-        @wraps(func)
+        @wraps(method)
         def wrapper(self, *args, **kwargs):
             return method(self, *args, **kwargs)
 
@@ -124,11 +134,15 @@ def export_api(module_name, obj_name):
     Returns:
         A decorator function to export the API.
     """
+    if not module_name in sys.modules:
+        fake_module = ModuleType(module_name)
+        sys.modules[module_name] = fake_module
+
     def decorator(obj):
-        delattr(sys.modules[module_name], obj_name)
+        if hasattr(sys.modules[module_name], obj_name):
+            delattr(sys.modules[module_name], obj_name)
         setattr(sys.modules[module_name], obj_name, obj)
-        logger.info("Export api `{}.{}` for {}".format(module_name, obj_name,
-                                                       obj))
+        logger.info("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
         return obj
 
     return decorator
