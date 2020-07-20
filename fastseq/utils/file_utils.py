@@ -1,14 +1,16 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 import os
 import shutil
+import tarfile
 import tempfile
+from zipfile import ZipFile, is_zipfile
 
 import requests
-import tarfile
-
 from absl import logging
 from filelock import FileLock
 from tqdm.auto import tqdm
-from zipfile import ZipFile, is_zipfile
 
 get_named_temp_file = tempfile.NamedTemporaryFile
 

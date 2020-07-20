@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 import os
 
 from absl.testing import absltest, parameterized
@@ -44,7 +47,8 @@ class FileUtilsTest(TestCaseBase):
         'tar_file_name': 'bart.base.tar.gz',
         'output_folder': 'tar_dir',
     })
-    def test_wget_and_decompress_file(self, tar_file_url, tar_file_name, output_folder):
+    def test_wget_and_decompress_file(self, tar_file_url, tar_file_name,
+                                      output_folder):
         # download the tar file.
         tar_file_path = os.path.join(self.parent_dir, tar_file_name)
         with open(tar_file_path, "xb") as tar_file:

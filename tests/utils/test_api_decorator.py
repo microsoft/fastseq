@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from absl.testing import absltest, parameterized
 from fastseq.utils.api_decorator import get_class, override_method, add_method, export_api, replace
 from fastseq.utils.test_utils import TestCaseBase

@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from absl import logging
 import fairseq
 from fairseq.sequence_generator import SequenceGenerator

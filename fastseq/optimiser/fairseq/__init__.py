@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from absl import logging
 
 # Automatically optimize fairseq if it has been installed.
