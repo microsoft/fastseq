@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Utility funcs to create, download, decompress files/packages/directories."""
+
 import os
 import shutil
 import tarfile
@@ -16,7 +18,7 @@ get_named_temp_file = tempfile.NamedTemporaryFile
 
 get_temp_file = tempfile.TemporaryFile
 
-get_temp_dir = tempfile.TemporaryDirectory
+get_temp_dir = tempfile.TemporaryDirectory  # pylint: disable=invalid-name
 
 
 def make_dirs(path, mode=0o777, exist_ok=False):
@@ -25,7 +27,7 @@ def make_dirs(path, mode=0o777, exist_ok=False):
     Args:
         path (string): the directory path
         mode (int, optional): the directory mode. Defaults to 0o777.
-        exist_ok (bool, optional): whether it is ok if the input path exits. 
+        exist_ok (bool, optional): whether it is ok if the input path exits.
                                    Defaults to False.
     """
     try:
@@ -39,11 +41,12 @@ def wget(url, target_file_handling):
 
     Args:
         url (string): the url to download the data.
-        target_file_handling (file object): A file handling for writing the data.
+        target_file_handling (file object): A file handling for writing the
+                                            data.
     """
     response = requests.get(url, stream=True)
     if response.status_code == 416:  # Range not satisfiable
-        return
+        raise ValueError("Range not satisfiable when loading {}".format(url))
     content_length = response.headers.get("Content-Length")
     total = int(content_length) if content_length is not None else None
     progress = tqdm(unit="B",
@@ -59,18 +62,19 @@ def wget(url, target_file_handling):
 
 
 def decompress_file(input_compressed_file, output_dir):
-    """decompress the compressed files in .tar.gz or .zip formats.
+    """Extract the compressed files in .tar.gz or .zip formats.
 
     Args:
         input_compressed_file (string): file path for the compressed package.
-        output_dir (string): output directory for the decompressed files. 
+        output_dir (string): output directory for the decompressed files.
 
     Raises:
         ValueError: if the input file is not in .tar.gz or .zip formats.
 
     Returns:
         string: the direcotry path for the decompressed files, which will be the
-                combination of `output_dir` and the name of input compressed package. 
+                combination of `output_dir` and the name of input compressed
+                package.
     """
     lock_file = os.path.join(output_dir, '.lock')
     make_dirs(output_dir, exist_ok=True)
@@ -83,7 +87,8 @@ def decompress_file(input_compressed_file, output_dir):
                 zip_file.extractall(output_dir)
                 zip_file.close()
                 return extracted_dir
-        elif tarfile.is_tarfile(input_compressed_file):
+
+        if tarfile.is_tarfile(input_compressed_file):
             tar_file = tarfile.open(input_compressed_file)
             extracted_folder_name = tar_file.getnames()[0]
             extracted_dir = os.path.join(output_dir, extracted_folder_name)
@@ -91,7 +96,7 @@ def decompress_file(input_compressed_file, output_dir):
             tar_file.extractall(output_dir)
             tar_file.close()
             return extracted_dir
-        else:
-            raise ValueError(
-                "The input file {} is not supported yet, please input .zip or .tar.gz file"
-                .format(input_compressed_file))
+
+        raise ValueError(
+            "The input file {} is not supported yet, please input .zip or .tar.gz file"  # pylint: disable=line-too-long
+            .format(input_compressed_file))

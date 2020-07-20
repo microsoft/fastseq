@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Logging related module."""
+
 import os
 
 import absl
@@ -14,9 +16,9 @@ absl.flags.FLAGS.mark_as_parsed()
 
 def set_log_level(log_level=None):
     """Set the log level.
-    
+
     If there is no log level specified, it will be default to `INFO`.
-    
+
     Args:
         log_level (int/string, optional): the log level. Defaults to None.
     """

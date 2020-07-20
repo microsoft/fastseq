@@ -1,15 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Benchmark the optimizations on FairSeq"""
+
 import os
 import time
 
 import torch
 from absl import logging
 from absl.testing import absltest, parameterized
+from fairseq.models.bart.model import BARTModel
 
 import fastseq
-from fairseq.models.bart.model import BARTModel
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS, BenchmarkBase,
@@ -17,6 +19,12 @@ from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
 
 
 class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
+    """Benchmark the optimizations on FairSeq
+
+    `bart.large.cnn` is used for benchmarking. If it does not exist, it will be
+    downloaded first. As the the model is big, it will take a while to download.
+    Once downloaded, it will be cached for future usage.
+    """
     def setUp(self):
         super(FairseqBeamSearchOptimiserBenchmark, self).setUp()
         if not os.path.exists(CACHED_BART_MODEL_PATHS['bart.large.cnn']):
@@ -65,6 +73,17 @@ class FairseqBeamSearchOptimiserBenchmark(BenchmarkBase):
     def test_beam_search_optimiser(self, beam_size, batch_size, need_attn,
                                    lenpen, max_len_b, min_len,
                                    no_repeat_ngram_size):
+        """benchmark the performance
+
+        Args:
+            beam_size (int): beam size.
+            batch_size (int): batch size.
+            need_attn (bool): indicate if attention is needed.
+            lenpen (float):
+            max_len_b (int):
+            min_len (int):
+            no_repeat_ngram_size (int):
+        """
         self.bart.model.make_generation_fast_(beamable_mm_beam_size=beam_size,
                                               need_attn=need_attn)
         self.bart.cuda()

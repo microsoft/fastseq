@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Apply the beam search optimization to fairseq-latest"""
+
 import math
 from typing import Dict, List, Optional, Tuple
 
@@ -24,12 +26,23 @@ from fastseq.utils.api_decorator import replace
 
 @replace(TransformerEncoder)
 class TransformerEncoderV2(TransformerEncoder):
+    """
+    Transformer encoder consisting of *args.encoder_layers* layers. Each layer
+    is a :class:`TransformerEncoderLayer`.
+
+    Args:
+        args (argparse.Namespace): parsed command-line arguments
+        dictionary (~fairseq.data.Dictionary): encoding dictionary
+        embed_tokens (torch.nn.Embedding): input embedding
+    """
     def _reorder_encoder_out(self, encoder_out: EncoderOut, new_order):
         return encoder_out
 
 
 @replace(BARTModel)
 class BARTModelV2(BARTModel):
+    """ Represent the BART model."""
+
     @staticmethod
     def add_args(parser):
         TransformerModel.add_args(parser)
@@ -43,10 +56,10 @@ class BARTModelV2(BARTModel):
                             help='activation function to use for pooler layer')
 
     def make_generation_fast_(self, **kwargs):
-        super(BARTModel, self).make_generation_fast_(**kwargs)
+        super(BARTModel, self).make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
         # Replace reorder_encoder_out with a dummy function.
         if 'beamable_mm_beam_size' in kwargs and kwargs[
-                'beamable_mm_beam_size'] > 1:
+            'beamable_mm_beam_size'] > 1:
             self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 
@@ -60,6 +73,11 @@ ARCH_MODEL_REGISTRY['bart_large'] = BARTModelV2
 # @export_api('fairseq.modules.transformer_layer', 'MultiheadAttention')
 @replace(MultiheadAttention)
 class MultiheadAttentionV2(MultiheadAttention):
+    """Multi-headed attention.
+
+    See "Attention Is All You Need" for more details.
+    """
+
     def __init__(
         self,
         embed_dim,
@@ -76,7 +94,7 @@ class MultiheadAttentionV2(MultiheadAttention):
         qn_block_size=8,
     ):
         #super().__init__()
-        super(MultiheadAttentionV2.__bases__[0], self).__init__()
+        super(MultiheadAttentionV2.__bases__[0], self).__init__()  # pylint: disable=bad-super-call
         self.embed_dim = embed_dim
         self.kdim = kdim if kdim is not None else embed_dim
         self.vdim = vdim if vdim is not None else embed_dim
@@ -151,11 +169,11 @@ class MultiheadAttentionV2(MultiheadAttention):
         assert embed_dim == self.embed_dim
         assert list(query.size()) == [tgt_len, bsz, embed_dim]
         if (not self.onnx_trace
-                and not self.tpu  # don't use PyTorch version on TPUs
-                and incremental_state is None and not static_kv
-                # A workaround for quantization to work. Otherwise JIT compilation
-                # treats bias in linear module as method.
-                and not torch.jit.is_scripting()):
+            and not self.tpu  # don't use PyTorch version on TPUs
+            and incremental_state is None and not static_kv
+            # A workaround for quantization to work. Otherwise JIT compilation
+            # treats bias in linear module as method.
+            and not torch.jit.is_scripting()):
             assert key is not None and value is not None
             return F.multi_head_attention_forward(
                 query,
@@ -187,7 +205,8 @@ class MultiheadAttentionV2(MultiheadAttention):
                 # previous time steps are cached - no need to recompute
                 # key and value if they are static
                 if static_kv:
-                    assert self.encoder_decoder_attention and not self.self_attention
+                    assert (self.encoder_decoder_attention and
+                            not self.self_attention)
                     key = value = None
         else:
             saved_state = None
@@ -251,22 +270,22 @@ class MultiheadAttentionV2(MultiheadAttention):
         if saved_state is not None:
             # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
             if "prev_key" in saved_state:
-                _prev_key = saved_state["prev_key"]
-                assert _prev_key is not None
-                kv_bsz = _prev_key.size(0)
-                prev_key = _prev_key.view(kv_bsz * self.num_heads, -1,
-                                          self.head_dim)
+                saved_prev_key = saved_state["prev_key"]
+                assert saved_prev_key is not None
+                kv_bsz = saved_prev_key.size(0)
+                prev_key = saved_prev_key.view(kv_bsz * self.num_heads, -1,
+                                               self.head_dim)
                 if static_kv:
                     k = prev_key
                 else:
                     assert k is not None
                     k = torch.cat([prev_key, k], dim=1)
             if "prev_value" in saved_state:
-                _prev_value = saved_state["prev_value"]
-                assert _prev_value is not None
-                assert kv_bsz == _prev_value.size(0)
-                prev_value = _prev_value.view(kv_bsz * self.num_heads, -1,
-                                              self.head_dim)
+                saved_prev_value = saved_state["prev_value"]
+                assert saved_prev_value is not None
+                assert kv_bsz == saved_prev_value.size(0)
+                prev_value = saved_prev_value.view(kv_bsz * self.num_heads, -1,
+                                                   self.head_dim)
                 if static_kv:
                     v = prev_value
                 else:
@@ -325,7 +344,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                     dim=1,
                 )
 
-        if self.encoder_decoder_attention == True and bsz != kv_bsz:
+        if self.encoder_decoder_attention and bsz != kv_bsz:
             attn_weights = torch.einsum(
                 'bxhtd,bhsd->bxhts',
                 q.view(kv_bsz, -1, self.num_heads,
@@ -375,7 +394,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             training=self.training,
         )
         assert v is not None
-        if self.encoder_decoder_attention == True and bsz != kv_bsz:
+        if self.encoder_decoder_attention and bsz != kv_bsz:
             attn = torch.einsum(
                 'bxhts,bhsd->bxhtd',
                 attn_probs.view(kv_bsz, -1, self.num_heads,
@@ -407,8 +426,8 @@ class MultiheadAttentionV2(MultiheadAttention):
 
     @torch.jit.export
     def reorder_incremental_state(
-            self, incremental_state: Dict[str, Dict[str, Optional[Tensor]]],
-            new_order: Tensor):
+        self, incremental_state: Dict[str, Dict[str, Optional[Tensor]]],
+        new_order: Tensor):
         """Reorder buffered internal state (for incremental generation)."""
         input_buffer = self._get_input_buffer(incremental_state)
         if input_buffer is not None:
@@ -417,7 +436,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 if input_buffer_k is not None:
                     if self.encoder_decoder_attention:
                         if input_buffer_k.size(
-                                0) * self.beam_size == new_order.size(0):
+                            0) * self.beam_size == new_order.size(0):
                             return incremental_state
                         elif self.beam_size > 1:
                             input_buffer[k] = input_buffer_k.index_select(
@@ -444,6 +463,11 @@ class MultiheadAttentionV2(MultiheadAttention):
 
 @replace(SequenceGenerator)
 class SequenceGeneratorV2(SequenceGenerator):
+    """
+    Sequence Generator is optimized by reducing the cached memory usage
+    during the encoding period for beam search.
+    """
+
     def _no_repeat_ngram(self, tokens, lprobs, bsz: int, beam_size: int,
                          step: int):
         # for each beam and batch sentence, generate a list of previous ngrams

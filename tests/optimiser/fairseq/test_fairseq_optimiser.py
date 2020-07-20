@@ -1,20 +1,32 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""
+Test the optimizations on FairSeq to make sure the changes do not affect the
+model accuracy.
+"""
+
 import os
 
 import torch
 from absl import logging
 from absl.testing import absltest, parameterized
+from fairseq.models.bart.model import BARTModel
 
 import fastseq
-from fairseq.models.bart.model import BARTModel
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS, TestCaseBase)
 
 
 class FairseqBeamSearchOptimiserTest(TestCaseBase):
+    """Test the optimizations on FairSeq
+
+    `bart.large.cnn` is used for benchmarking. If it does not exist, it will be
+    downloaded first. As the the model is big, it will take a while to download.
+    Once downloaded, it will be cached for future usage.
+    """
+
     def setUp(self):
         super(FairseqBeamSearchOptimiserTest, self).setUp()
         # TODO: create a dummy model instead of loading a large-size model.
@@ -33,12 +45,12 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         self.source_path = 'tests/optimiser/fairseq/data/cnndm_128.txt'
 
         # read the expected output.
-        self.expected_output_path = 'tests/optimiser/fairseq/data/expected_output.hypo'
-        self.expected_output = []
+        self.expected_output_path = 'tests/optimiser/fairseq/data/expected_output.hypo'  # pylint: disable=line-too-long
+        self.expected_outputs = []
         with open(self.expected_output_path, 'rt',
                   encoding="utf-8") as expected_output_file:
             for line in expected_output_file:
-                self.expected_output.append(line.strip())
+                self.expected_outputs.append(line.strip())
 
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
@@ -50,9 +62,20 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         'min_len': 55,
         'no_repeat_ngram_size': 3
     })
-    def testFairseqBeamSearchOptimiser(self, beam_size, batch_size, need_attn,
-                                       lenpen, max_len_b, min_len,
-                                       no_repeat_ngram_size):
+    def test_beam_search_optimiser(self, beam_size, batch_size, need_attn,
+                                   lenpen, max_len_b, min_len,
+                                   no_repeat_ngram_size):
+        """Make sure the changes do not affect the model accuracy.
+
+        Args:
+            beam_size (int): beam size.
+            batch_size (int): batch size.
+            need_attn (bool): indicate if attention is needed.
+            lenpen (float):
+            max_len_b (int):
+            min_len (int):
+            no_repeat_ngram_size (int):
+        """
         self.bart.model.make_generation_fast_(beamable_mm_beam_size=beam_size,
                                               need_attn=need_attn)
         self.bart.cuda()
@@ -60,7 +83,7 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         self.bart.half()
         count = 0
         sample_num = (128 / batch_size) * batch_size
-        output = []
+        outputs = []
         with open(self.source_path, 'rt', encoding="utf-8") as source:
             slines = []
             torch.cuda.synchronize()
@@ -79,18 +102,18 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
                         hypotheses_batch = [
                             output.strip() for output in hypotheses_batch
                         ]
-                    output.extend(hypotheses_batch)
+                    outputs.extend(hypotheses_batch)
                     slines = []
 
             torch.cuda.synchronize()
             self.assertTrue(len(slines) == 0)
 
-            self.assertEqual(len(output), len(self.expected_output))
+            self.assertEqual(len(outputs), len(self.expected_outputs))
 
-            for i in range(len(output)):
-                if output[i] != self.expected_output[i]:
+            for i, output in enumerate(outputs):
+                if output != self.expected_outputs[i]:
                     logging.error("\n{} \n v.s. \n{}".format(
-                        output[i], self.expected_output[i]))
+                        output, self.expected_outputs[i]))
 
 
 if __name__ == "__main__":

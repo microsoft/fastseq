@@ -1,17 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Apply the beam search optimization to fairseq-v0.9.0"""
+
 import math
 from typing import Dict, List, Optional, Tuple
 
+import torch
+import torch.nn.functional as F
 from fairseq import utils
-from fairseq.sequence_generator import SequenceGenerator
 from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY
 from fairseq.models.bart.model import BARTModel
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
-import torch
-import torch.nn.functional as F
+from fairseq.sequence_generator import SequenceGenerator
 from torch import Tensor, nn
 from torch.nn import Parameter
 
@@ -20,12 +22,23 @@ from fastseq.utils.api_decorator import replace
 
 @replace(TransformerEncoder)
 class TransformerEncoderV2(TransformerEncoder):
+    """
+    Transformer encoder consisting of *args.encoder_layers* layers. Each layer
+    is a :class:`TransformerEncoderLayer`.
+
+    Args:
+        args (argparse.Namespace): parsed command-line arguments
+        dictionary (~fairseq.data.Dictionary): encoding dictionary
+        embed_tokens (torch.nn.Embedding): input embedding
+    """
     def _reorder_encoder_out(self, encoder_out, new_order):
         return encoder_out
 
 
 @replace(BARTModel)
 class BARTModelV2(BARTModel):
+    """ Represent the BART model."""
+
     @staticmethod
     def add_args(parser):
         TransformerModel.add_args(parser)
@@ -39,10 +52,10 @@ class BARTModelV2(BARTModel):
                             help='activation function to use for pooler layer')
 
     def make_generation_fast_(self, **kwargs):
-        super(BARTModel, self).make_generation_fast_(**kwargs)
+        super(BARTModel, self).make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
         # Replace reorder_encoder_out with a dummy function.
         if 'beamable_mm_beam_size' in kwargs and kwargs[
-                'beamable_mm_beam_size'] > 1:
+            'beamable_mm_beam_size'] > 1:
             self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 
@@ -53,6 +66,11 @@ ARCH_MODEL_REGISTRY['bart_large'] = BARTModelV2
 
 @replace(MultiheadAttention)
 class MultiheadAttentionV2(MultiheadAttention):
+    """Multi-headed attention.
+
+    See "Attention Is All You Need" for more details.
+    """
+
     def __init__(self,
                  embed_dim,
                  num_heads,
@@ -64,7 +82,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                  add_zero_attn=False,
                  self_attention=False,
                  encoder_decoder_attention=False):
-        super(MultiheadAttentionV2.__bases__[0], self).__init__()
+        super(MultiheadAttentionV2.__bases__[0], self).__init__()  # pylint: disable=bad-super-call
         self.embed_dim = embed_dim
         self.kdim = kdim if kdim is not None else embed_dim
         self.vdim = vdim if vdim is not None else embed_dim
@@ -73,14 +91,15 @@ class MultiheadAttentionV2(MultiheadAttention):
         self.num_heads = num_heads
         self.dropout = dropout
         self.head_dim = embed_dim // num_heads
-        assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
+        assert self.head_dim * num_heads == self.embed_dim, \
+            "embed_dim must be divisible by num_heads"
         self.scaling = self.head_dim**-0.5
 
         self.self_attention = self_attention
         self.encoder_decoder_attention = encoder_decoder_attention
 
-        assert not self.self_attention or self.qkv_same_dim, 'Self-attention requires query, key and ' \
-                                                             'value to be of the same size'
+        assert not self.self_attention or self.qkv_same_dim, \
+            'Self-attention requires query, key and value to be of the same size'  # pylint: disable=line-too-long
 
         self.k_proj = nn.Linear(self.kdim, embed_dim, bias=bias)
         self.v_proj = nn.Linear(self.vdim, embed_dim, bias=bias)
@@ -108,6 +127,10 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.enable_torch_version = True
         else:
             self.enable_torch_version = False
+
+    def apply_sparse_mask(
+        self, attn_weights, tgt_len: int, src_len: int, bsz: int):
+        return attn_weights
 
     def forward(
         self,
@@ -146,7 +169,10 @@ class MultiheadAttentionV2(MultiheadAttention):
         assert embed_dim == self.embed_dim
         assert list(query.size()) == [tgt_len, bsz, embed_dim]
 
-        if self.enable_torch_version and not self.onnx_trace and incremental_state is None and not static_kv:
+        if (self.enable_torch_version and
+            not self.onnx_trace and
+            incremental_state is None and
+            not static_kv):
             return F.multi_head_attention_forward(
                 query,
                 key,
@@ -177,7 +203,8 @@ class MultiheadAttentionV2(MultiheadAttention):
                 # previous time steps are cached - no need to recompute
                 # key and value if they are static
                 if static_kv:
-                    assert self.encoder_decoder_attention and not self.self_attention
+                    assert (self.encoder_decoder_attention and
+                            not self.self_attention)
                     key = value = None
         else:
             saved_state = None
@@ -240,22 +267,22 @@ class MultiheadAttentionV2(MultiheadAttention):
         if saved_state is not None:
             # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
             if 'prev_key' in saved_state:
-                _prev_key = saved_state["prev_key"]
-                assert _prev_key is not None
-                kv_bsz = _prev_key.size(0)
-                prev_key = _prev_key.view(kv_bsz * self.num_heads, -1,
-                                          self.head_dim)
+                saved_prev_key = saved_state["prev_key"]
+                assert saved_prev_key is not None
+                kv_bsz = saved_prev_key.size(0)
+                prev_key = saved_prev_key.view(kv_bsz * self.num_heads, -1,
+                                               self.head_dim)
                 if static_kv:
                     k = prev_key
                 else:
                     assert k is not None
                     k = torch.cat((prev_key, k), dim=1)
             if 'prev_value' in saved_state:
-                _prev_value = saved_state["prev_value"]
-                assert _prev_value is not None
-                assert kv_bsz == _prev_value.size(0)
-                prev_value = _prev_value.view(kv_bsz * self.num_heads, -1,
-                                              self.head_dim)
+                saved_prev_value = saved_state["prev_value"]
+                assert saved_prev_value is not None
+                assert kv_bsz == saved_prev_value.size(0)
+                prev_value = saved_prev_value.view(kv_bsz * self.num_heads, -1,
+                                                   self.head_dim)
                 if static_kv:
                     v = prev_value
                 else:
@@ -313,7 +340,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 ],
                                              dim=1)
 
-        if self.encoder_decoder_attention == True and bsz != kv_bsz:
+        if self.encoder_decoder_attention and bsz != kv_bsz:
             attn_weights = torch.einsum(
                 'bxhtd,bhsd->bxhts',
                 q.view(kv_bsz, -1, self.num_heads,
@@ -323,8 +350,8 @@ class MultiheadAttentionV2(MultiheadAttention):
             attn_weights = attn_weights.reshape(-1, *attn_weights.size()[-2:])
         else:
             attn_weights = torch.bmm(q, k.transpose(1, 2))
-        attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len,
-                                              bsz)
+        attn_weights = self.apply_sparse_mask(
+            attn_weights, tgt_len, src_len, bsz)
 
         assert list(
             attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
@@ -365,7 +392,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                                training=self.training)
         assert v is not None
 
-        if self.encoder_decoder_attention == True and bsz != kv_bsz:
+        if self.encoder_decoder_attention and bsz != kv_bsz:
             attn = torch.einsum(
                 'bxhts,bhsd->bxhtd',
                 attn_probs.view(kv_bsz, -1, self.num_heads,
@@ -405,7 +432,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 if input_buffer[k] is not None:
                     if self.encoder_decoder_attention:
                         if input_buffer_k.size(
-                                0) * self.beam_size == new_order.size(0):
+                            0) * self.beam_size == new_order.size(0):
                             return incremental_state
                         elif self.beam_size > 1:
                             input_buffer[k] = input_buffer_k.index_select(
@@ -430,6 +457,11 @@ class MultiheadAttentionV2(MultiheadAttention):
 
 @replace(SequenceGenerator)
 class SequenceGeneratorV2(SequenceGenerator):
+    """
+    Sequence Generator is optimized by reducing the cached memory usage
+    during the encoding period for beam search.
+    """
+
     @torch.no_grad()
     def _generate(self,
                   model,
@@ -567,7 +599,7 @@ class SequenceGeneratorV2(SequenceGenerator):
 
             sents_seen = set()
             for i, (idx, score) in enumerate(
-                    zip(bbsz_idx.tolist(), eos_scores.tolist())):
+                zip(bbsz_idx.tolist(), eos_scores.tolist())):
                 unfin_idx = idx // beam_size
                 sent = unfin_idx + cum_unfin[unfin_idx]
 
@@ -634,7 +666,7 @@ class SequenceGeneratorV2(SequenceGenerator):
 
             # handle prefix tokens (possibly with different lengths)
             if prefix_tokens is not None and step < prefix_tokens.size(
-                    1) and step < max_len:
+                1) and step < max_len:
                 prefix_toks = prefix_tokens[:, step].unsqueeze(-1).repeat(
                     1, beam_size).view(-1)
                 prefix_lprobs = lprobs.gather(-1, prefix_toks.unsqueeze(-1))
@@ -674,12 +706,13 @@ class SequenceGeneratorV2(SequenceGenerator):
                 for bbsz_idx in range(bsz * beam_size):
                     gen_tokens = cpu_tokens[bbsz_idx].tolist()
                     for ngram in zip(*[
-                            gen_tokens[i:]
-                            for i in range(self.no_repeat_ngram_size)
+                        gen_tokens[i:]
+                        for i in range(self.no_repeat_ngram_size)
                     ]):
                         if ngram[-1] != self.pad:
                             gen_ngrams[bbsz_idx][tuple(ngram[:-1])] = \
-                                    gen_ngrams[bbsz_idx].get(tuple(ngram[:-1]), []) + [ngram[-1]]
+                                gen_ngrams[bbsz_idx].get(tuple(ngram[:-1]), [])\
+                                + [ngram[-1]]
 
             # Record attention scores
             if avg_attn_scores is not None:
@@ -883,8 +916,8 @@ class SequenceGeneratorV2(SequenceGenerator):
             reorder_state = active_bbsz_idx
 
         # sort by score descending
-        for sent in range(len(finalized)):
-            finalized[sent] = sorted(finalized[sent],
-                                     key=lambda r: r['score'],
-                                     reverse=True)
+        for sent_id, _ in enumerate(finalized):
+            finalized[sent_id] = sorted(finalized[sent_id],
+                                        key=lambda r: r['score'],
+                                        reverse=True)
         return finalized

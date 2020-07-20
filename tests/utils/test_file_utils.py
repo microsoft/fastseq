@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Test the file_util functions."""
+
 import os
 
 from absl.testing import absltest, parameterized
@@ -10,6 +12,8 @@ from fastseq.utils.test_utils import TestCaseBase
 
 
 class FileUtilsTest(TestCaseBase):
+    """Test the file_util functions."""
+
     def setUp(self):
         self.parent_dir_handle = get_temp_dir()
         self.parent_dir = self.parent_dir_handle.name
@@ -24,6 +28,14 @@ class FileUtilsTest(TestCaseBase):
         'exist_ok': False,
     })
     def test_make_dirs(self, directory, mode, exist_ok):
+        """Test `make_dirs()`
+
+        Args:
+            directory (string): file folder.
+            mode (int): directory mode.
+            exist_ok (bool): indicate whether it is ok if the input directory
+                             exists.
+        """
         path = os.path.join(self.parent_dir, directory)
         make_dirs(path, mode, exist_ok)
         self.assertTrue(os.path.exists(path), True)
@@ -35,6 +47,16 @@ class FileUtilsTest(TestCaseBase):
         'target_file_name': 'bart.base.tar.gz',
     })
     def disable_test_wget(self, url, target_file_name):
+        """Test `wget()`.
+
+        It is disabled because it is time consuming to download the model file.
+        Once we find a small test file, it will be enabled. Currently, `wget()`
+        tests are coverred by `test_wget_and_decompress_file()`.
+
+        Args:
+            url (string): download url.
+            target_file_name (target): the expected file name.
+        """
         target_file = os.path.join(self.parent_dir, target_file_name)
         with open(target_file, "xb") as output_file:
             wget(url, output_file)
@@ -49,6 +71,13 @@ class FileUtilsTest(TestCaseBase):
     })
     def test_wget_and_decompress_file(self, tar_file_url, tar_file_name,
                                       output_folder):
+        """Test `wget()` and `decompress_file().
+
+        Args:
+            tar_file_url (string): download url for tar file.
+            tar_file_name (string): tar file name.
+            output_folder (string): directory for decompressing the tar file.
+        """
         # download the tar file.
         tar_file_path = os.path.join(self.parent_dir, tar_file_name)
         with open(tar_file_path, "xb") as tar_file:

@@ -62,6 +62,22 @@ python setup.py sdist bdist_wheel
 python -m twine upload --repository testpypi dist/*
 ```
 
+# Code Style
+
+## Python coding style
+
+Changes to Python code should conform to [PEP 8](https://www.python.org/dev/peps/pep-0008/).
+
+Use `pylint` to check your Python changes. `yapf` can be used to help format the python code:
+
+```bash
+# format the code by yapf
+yapf --style pep8 -i -r PYTHON_FILE/PACKAGE
+
+# run pylint check
+pylint --rcfile=.pylintrc  PYTHON_FILE/PACKAGE
+```
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a

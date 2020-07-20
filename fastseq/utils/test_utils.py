@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+"""Utilities to make it easy to run unit tests"""
+
 import os
 from statistics import mean, stdev
 import time
@@ -13,6 +15,7 @@ from fastseq.utils.api_decorator import get_class
 
 class TestCaseBase(parameterized.TestCase):
     """Base class used for unittest."""
+
     def tearDown(self):
         print('Log output path: {}'.format(logging.get_log_file_name()))
 
@@ -27,11 +30,14 @@ def benchmark(repeat_times=3):
     """A decorator used to benchmark a method.
 
     Args:
-        repeat_times (int, optional): repeat times to run the method. Defaults to 3.
-        
+        repeat_times (int, optional): repeat times to run the method. Defaults
+                                      to 3.
+
     Returns:
-        function: a function to repeatedly run the method and record the execution metrics.
+        function: a function to repeatedly run the method and record the
+                  execution metrics.
     """
+
     def decorator(func):
         def timeit(*args, **kwargs):
             exec_times = []
@@ -46,7 +52,7 @@ def benchmark(repeat_times=3):
             avg_time = mean(exec_times)
             stdev_time = stdev(exec_times) if repeat_times > 1 else 0.0
             logging.info(
-                "Benchmarking for {} with {} repeat executions: avg = {} seconds, stdev = {}"
+                "Benchmarking for {} with {} repeat executions: avg = {} seconds, stdev = {}"  # pylint: disable=line-too-long
                 .format(func_name, repeat_times, avg_time, stdev_time))
 
         return timeit
