@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Apply the beam search optimization to fairseq-latest"""
+"""Apply the beam search optimizations to fairseq-latest"""
 
 import math
 from typing import Dict, List, Optional, Tuple

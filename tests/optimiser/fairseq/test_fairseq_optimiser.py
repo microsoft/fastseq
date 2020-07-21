@@ -22,9 +22,9 @@ from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
 class FairseqBeamSearchOptimiserTest(TestCaseBase):
     """Test the optimizations on FairSeq
 
-    `bart.large.cnn` is used for benchmarking. If it does not exist, it will be
-    downloaded first. As the the model is big, it will take a while to download.
-    Once downloaded, it will be cached for future usage.
+    `bart.large.cnn` model is used for benchmarking. If it does not exist, it
+    will be downloaded first. As the the model is big, it will take a while to
+    download. Once downloaded, it will be cached for future usage.
     """
 
     def setUp(self):

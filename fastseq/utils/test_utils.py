@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Utilities to make it easy to run unit tests"""
+"""Utilities to make it easy to add unit tests"""
 
 import os
 from statistics import mean, stdev

@@ -3,12 +3,11 @@
 
 """
 Automatically apply the optimizations if the supported versions of FairSeq
-is detected.
+are detected.
 """
 
 from absl import logging
 
-# Automatically optimize fairseq if it has been installed.
 try:
     import fairseq
     from fastseq.optimiser.fairseq.beam_search_optimiser import apply_fairseq_optimization

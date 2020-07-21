@@ -1,13 +1,10 @@
 <h1 align="Center"> <p> FastSeq </p> </h1>
 
-FairSeq provides fast performance and efficient implementations of the popular sequence
-models for text generation, summarization, and translation tasks. It can also
-automatically and significantly optimize the performance of the pupular NLP
-toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by `import fastseq`.
+FairSeq provides efficient implementations of the popular sequence models with fast performance for text generation, summarization, and translation tasks. It can also automatically and significantly optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by `import fastseq`.
 
 # Benchmark
 
-- on [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz)
+- Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) on NVIDIA-V100
 
 |    BatchSize   |       32      |       64       |       128      |
 |:--------------:|:-------------:|:--------------:|:--------------:|
@@ -16,21 +13,20 @@ toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by `import fastseq
 |  FairSeq-0.9.0 | 4.2 samples/s |       OOM      |       OOM      |
 | FastSeq-0.9.0  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
 where:
-  - `FairSeq-lasest` refers to [the master branch](https://github.com/pytorch/fairseq) 
+  - `FairSeq-lasest` refers to [the master branch](https://github.com/pytorch/fairseq)
   of FairSeq
-  - `FairSeq-0.9.0` refers to [the branch v0.9.0](https://github.com/pytorch/fairseq/tree/v0.9.0) 
+  - `FairSeq-0.9.0` refers to [the branch v0.9.0](https://github.com/pytorch/fairseq/tree/v0.9.0)
   of FairSeq
   - `FastSeq-latest` runs `FastSeq` on `FairSeq-latest`
   - `FastSeq-0.9.0` runs `FastSeq` on `FairSeq-0.9.0`
 
 
 
-# Requirements and Installation
+# Requirements and installation
 
 * Python version >= 3.6
 * [torch](http://pytorch.org/) >= 1.4.0
 * [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
-* [absl-py](https://github.com/abseil/abseil-py) >= 0.9.0
 
 ```bash
 git clone https://github.com/microsoft/fastseq
@@ -66,9 +62,7 @@ python -m twine upload --repository testpypi dist/*
 
 ## Python coding style
 
-Changes to Python code should conform to [PEP 8](https://www.python.org/dev/peps/pep-0008/).
-
-Use `pylint` to check your Python changes. `yapf` can be used to help format the python code:
+Changes to Python code should conform to [PEP 8](https://www.python.org/dev/peps/pep-0008/). `yapf` can be used to help format the python code, and use `pylint` to check your Python changes.
 
 ```bash
 # format the code by yapf

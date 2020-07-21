@@ -20,8 +20,8 @@ def get_fairseq_version():
     """
 
     version = fairseq.__version__
-    # TODO: Is there a better way to identify the latest release and the master
-    # branch?
+    # TODO: find a better way to identify the latest release and the master
+    # branch.
     if version == '0.9.0' and hasattr(SequenceGenerator, 'finalize_hypos'):
         return LATEST_VERSION
     return version
@@ -39,6 +39,7 @@ def apply_fairseq_optimization():
         import fastseq.optimiser.fairseq.beam_search_optimiser_v1  # pylint: disable=import-outside-toplevel
         logging.info(message)
         return
+
     if version == LATEST_VERSION:
         import fastseq.optimiser.fairseq.beam_search_optimiser_v2  # pylint: disable=import-outside-toplevel
         logging.info(message)

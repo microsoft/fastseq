@@ -2,19 +2,16 @@
 # Licensed under the MIT License.
 
 """
-Decorators used to revise the code in the run time from the third-party
-libraries.
+Decorators for revising the code in runtime.
 """
 
 import inspect
-import logging
 import sys
 
 from types import ModuleType
-
 from functools import wraps
 
-logger = logging.getLogger(__name__)
+from absl import logging
 
 
 def get_class(method):
@@ -43,10 +40,10 @@ def get_class(method):
 
 
 def override_method(method):
-    """A decorator to override the unbounded method.
+    """A decorator to override the unbound method.
 
-    Note that the class which contains the unbound method can not be defined
-    inside another class.
+    Due to the limitation of `get_class()`, the class which contains the input
+    unbound method can not be defined inside another class.
 
     Example:
 
@@ -61,7 +58,7 @@ def override_method(method):
     ```
 
     Args:
-        method (object): the unbounded method to be overried.
+        method (object): the unbound method to be overried.
 
     Raises:
         ValueError: if `method` is not a class unbound method.
@@ -72,11 +69,11 @@ def override_method(method):
     cls = get_class(method)
     if not cls:
         raise ValueError(
-            "Please input a valid class unbounded method instead of {}".format(
+            "Please input a valid class unbound method instead of {}".format(
                 method.__name__))
 
     def decorator(new_method):
-        logger.warning("The method `{}`is replaced by `{}`".format(
+        logging.warning("The method `{}`is replaced by `{}`".format(
             method.__qualname__, new_method.__qualname__))
 
         @wraps(new_method)
@@ -90,10 +87,10 @@ def override_method(method):
 
 
 def add_method(cls):
-    """A decorator to add a new method to the specified class.
+    """A decorator to add a new unbound method to the specified class.
 
-    Note that the class which contains the unbound method can not be defined
-    inside another class.
+    Due to the limitation of `get_class()`, the class which contains the input
+    unbound method can not be defined inside another class.
 
     Example:
 
@@ -115,7 +112,7 @@ def add_method(cls):
 
     """
     def decorator(method):
-        logger.warning("A new method `{}`is added to `class {}`".format(
+        logging.warning("A new method `{}`is added to `class {}`".format(
             method.__name__, cls.__name__))
 
         @wraps(method)
@@ -156,7 +153,7 @@ def export_api(module_name, obj_name):
         if hasattr(sys.modules[module_name], obj_name):
             delattr(sys.modules[module_name], obj_name)
         setattr(sys.modules[module_name], obj_name, obj)
-        logger.info("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
+        logging.info("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
         return obj
 
     return decorator
@@ -193,7 +190,7 @@ def replace(target_obj):
                 and v.__dict__[target_obj.__name__] == target_obj):
                 delattr(sys.modules[k], target_obj.__name__)
                 setattr(sys.modules[k], target_obj.__name__, new_obj)
-                logger.info("In module {}, {} is replaced by {}".format(
+                logging.info("In module {}, {} is replaced by {}".format(
                     k, target_obj, new_obj))
         return new_obj
 

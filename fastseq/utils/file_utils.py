@@ -79,15 +79,6 @@ def decompress_file(input_compressed_file, output_dir):
     lock_file = os.path.join(output_dir, '.lock')
     make_dirs(output_dir, exist_ok=True)
     with FileLock(lock_file):
-        if is_zipfile(input_compressed_file):
-            with ZipFile(input_compressed_file, "r") as zip_file:
-                extracted_folder_name = zip_file.namelist()[0]
-                extracted_dir = os.path.join(output_dir, extracted_folder_name)
-                shutil.rmtree(extracted_dir, ignore_errors=True)
-                zip_file.extractall(output_dir)
-                zip_file.close()
-                return extracted_dir
-
         if tarfile.is_tarfile(input_compressed_file):
             tar_file = tarfile.open(input_compressed_file)
             extracted_folder_name = tar_file.getnames()[0]
@@ -96,6 +87,16 @@ def decompress_file(input_compressed_file, output_dir):
             tar_file.extractall(output_dir)
             tar_file.close()
             return extracted_dir
+
+        # TODO: add a test case for .zip file.
+        if is_zipfile(input_compressed_file):
+            with ZipFile(input_compressed_file, "r") as zip_file:
+                extracted_folder_name = zip_file.namelist()[0]
+                extracted_dir = os.path.join(output_dir, extracted_folder_name)
+                shutil.rmtree(extracted_dir, ignore_errors=True)
+                zip_file.extractall(output_dir)
+                zip_file.close()
+                return extracted_dir
 
         raise ValueError(
             "The input file {} is not supported yet, please input .zip or .tar.gz file"  # pylint: disable=line-too-long

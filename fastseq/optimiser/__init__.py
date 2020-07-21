@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Import the optimizations for FairSeq."""
+"""Import the optimizations."""
 
 import fastseq.optimiser.fairseq
