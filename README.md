@@ -1,25 +1,22 @@
 <h1 align="Center"> <p> FastSeq </p> </h1>
 
-FairSeq provides efficient implementations of the popular sequence models with fast performance for text generation, summarization, and translation tasks. It can also automatically and significantly optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by `import fastseq`.
+FastSeq provides efficient implementations of the popular sequence models with fast performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
+
 
 # Benchmark
 
 - Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) on NVIDIA-V100
 
-|    BatchSize   |       32      |       64       |       128      |
-|:--------------:|:-------------:|:--------------:|:--------------:|
-| FairSeq-latest | 4.3 samples/s |       OOM      |       OOM      |
-| FastSeq-latest | 7.9 samples/s | 10.5 samples/s | 11.3 samples/s |
-|  FairSeq-0.9.0 | 4.2 samples/s |       OOM      |       OOM      |
-| FastSeq-0.9.0  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
+|         BatchSize        |       32      |       64       |       128      |
+|:------------------------:|:-------------:|:--------------:|:--------------:|
+|      FairSeq-latest      | 4.3 samples/s |       OOM      |       OOM      |
+| FairSeq-latest + FastSeq | 7.9 samples/s | 10.5 samples/s | 11.3 samples/s |
 where:
   - `FairSeq-lasest` refers to [the master branch](https://github.com/pytorch/fairseq)
   of FairSeq
-  - `FairSeq-0.9.0` refers to [the branch v0.9.0](https://github.com/pytorch/fairseq/tree/v0.9.0)
-  of FairSeq
-  - `FastSeq-latest` runs `FastSeq` on `FairSeq-latest`
-  - `FastSeq-0.9.0` runs `FastSeq` on `FairSeq-0.9.0`
-
+  - `FairSeq-latest + FastSeq` runs `FastSeq` on top of `FairSeq-latest`
+  - Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
+  - More details can be found at [tests/optimiser/fairseq/benchmark_fairseq_optimiser.py](tests/optimiser/fairseq/benchmark_fairseq_optimiser.py)
 
 
 # Requirements and installation
@@ -34,7 +31,18 @@ cd fastseq
 pip install --editable ./
 ```
 
-# Run
+
+# Usage
+
+## Use `fastseq`
+
+Only one line of code change is needed to use the optimizations provided by `FastSeq`.
+
+```Python
+# import fastseq at the beginning of your program
+import fastseq
+```
+
 
 ## Run tests
 
@@ -42,20 +50,18 @@ pip install --editable ./
 # run a single test.
 python tests/optimiser/fairseq/test_fairseq_optimiser.py
 
+# run benchmark.
 python tests/optimiser/fairseq/benchmark_fairseq_optimiser.py
 
 # run all the tests.
 python -m unittest discover -s tests/ -p '*.py'
 ```
 
-# Build
+## Build
 
 ```bash
 # build package
 python setup.py sdist bdist_wheel
-
-# upload package
-python -m twine upload --repository testpypi dist/*
 ```
 
 # Code Style

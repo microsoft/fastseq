@@ -71,10 +71,11 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
             beam_size (int): beam size.
             batch_size (int): batch size.
             need_attn (bool): indicate if attention is needed.
-            lenpen (float):
-            max_len_b (int):
-            min_len (int):
-            no_repeat_ngram_size (int):
+            lenpen (float): length penalty, where <1.0 favors shorter, >1.0
+                            favors longer sentences.
+            max_len_b (int): max length of generated text.
+            min_len (int): min length of generated text.
+            no_repeat_ngram_size (int): size of no repeat gram.
         """
         self.bart.model.make_generation_fast_(beamable_mm_beam_size=beam_size,
                                               need_attn=need_attn)
