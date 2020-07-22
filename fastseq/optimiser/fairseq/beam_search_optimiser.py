@@ -4,6 +4,8 @@
 """Import the optimization for beam search related parts in FairSeq."""
 
 from absl import logging
+from packaging import version
+
 import fairseq
 from fairseq.sequence_generator import SequenceGenerator
 
@@ -19,12 +21,12 @@ def get_fairseq_version():
         A string of fairseq version.
     """
 
-    version = fairseq.__version__
+    v = fairseq.__version__
     # TODO: find a better way to identify the latest release and the master
     # branch.
-    if version == '0.9.0' and hasattr(SequenceGenerator, 'finalize_hypos'):
+    if v == '0.9.0' and hasattr(SequenceGenerator, 'finalize_hypos'):
         return LATEST_VERSION
-    return version
+    return v
 
 
 def apply_fairseq_optimization():
@@ -33,18 +35,18 @@ def apply_fairseq_optimization():
     The optimized classes and functions are replaced in runtime. Currently, only
     `0.9.0` and `latest` versions of fairseq are supported.
     """
-    version = get_fairseq_version()
-    message = "fairseq == {} has been optimized.".format(version)
-    if version == '0.9.0':
+    v = version.parse(get_fairseq_version())
+
+    if v == version.parse('0.9.0'):
         import fastseq.optimiser.fairseq.beam_search_optimiser_v1  # pylint: disable=import-outside-toplevel
-        logging.info(message)
+        logging.info("fairseq == {} has been optimized.".format(v))
         return
 
-    if version == LATEST_VERSION:
+    if v > version.parse('0.9.0') or isinstance(v, version.LegacyVersion):
         import fastseq.optimiser.fairseq.beam_search_optimiser_v2  # pylint: disable=import-outside-toplevel
-        logging.info(message)
+        logging.info("fairseq == {} has been optimized.".format(v))
         return
 
     logging.warning(
         "fairseq == {} is not supported yet, please upgrade it to 0.9.0 or above" # pylint: disable=line-too-long
-        .format(version))
+        .format(v))

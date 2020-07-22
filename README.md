@@ -1,36 +1,39 @@
 <h1 align="Center"> <p> FastSeq </p> </h1>
 
-FastSeq provides efficient implementations of the popular sequence models with fast performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
+# Introduction
 
+FastSeq provides efficient implementations of the popular sequence models with fast performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
 
 # Benchmark
 
-- Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) on NVIDIA-V100
+- Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) on NVIDIA-V100-16GB
 
 |         BatchSize        |       32      |       64       |       128      |
 |:------------------------:|:-------------:|:--------------:|:--------------:|
 |      FairSeq-latest      | 4.3 samples/s |       OOM      |       OOM      |
 | FairSeq-latest + FastSeq | 7.9 samples/s | 10.5 samples/s | 11.3 samples/s |
 where:
-  - `FairSeq-lasest` refers to [the master branch](https://github.com/pytorch/fairseq)
-  of FairSeq
-  - `FairSeq-latest + FastSeq` runs `FastSeq` on top of `FairSeq-latest`
-  - Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
-  - More details can be found at [tests/optimiser/fairseq/benchmark_fairseq_optimiser.py](tests/optimiser/fairseq/benchmark_fairseq_optimiser.py)
 
+- `FairSeq-lasest` refers to [the master branch](https://github.com/pytorch/fairseq)
+  of FairSeq
+
+- `FairSeq-latest + FastSeq` runs `FastSeq` on top of `FairSeq-latest`
+
+- Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
+
+- More details can be found at [tests/optimiser/fairseq/benchmark_fairseq_optimiser.py](tests/optimiser/fairseq/benchmark_fairseq_optimiser.py)
 
 # Requirements and installation
 
-* Python version >= 3.6
-* [torch](http://pytorch.org/) >= 1.4.0
-* [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
+- Python version >= 3.6
+- [torch](http://pytorch.org/) >= 1.4.0
+- [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
 
 ```bash
 git clone https://github.com/microsoft/fastseq
 cd fastseq
 pip install --editable ./
 ```
-
 
 # Usage
 
@@ -41,8 +44,16 @@ Only one line of code change is needed to use the optimizations provided by `Fas
 ```Python
 # import fastseq at the beginning of your program
 import fastseq
-```
+import torch
 
+# Download BART already finetuned for MNLI
+bart = torch.hub.load('pytorch/fairseq', 'bart.large.mnli')
+bart.eval()  # disable dropout for evaluation
+
+# Encode a pair of sentences and make a prediction
+tokens = bart.encode('FastSeq optimizes FairSeq.', 'FastSeq accelerates FairSeq.')
+bart.predict('mnli', tokens).argmax()  # 2: entailment
+```
 
 ## Run tests
 
