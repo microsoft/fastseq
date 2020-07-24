@@ -83,7 +83,6 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         self.bart.eval()
         self.bart.half()
         count = 0
-        sample_num = (128 / batch_size) * batch_size
         outputs = []
         with open(self.source_path, 'rt', encoding="utf-8") as source:
             slines = []
@@ -113,7 +112,7 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
 
             for i, output in enumerate(outputs):
                 if output != self.expected_outputs[i]:
-                    logging.error("\n{} \n v.s. \n{}".format(
+                    logging.error("\n{} \n v.s. \n{}\n".format(
                         output, self.expected_outputs[i]))
 
 

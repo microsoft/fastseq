@@ -93,45 +93,11 @@ class MultiheadAttentionV2(MultiheadAttention):
         q_noise=0.0,
         qn_block_size=8,
     ):
-        #super().__init__()
-        super(MultiheadAttentionV2.__bases__[0], self).__init__()  # pylint: disable=bad-super-call
-        self.embed_dim = embed_dim
-        self.kdim = kdim if kdim is not None else embed_dim
-        self.vdim = vdim if vdim is not None else embed_dim
-        self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
-        self.num_heads = num_heads
+        super().__init__(embed_dim, num_heads, kdim, vdim, dropout, bias,
+                         add_bias_kv, add_zero_attn, self_attention,
+                         encoder_decoder_attention, q_noise, qn_block_size)
         self.dropout = dropout
-        self.head_dim = embed_dim // num_heads
-        assert (self.head_dim * num_heads == self.embed_dim
-                ), "embed_dim must be divisible by num_heads"
-        self.scaling = self.head_dim**-0.5
-        self.self_attention = self_attention
-        self.encoder_decoder_attention = encoder_decoder_attention
-        assert not self.self_attention or self.qkv_same_dim, (
-            "Self-attention requires query, key and "
-            "value to be of the same size")
-        self.k_proj = quant_noise(nn.Linear(self.kdim, embed_dim, bias=bias),
-                                  q_noise, qn_block_size)
-        self.v_proj = quant_noise(nn.Linear(self.vdim, embed_dim, bias=bias),
-                                  q_noise, qn_block_size)
-        self.q_proj = quant_noise(nn.Linear(embed_dim, embed_dim, bias=bias),
-                                  q_noise, qn_block_size)
-        self.out_proj = quant_noise(nn.Linear(embed_dim, embed_dim, bias=bias),
-                                    q_noise, qn_block_size)
-        if add_bias_kv:
-            self.bias_k = Parameter(torch.Tensor(1, 1, embed_dim))
-            self.bias_v = Parameter(torch.Tensor(1, 1, embed_dim))
-        else:
-            self.bias_k = self.bias_v = None
-
-        self.add_zero_attn = add_zero_attn
-
         self.beam_size = 1
-
-        self.reset_parameters()
-
-        self.onnx_trace = False
-        self.tpu = False
 
     def forward(
         self,
@@ -477,12 +443,17 @@ class SequenceGeneratorV2(SequenceGenerator):
         ]
         cpu_tokens = tokens.cpu()[:, :step + 1]
         for bbsz_idx in range(bsz * beam_size):
-            gen_tokens: List[int] = cpu_tokens[bbsz_idx].tolist()
-            for ngram in self.transpose_list(
-                [gen_tokens[i:] for i in range(self.no_repeat_ngram_size)]):
-                key = ",".join([str(x) for x in ngram[:-1]])
-                gen_ngrams[bbsz_idx][key] = gen_ngrams[bbsz_idx].get(
-                    key, torch.jit.annotate(List[int], [])) + [ngram[-1]]
+            gen_tokens = cpu_tokens[bbsz_idx].tolist()
+            for ngram in zip(*[
+                gen_tokens[i:]
+                for i in range(self.no_repeat_ngram_size)
+            ]):
+                if ngram[-1] != self.pad:
+                    gen_ngrams[bbsz_idx][tuple(ngram[:-1])] = \
+                        gen_ngrams[bbsz_idx].get(tuple(ngram[:-1]), [])\
+                        + [ngram[-1]]
+
+        banned_tokens = []
         if step + 2 - self.no_repeat_ngram_size >= 0:
             # no banned tokens if we haven't generated no_repeat_ngram_size tokens yet
             banned_tokens = [

@@ -31,7 +31,7 @@ class FileUtilsTest(TestCaseBase):
         """Test `make_dirs()`
 
         Args:
-            directory (string): file folder.
+            directory (str): file folder.
             mode (int): directory mode.
             exist_ok (bool): indicate whether it is ok if the input directory
                              exists.
@@ -54,7 +54,7 @@ class FileUtilsTest(TestCaseBase):
         tests are coverred by `test_wget_and_decompress_file()`.
 
         Args:
-            url (string): download url.
+            url (str): download url.
             target_file_name (target): the expected file name.
         """
         target_file = os.path.join(self.parent_dir, target_file_name)
@@ -74,9 +74,9 @@ class FileUtilsTest(TestCaseBase):
         """Test `wget()` and `decompress_file().
 
         Args:
-            tar_file_url (string): download url for tar file.
-            tar_file_name (string): tar file name.
-            output_folder (string): directory for decompressing the tar file.
+            tar_file_url (str): download url for tar file.
+            tar_file_name (str): tar file name.
+            output_folder (str): directory for decompressing the tar file.
         """
         # download the tar file.
         tar_file_path = os.path.join(self.parent_dir, tar_file_name)

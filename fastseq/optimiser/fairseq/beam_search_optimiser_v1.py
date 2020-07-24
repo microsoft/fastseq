@@ -8,14 +8,13 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 from fairseq import utils
 from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY
 from fairseq.models.bart.model import BARTModel
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.sequence_generator import SequenceGenerator
-from torch import Tensor, nn
-from torch.nn import Parameter
 
 from fastseq.utils.api_decorator import replace
 
@@ -82,51 +81,12 @@ class MultiheadAttentionV2(MultiheadAttention):
                  add_zero_attn=False,
                  self_attention=False,
                  encoder_decoder_attention=False):
-        super(MultiheadAttentionV2.__bases__[0], self).__init__()  # pylint: disable=bad-super-call
-        self.embed_dim = embed_dim
-        self.kdim = kdim if kdim is not None else embed_dim
-        self.vdim = vdim if vdim is not None else embed_dim
-        self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
-
-        self.num_heads = num_heads
-        self.dropout = dropout
-        self.head_dim = embed_dim // num_heads
-        assert self.head_dim * num_heads == self.embed_dim, \
-            "embed_dim must be divisible by num_heads"
-        self.scaling = self.head_dim**-0.5
-
-        self.self_attention = self_attention
-        self.encoder_decoder_attention = encoder_decoder_attention
-
-        assert not self.self_attention or self.qkv_same_dim, \
-            'Self-attention requires query, key and value to be of the same size'  # pylint: disable=line-too-long
-
-        self.k_proj = nn.Linear(self.kdim, embed_dim, bias=bias)
-        self.v_proj = nn.Linear(self.vdim, embed_dim, bias=bias)
-        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-
-        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
-
-        if add_bias_kv:
-            self.bias_k = Parameter(torch.Tensor(1, 1, embed_dim))
-            self.bias_v = Parameter(torch.Tensor(1, 1, embed_dim))
-        else:
-            self.bias_k = self.bias_v = None
-
-        self.add_zero_attn = add_zero_attn
+        super().__init__(embed_dim, num_heads, kdim, vdim, dropout, bias,
+                         add_bias_kv, add_zero_attn, self_attention,
+                         encoder_decoder_attention)
 
         self.beam_size = 1
-
-        self.reset_parameters()
-
-        self.onnx_trace = False
         self.tpu = False
-
-        self.enable_torch_version = False
-        if hasattr(F, "multi_head_attention_forward"):
-            self.enable_torch_version = True
-        else:
-            self.enable_torch_version = False
 
     def apply_sparse_mask(
         self, attn_weights, tgt_len: int, src_len: int, bsz: int):

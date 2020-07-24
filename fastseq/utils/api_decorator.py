@@ -138,8 +138,8 @@ def export_api(module_name, obj_name):
     ```
 
     Args:
-        module_name (string): the module name
-        obj_name (string): the object name, which can be the class name or
+        module_name (str): the module name
+        obj_name (str): the object name, which can be the class name or
                            function name.
 
     Returns:

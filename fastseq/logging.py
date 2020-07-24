@@ -20,7 +20,7 @@ def set_log_level(log_level=None):
     If there is no log level specified, it will be default to `INFO`.
 
     Args:
-        log_level (int/string, optional): the log level. Defaults to None.
+        log_level (int/str, optional): the log level. Defaults to None.
     """
 
     level = os.environ.get(

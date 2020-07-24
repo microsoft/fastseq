@@ -15,7 +15,7 @@ setup(
     long_description_content_type="text/markdown",
     keywords="NLP NLG deep learning transformer sequence pytorch tensorflow BERT GPT GPT-2 Microsoft",
     license="MIT",
-    url="https://github.com/feihugis/adsbrain-generation",
+    url="https://github.com/microsoft/fastseq",
     packages=find_packages(where=".", exclude=["tests", "__py_cache__"]),
     setup_requires=[
         'cython',
@@ -33,11 +33,16 @@ setup(
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
+        "License :: MIT",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
+    entry_points={
+        'console_scripts': [
+            'fastseq-generate = client.generate:cli_main',
+        ],
+    },
 )

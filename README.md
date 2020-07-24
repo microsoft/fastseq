@@ -10,8 +10,8 @@ FastSeq provides efficient implementations of the popular sequence models with f
 
 |         BatchSize        |       32      |       64       |       128      |
 |:------------------------:|:-------------:|:--------------:|:--------------:|
-|      FairSeq-latest      | 4.3 samples/s |       OOM      |       OOM      |
-| FairSeq-latest + FastSeq | 7.9 samples/s | 10.5 samples/s | 11.3 samples/s |
+|       FairSeq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
+| FairSeq-0.9.0 + FastSeq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
 where:
 
 - `FairSeq-lasest` refers to [the master branch](https://github.com/pytorch/fairseq)
@@ -37,7 +37,7 @@ pip install --editable ./
 
 # Usage
 
-## Use `fastseq`
+## Example
 
 Only one line of code change is needed to use the optimizations provided by `FastSeq`.
 
