@@ -1,12 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""
-Test the optimizations on FairSeq to make sure the changes do not affect the
-model accuracy.
-"""
+"""Benchmark the optimizations on FairSeq"""
 
 import os
+import time
 
 import torch
 from absl import logging
@@ -16,20 +14,19 @@ from fairseq.models.bart.model import BARTModel
 import fastseq
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
-                                      CACHED_BART_MODEL_PATHS, TestCaseBase)
+                                      CACHED_BART_MODEL_PATHS, BenchmarkBase,
+                                      benchmark)
 
 
-class FairseqBeamSearchOptimiserTest(TestCaseBase):
-    """Test the optimizations on FairSeq
+class FairseqBeamSearchOptimizerBenchmark(BenchmarkBase):
+    """Benchmark the optimizations on FairSeq
 
     `bart.large.cnn` model is used for benchmarking. If it does not exist, it
     will be downloaded first. As the the model is big, it will take a while to
     download. Once downloaded, it will be cached for future usage.
     """
-
     def setUp(self):
-        super(FairseqBeamSearchOptimiserTest, self).setUp()
-        # TODO: create a dummy model instead of loading a large-size model.
+        super(FairseqBeamSearchOptimizerBenchmark, self).setUp()
         if not os.path.exists(CACHED_BART_MODEL_PATHS['bart.large.cnn']):
             make_dirs(CACHED_BART_MODEL_DIR, exist_ok=True)
             tar_model_path = os.path.join(CACHED_BART_MODEL_DIR,
@@ -41,31 +38,42 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         self.bart = BARTModel.from_pretrained(
             CACHED_BART_MODEL_PATHS['bart.large.cnn'],
             checkpoint_file='model.pt')
+        self.source_path = 'tests/optimizer/fairseq/data/cnndm_128.txt'
 
-        self.source_path = 'tests/optimiser/fairseq/data/cnndm_128.txt'
-
-        # read the expected output.
-        self.expected_output_path = 'tests/optimiser/fairseq/data/expected_output.hypo'  # pylint: disable=line-too-long
-        self.expected_outputs = []
-        with open(self.expected_output_path, 'rt',
-                  encoding="utf-8") as expected_output_file:
-            for line in expected_output_file:
-                self.expected_outputs.append(line.strip())
-
-    @parameterized.named_parameters({
-        'testcase_name': 'Normal',
-        'beam_size': 4,
-        'batch_size': 128,
-        'need_attn': False,
-        'lenpen': 2.0,
-        'max_len_b': 140,
-        'min_len': 55,
-        'no_repeat_ngram_size': 3
-    })
-    def test_beam_search_optimiser(self, beam_size, batch_size, need_attn,
+    @parameterized.named_parameters(
+        {
+            'testcase_name': 'BSZ=32',
+            'beam_size': 4,
+            'batch_size': 32,
+            'need_attn': False,
+            'lenpen': 2.0,
+            'max_len_b': 140,
+            'min_len': 55,
+            'no_repeat_ngram_size': 3
+        }, {
+            'testcase_name': 'BSZ=64',
+            'beam_size': 4,
+            'batch_size': 64,
+            'need_attn': False,
+            'lenpen': 2.0,
+            'max_len_b': 140,
+            'min_len': 55,
+            'no_repeat_ngram_size': 3
+        }, {
+            'testcase_name': 'BSZ=128',
+            'beam_size': 4,
+            'batch_size': 128,
+            'need_attn': False,
+            'lenpen': 2.0,
+            'max_len_b': 140,
+            'min_len': 55,
+            'no_repeat_ngram_size': 3
+        })
+    @benchmark(repeat_times=1)
+    def test_beam_search_optimizer(self, beam_size, batch_size, need_attn,
                                    lenpen, max_len_b, min_len,
                                    no_repeat_ngram_size):
-        """Make sure the changes do not affect the model accuracy.
+        """benchmark the performance
 
         Args:
             beam_size (int): beam size.
@@ -83,10 +91,12 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
         self.bart.eval()
         self.bart.half()
         count = 0
-        outputs = []
-        with open(self.source_path, 'rt', encoding="utf-8") as source:
+        sample_num = (128 / batch_size) * batch_size
+        output = []
+        with open(self.source_path, 'r+', encoding="utf-8") as source:
             slines = []
             torch.cuda.synchronize()
+            start = time.time()
             for sline in source:
                 slines.append(sline.strip())
                 count += 1
@@ -102,18 +112,16 @@ class FairseqBeamSearchOptimiserTest(TestCaseBase):
                         hypotheses_batch = [
                             output.strip() for output in hypotheses_batch
                         ]
-                    outputs.extend(hypotheses_batch)
+                    output.extend(hypotheses_batch)
                     slines = []
 
             torch.cuda.synchronize()
+            end = time.time()
+            run_time = (end - start)
+            logging.info(
+                'BartModel benchmark: {:.2f} s, {:.1f} sample/s'.format(
+                    run_time, sample_num / run_time))
             self.assertTrue(len(slines) == 0)
-
-            self.assertEqual(len(outputs), len(self.expected_outputs))
-
-            for i, output in enumerate(outputs):
-                if output != self.expected_outputs[i]:
-                    logging.error("\n{} \n v.s. \n{}\n".format(
-                        output, self.expected_outputs[i]))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,20 @@ from functools import wraps
 
 from absl import logging
 
+FAIRSEQ_OPTIMIZED_CLASSES = []
+
+def register_fairseq_optimized_class(optimized_class):
+    """ A decorator used to register all the optimized classes
+
+    Args:
+        optimized_class (class): the optimized class.
+
+    Returns:
+        return the input optimized class.
+    """
+    FAIRSEQ_OPTIMIZED_CLASSES.append(optimized_class)
+    return optimized_class
+
 
 def get_class(method):
     """Get the class of the input unbound method.

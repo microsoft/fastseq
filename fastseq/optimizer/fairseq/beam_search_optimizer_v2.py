@@ -8,22 +8,17 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor, nn
-from torch.nn import Parameter
+from torch import Tensor
 
-from absl import logging
 from fairseq import utils
-from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY
-from fairseq.models.bart.hub_interface import BARTHubInterface
-from fairseq.models.bart.model import BARTModel
 from fairseq.models.fairseq_encoder import EncoderOut
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
-from fairseq.modules.quant_noise import quant_noise
 from fairseq.sequence_generator import SequenceGenerator
-from fastseq.utils.api_decorator import replace
 
+from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
+@register_fairseq_optimized_class
 @replace(TransformerEncoder)
 class TransformerEncoderV2(TransformerEncoder):
     """
@@ -39,38 +34,20 @@ class TransformerEncoderV2(TransformerEncoder):
         return encoder_out
 
 
-@replace(BARTModel)
-class BARTModelV2(BARTModel):
+@register_fairseq_optimized_class
+@replace(TransformerModel)
+class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
 
-    @staticmethod
-    def add_args(parser):
-        TransformerModel.add_args(parser)
-        parser.add_argument(
-            '--pooler-dropout',
-            type=float,
-            metavar='D',
-            help='dropout probability in the masked_lm pooler layers')
-        parser.add_argument('--pooler-activation-fn',
-                            choices=utils.get_available_activation_fns(),
-                            help='activation function to use for pooler layer')
-
     def make_generation_fast_(self, **kwargs):
-        super(BARTModel, self).make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
+        super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
         # Replace reorder_encoder_out with a dummy function.
-        if 'beamable_mm_beam_size' in kwargs and kwargs[
-            'beamable_mm_beam_size'] > 1:
+        if ('beamable_mm_beam_size' in kwargs and
+            kwargs['beamable_mm_beam_size'] > 1):
             self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 
-MODEL_REGISTRY['bart'] = BARTModelV2
-ARCH_MODEL_REGISTRY['bart_base'] = BARTModelV2
-ARCH_MODEL_REGISTRY['bart_large'] = BARTModelV2
-
-
-# @export_api('fairseq.modules', 'MultiheadAttention')
-# @export_api('fairseq.modules.multihead_attention', 'MultiheadAttention')
-# @export_api('fairseq.modules.transformer_layer', 'MultiheadAttention')
+@register_fairseq_optimized_class
 @replace(MultiheadAttention)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
@@ -427,6 +404,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
+@register_fairseq_optimized_class
 @replace(SequenceGenerator)
 class SequenceGeneratorV2(SequenceGenerator):
     """

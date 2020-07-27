@@ -10,7 +10,7 @@ from absl import logging
 
 try:
     import fairseq
-    from fastseq.optimiser.fairseq.beam_search_optimiser import apply_fairseq_optimization
+    from fastseq.optimizer.fairseq.beam_search_optimizer import apply_fairseq_optimization
     apply_fairseq_optimization()
 except ImportError as error:
     logging.warning(error)

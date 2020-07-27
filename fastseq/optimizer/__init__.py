@@ -3,4 +3,4 @@
 
 """Import the optimizations."""
 
-import fastseq.optimiser.fairseq
+import fastseq.optimizer.fairseq

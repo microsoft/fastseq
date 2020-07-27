@@ -4,21 +4,19 @@
 """Apply the beam search optimizations to fairseq-v0.9.0"""
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 from fairseq import utils
-from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY
-from fairseq.models.bart.model import BARTModel
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.sequence_generator import SequenceGenerator
 
-from fastseq.utils.api_decorator import replace
+from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
-
+@register_fairseq_optimized_class
 @replace(TransformerEncoder)
 class TransformerEncoderV2(TransformerEncoder):
     """
@@ -33,36 +31,20 @@ class TransformerEncoderV2(TransformerEncoder):
     def _reorder_encoder_out(self, encoder_out, new_order):
         return encoder_out
 
-
-@replace(BARTModel)
-class BARTModelV2(BARTModel):
+@register_fairseq_optimized_class
+@replace(TransformerModel)
+class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
 
-    @staticmethod
-    def add_args(parser):
-        TransformerModel.add_args(parser)
-        parser.add_argument(
-            '--pooler-dropout',
-            type=float,
-            metavar='D',
-            help='dropout probability in the masked_lm pooler layers')
-        parser.add_argument('--pooler-activation-fn',
-                            choices=utils.get_available_activation_fns(),
-                            help='activation function to use for pooler layer')
-
     def make_generation_fast_(self, **kwargs):
-        super(BARTModel, self).make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
+        super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
         # Replace reorder_encoder_out with a dummy function.
-        if 'beamable_mm_beam_size' in kwargs and kwargs[
-            'beamable_mm_beam_size'] > 1:
+        if ('beamable_mm_beam_size' in kwargs and
+            kwargs['beamable_mm_beam_size'] > 1):
             self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 
-MODEL_REGISTRY['bart'] = BARTModelV2
-ARCH_MODEL_REGISTRY['bart_base'] = BARTModelV2
-ARCH_MODEL_REGISTRY['bart_large'] = BARTModelV2
-
-
+@register_fairseq_optimized_class
 @replace(MultiheadAttention)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
@@ -415,6 +397,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
+@register_fairseq_optimized_class
 @replace(SequenceGenerator)
 class SequenceGeneratorV2(SequenceGenerator):
     """

@@ -3,7 +3,7 @@
 
 """Import core names of FastSeq"""
 
-from fastseq.logging import set_log_level
+from fastseq.logging.logging_utils import set_log_level
 set_log_level()
 
-import fastseq.optimiser  # pylint: disable=wrong-import-position
+import fastseq.optimizer  # pylint: disable=wrong-import-position

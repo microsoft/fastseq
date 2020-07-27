@@ -23,7 +23,9 @@ setup(
         'setuptools>=18.0',
     ],
     install_requires=[
+        "absl-py",
         "numpy",
+        "requests",
         "packaging",
     ],
     extras_require=extras,
@@ -33,7 +35,7 @@ setup(
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
-        "License :: MIT",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
@@ -42,7 +44,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'fastseq-generate = client.generate:cli_main',
+            'fastseq-generate = fastseq_cli.generate:cli_main',
         ],
     },
 )
