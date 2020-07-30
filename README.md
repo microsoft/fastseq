@@ -10,28 +10,38 @@ FastSeq provides efficient implementations of the popular sequence models with f
 
 |         BatchSize        |       32      |       64       |       128      |
 |:------------------------:|:-------------:|:--------------:|:--------------:|
-|       FairSeq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
-| FairSeq-0.9.0 + FastSeq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
+|       fairseq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
+| fairseq-0.9.0 + fastseq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
 
 where:
 
-- `FairSeq-0.9.0` refers to [the v0.9.0 branch](https://github.com/pytorch/fairseq/tree/v0.9.0)
-  of FairSeq
+- `fairseq-0.9.0` refers to [the v0.9.0 branch](https://github.com/pytorch/fairseq/tree/v0.9.0)
+  of fairseq
 
-- `FairSeq-0.9.0 + FastSeq` runs `FastSeq` on top of `FairSeq0.9.0`
+- `fairseq-0.9.0 + fastseq` runs `fastseq` on top of `fairseq-0.9.0`
 
 - Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
 
 - More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/tree/master/tests/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
 
-## Run `fastseq-generate` on NVIDIA-V100-16GB
+## Run `fastseq-generate` + `fairseq-0.9.0`on NVIDIA-V100-16GB
 
 - BART model
 
-|     BatchSize    |    32   |    64   |   128   |
-|:----------------:|:-------:|:-------:|:-------:|
-| fairseq-generate | 53.523s |   OOM   |   OOM   |
-| fastseq-generate | 44.762s | 40.270s | 40.716s |
+  - compute by `number_sentences` / (`preprocessing_time` + `inference_time` + `postprocessing`)
+
+    |     BatchSize    |       32      |       64      |      128      |
+    |:----------------:|:-------------:|:-------------:|:-------------:|
+    | fairseq-generate | 1.8 samples/s |      OOM      |      OOM      |
+    | fastseq-generate | 2.2 samples/s | 2.4 samples/s | 2.5 samples/s |
+
+  - compute by `number_sentences` / `inference_time` (measured by `fairseq-cli`)
+    
+    |     BatchSize    |       32      |       64      |      128      |
+    |:----------------:|:-------------:|:-------------:|:-------------:|
+    | fairseq-generate | 4.9 samples/s |      OOM      |      OOM      |
+    | fastseq-generate | 10.1 samples/s | 15.6 samples/s | 15.7 samples/s |
+
 
 with the command:
 
@@ -50,16 +60,25 @@ $ fastseq-generate \
       --min-len 55 \
       --max-len-b 140 \
       --no-repeat-ngram-size 3 \
-      --lenpen 2.0  \
-      --skip-invalid-size-inputs-valid-test
+      --lenpen 2.0
 ```
 
 - [transformer_vaswani_wmt_en_fr_big](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
+  
+  - compute by `number_sentences` / (`preprocessing_time` + `inference_time`)
 
-|     BatchSize    |    32   |    64   |   128   |   256   |   512   |
-|:----------------:|:-------:|:-------:|:-------:|:-------:|:-------:|
-| fairseq-generate | 86.306s | 66.850s | 59.228s | 60.405s |   OOM   |
-| fastseq-generate | 89.401s | 65.783s | 57.115s | 58.344s | 56.804s |
+    |     BatchSize    |       32       |       64       |      128       |      256       |      512       |
+    |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
+    | fairseq-generate | 34.8 samples/s | 44.9 samples/s | 50.7 samples/s | 49.7 samples/s |      OOM       |
+    | fastseq-generate | 33.6 samples/s | 45.7 samples/s | 52.6 samples/s | 51.5 samples/s | 52.9 samples/s |
+
+  - compute by `number_sentences` / `inference_time`
+
+    |     BatchSize    |       32       |       64       |      128       |      256       |      512       |
+    |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
+    | fairseq-generate | TBD samples/s | TBD samples/s | TBD samples/s | TBD samples/s |      OOM       |
+    | fastseq-generate | TBD samples/s | TBD samples/s | TBD samples/s | TBD samples/s | TBD samples/s |
+
 
 with the command:
 
@@ -137,7 +156,7 @@ bart.cuda()  # use GPU
 bart.eval()  # disable dropout for evaluation
 bart.half()
 
-slines = ['FastSeq provides efficient implementations of the popular sequence models. Please visit https://github.com/microsoft/fastseq for more details']
+slines = ['FastSeq provides efficient implementations of the popular sequence models. Please visit https://github.com/microsoft/fastseq for more details.']
 
 hypotheses = bart.sample(
     slines, beam=4, lenpen=2.0, max_len_b=140, min_len=55, no_repeat_ngram_size=3)
