@@ -2,16 +2,24 @@
 
 # Introduction
 
-FastSeq provides efficient implementations of the popular sequence models with fast performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
+FastSeq provides efficient implementations of the popular sequence models with high performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
 
 # Benchmark
 
-## Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) on NVIDIA-V100-16GB
+## Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) 
+  - on NVIDIA-V100-16GB
 
-|         BatchSize        |       32      |       64       |       128      |
-|:------------------------:|:-------------:|:--------------:|:--------------:|
-|       fairseq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
-| fairseq-0.9.0 + fastseq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
+    |         BatchSize        |       32      |       64       |       128      |
+    |:------------------------:|:-------------:|:--------------:|:--------------:|
+    |       fairseq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
+    | fairseq-0.9.0 + fastseq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
+  
+  - on NVIDIA-V100-32GB
+
+    |         BatchSize        |       32      |       64       |       128      |
+    |:------------------------:|:-------------:|:--------------:|:--------------:|
+    |       fairseq-0.9.0      | 4.3 samples/s |  4.5 samples/s |       OOM      |
+    | fairseq-0.9.0 + fastseq  | 10.3 samples/s| 13.5 samples/s | 14.5 samples/s |
 
 where:
 
@@ -24,23 +32,14 @@ where:
 
 - More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/tree/master/tests/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
 
-## Run `fastseq-generate` + `fairseq-0.9.0`on NVIDIA-V100-16GB
+## Run `fastseq-generate` + `fairseq-0.9.0` on NVIDIA-V100-32GB
 
 - BART model
 
-  - compute by `number_sentences` / (`preprocessing_time` + `inference_time` + `postprocessing`)
-
-    |     BatchSize    |       32      |       64      |      128      |
-    |:----------------:|:-------------:|:-------------:|:-------------:|
-    | fairseq-generate | 1.8 samples/s |      OOM      |      OOM      |
-    | fastseq-generate | 2.2 samples/s | 2.4 samples/s | 2.5 samples/s |
-
-  - compute by `number_sentences` / `inference_time` (measured by `fairseq-cli`)
-    
-    |     BatchSize    |       32      |       64      |      128      |
-    |:----------------:|:-------------:|:-------------:|:-------------:|
-    | fairseq-generate | 4.9 samples/s |      OOM      |      OOM      |
-    | fastseq-generate | 10.1 samples/s | 15.6 samples/s | 15.7 samples/s |
+  |     BatchSize    |       32      |       64      |      128      |
+  |:----------------:|:-------------:|:-------------:|:-------------:|
+  | fairseq-generate | 3.8 samples/s | 4.0 samples/s |      OOM      |
+  | fastseq-generate | 6.4 samples/s | 7.1 samples/s | 7.5 samples/s |
 
 
 with the command:
@@ -64,20 +63,11 @@ $ fastseq-generate \
 ```
 
 - [transformer_vaswani_wmt_en_fr_big](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
-  
-  - compute by `number_sentences` / (`preprocessing_time` + `inference_time`)
 
-    |     BatchSize    |       32       |       64       |      128       |      256       |      512       |
-    |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
-    | fairseq-generate | 34.8 samples/s | 44.9 samples/s | 50.7 samples/s | 49.7 samples/s |      OOM       |
-    | fastseq-generate | 33.6 samples/s | 45.7 samples/s | 52.6 samples/s | 51.5 samples/s | 52.9 samples/s |
-
-  - compute by `number_sentences` / `inference_time`
-
-    |     BatchSize    |       32       |       64       |      128       |      256       |      512       |
-    |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
-    | fairseq-generate | TBD samples/s | TBD samples/s | TBD samples/s | TBD samples/s |      OOM       |
-    | fastseq-generate | TBD samples/s | TBD samples/s | TBD samples/s | TBD samples/s | TBD samples/s |
+  |     BatchSize    |       32       |       64       |      128       |      256       |      512       |      1024      |
+  |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
+  | fairseq-generate | 22.8 samples/s | 36.1 samples/s | 38.0 samples/s | 41.0 samples/s | 38.6 samples/s |      OOM       |
+  | fastseq-generate | 31.2 samples/s | 50.6 samples/s | 54.1 samples/s | 59.3 samples/s | 63.1 samples/s | 54.6 samples/s |
 
 
 with the command:
