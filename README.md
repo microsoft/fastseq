@@ -30,7 +30,7 @@ where:
 
 - Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
 
-- More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/tree/master/tests/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
+- More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/blob/main/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
 
 ## Run `fastseq-generate` + `fairseq-0.9.0` on NVIDIA-V100-32GB
 
