@@ -32,15 +32,23 @@ where:
 
 - More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/blob/main/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
 
-## Run `fastseq-generate` + `fairseq-0.9.0` on NVIDIA-V100-32GB
+## Run `fastseq-generate` + `fairseq-0.9.0` 
 
-- BART model
+- BART model on NVIDIA-V100-16GB
+
+  |     BatchSize    |       32      |       64      |      128      |
+  |:----------------:|:-------------:|:-------------:|:-------------:|
+  | fairseq-generate | 3.5 samples/s | OOM |      OOM      |
+  | fastseq-generate | 9.5 samples/s | 12.8 samples/s | OOM |
+preprocess (load data&model), and postpross (detokenize/write output to file) cost ~20% total time.
+
+- BART model on NVIDIA-V100-32GB
 
   |     BatchSize    |       32      |       64      |      128      |
   |:----------------:|:-------------:|:-------------:|:-------------:|
   | fairseq-generate | 3.8 samples/s | 4.0 samples/s |      OOM      |
   | fastseq-generate | 6.4 samples/s | 7.1 samples/s | 7.5 samples/s |
-
+Above table not updated yet due to lack access to 32GB V100.
 
 with the command:
 
