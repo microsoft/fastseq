@@ -1,7 +1,6 @@
 import torch
 
 from fairseq_cli.generate import main
-
 from fairseq import bleu, checkpoint_utils, options, progress_bar, tasks, utils
 from fairseq.utils import apply_to_sample
 from fairseq.meters import StopwatchMeter, TimeMeter
@@ -14,7 +13,7 @@ def move_to_cpu(sample):
         # PyTorch has poor support for half tensors (float16) on CPU.
         # Move any such tensors to float32.
         if tensor.dtype in {torch.bfloat16, torch.float16}:
-            tensor = tensor.cpu().to(dtype=torch.float32)
+            return tensor.cpu().to(dtype=torch.float32)
         else:
             return tensor.cpu()
 
