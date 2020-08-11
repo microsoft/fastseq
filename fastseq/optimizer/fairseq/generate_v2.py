@@ -17,14 +17,14 @@ from fairseq.data import encoders
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
 @replace(_main)  
-def _mainV2(args, output_file):
+def _main_v2(args, output_file):
     logging.basicConfig(
         format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
         level=logging.INFO,
         stream=output_file,
     )
-    logger = logging.getLogger('fairseq_cli.generate')
+    logger = logging.getLogger('fastseq_cli.generate')
 
     utils.import_user_module(args)
 

@@ -19,7 +19,7 @@ def move_to_cpu(sample):
     return apply_to_sample(_move_to_cpu, sample)
 
 @replace(main)
-def mainV1(args):
+def main_v1(args):
     assert args.path is not None, '--path required for generation!'
     assert not args.sampling or args.nbest == args.beam, \
         '--sampling requires --nbest to be equal to --beam'
