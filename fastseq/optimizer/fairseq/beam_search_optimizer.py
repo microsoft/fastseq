@@ -43,12 +43,14 @@ def apply_fairseq_optimization():
 
     if v == version.parse('0.9.0'):
         import fastseq.optimizer.fairseq.beam_search_optimizer_v1  # pylint: disable=import-outside-toplevel
+        import fastseq.optimizer.fairseq.generate_v1  # pylint: disable=import-outside-toplevel
         _update_fairseq_model_registration()
         logging.info("fairseq == {} has been optimized.".format(v))
         return
 
     if v > version.parse('0.9.0') or isinstance(v, version.LegacyVersion):
         import fastseq.optimizer.fairseq.beam_search_optimizer_v2  # pylint: disable=import-outside-toplevel
+        import fastseq.optimizer.fairseq.generate_v2  # pylint: disable=import-outside-toplevel
         _update_fairseq_model_registration()
         logging.info("fairseq == {} has been optimized.".format(v))
         return
