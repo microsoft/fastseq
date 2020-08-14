@@ -1,4 +1,4 @@
-from multiprocessing import Process, Queue, Manager
+from multiprocessing import Process, Queue
 
 import torch
 
@@ -21,8 +21,26 @@ def move_to_cpu(sample):
 
     return apply_to_sample(_move_to_cpu, sample)
 
+
+def handle_io(queue):
+    while True:
+        msg = queue.get()
+        if msg == 'done':
+            return
+        print(msg)
+
+
 class Postprocess(Process):
-    def __init__(self, args, task, queue):
+    """
+    Handle detokenize and belu score computation
+
+    Args:
+        args (Namespace): paramerter for model and generation
+        task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
+        data_queue (multiprocessing.Queue): queue store tensor data for detokenize
+        message_queue (multiprocessing.Queue): queue store output
+    """
+    def __init__(self, args, task, data_queue, message_queue):
         super(Postprocess, self).__init__()
         # Set dictionaries
         try:
@@ -39,14 +57,18 @@ class Postprocess(Process):
         if args.sacrebleu:
             self.scorer = bleu.SacrebleuScorer()
         else:
-            self.scorer = bleu.Scorer(self.tgt_dict.pad(), self.tgt_dict.eos(), self.tgt_dict.unk())
+            self.scorer = bleu.Scorer(self.tgt_dict.pad(), self.tgt_dict.eos(),
+                                      self.tgt_dict.unk())
 
         self.args = args
         self.task = task
-        self.queue = queue
+        self.data_queue = data_queue
+        self.message_queue = message_queue
         self.has_target = True
 
     def _detokenize(self, sample, hypos):
+        """ detokenize and compute BELU """
+        message_list = []
         for i, sample_id in enumerate(sample['id'].tolist()):
             has_target = sample['target'] is not None
 
@@ -66,7 +88,8 @@ class Postprocess(Process):
                     self.args.gen_subset).tgt.get_original_text(sample_id)
             else:
                 if self.src_dict is not None:
-                    src_str = self.src_dict.string(src_tokens, self.args.remove_bpe)
+                    src_str = self.src_dict.string(src_tokens,
+                                                   self.args.remove_bpe)
                 else:
                     src_str = ""
                 if has_target:
@@ -75,9 +98,10 @@ class Postprocess(Process):
 
             if not self.args.quiet:
                 if self.src_dict is not None:
-                    print('S-{}\t{}'.format(sample_id, src_str))
+                    message_list.append('S-{}\t{}'.format(sample_id, src_str))
                 if has_target:
-                    print('T-{}\t{}'.format(sample_id, target_str))
+                    message_list.append('T-{}\t{}'.format(
+                        sample_id, target_str))
 
             # Process top predictions
             for j, hypo in enumerate(hypos[i][:self.args.nbest]):
@@ -91,30 +115,33 @@ class Postprocess(Process):
                 )
 
                 if not self.args.quiet:
-                    print('H-{}\t{}\t{}'.format(sample_id, hypo['score'],
-                                                hypo_str))
-                    print('P-{}\t{}'.format(sample_id, ' '.join(
-                        map(
-                            lambda x: '{:.4f}'.format(x),
-                            hypo['positional_scores'].tolist(),
-                        ))))
+                    message_list.append('H-{}\t{}\t{}'.format(
+                        sample_id, hypo['score'], hypo_str))
+                    message_list.append('P-{}\t{}'.format(
+                        sample_id, ' '.join(
+                            map(
+                                lambda x: '{:.4f}'.format(x),
+                                hypo['positional_scores'].tolist(),
+                            ))))
 
                     if self.args.print_alignment:
-                        print('A-{}\t{}'.format(sample_id, ' '.join([
-                            '{}-{}'.format(src_idx, tgt_idx)
-                            for src_idx, tgt_idx in alignment
-                        ])))
+                        message_list.append('A-{}\t{}'.format(
+                            sample_id, ' '.join([
+                                '{}-{}'.format(src_idx, tgt_idx)
+                                for src_idx, tgt_idx in alignment
+                            ])))
 
                     if self.args.print_step:
-                        print('I-{}\t{}'.format(sample_id, hypo['steps']))
+                        message_list.append('I-{}\t{}'.format(
+                            sample_id, hypo['steps']))
 
                     if getattr(self.args, 'retain_iter_history', False):
-                        print("\n".join([
-                            'E-{}_{}\t{}'.format(
-                                sample_id, step,
-                                utils.post_process_prediction(
-                                    h['tokens'].int(), self.src_str, None, None,
-                                    self.tgt_dict, None)[1])
+                        message_list.append("\n".join([
+                            'E-{}_{}\t{}'.format(sample_id, step,
+                                                 utils.post_process_prediction(
+                                                     h['tokens'].int(),
+                                                     self.src_str, None, None,
+                                                     self.tgt_dict, None)[1])
                             for step, h in enumerate(hypo['history'])
                         ]))
 
@@ -129,14 +156,21 @@ class Postprocess(Process):
                     else:
                         self.scorer.add(target_tokens, hypo_tokens)
 
+        self.message_queue.put('\n'.join(message_list))
+
     def run(self):
         while True:
-            r = self.queue.get()
-            if r is None:
+            r = self.data_queue.get()
+            if r == "done":
+                self.data_queue.put(None)
                 if self.has_target:
-                    print('| Generate {} with beam={}: {}'.format(self.args.gen_subset,
-                                                                  self.args.beam,
-                                                                  self.scorer.result_string()))
+                    self.message_queue.put(
+                        '| Generate {} with beam={}: {}'.format(
+                            self.args.gen_subset, self.args.beam,
+                            self.scorer.result_string()))
+                break
+            elif r is None:
+                self.data_queue.put(None)
                 break
             sample, hypos = r
             self._detokenize(sample, hypos)
@@ -207,16 +241,19 @@ def main_v1(args):
     gen_timer = StopwatchMeter()
     generator = task.build_generator(args)
 
-    # Generate and compute BLEU score
-    if args.sacrebleu:
-        scorer = bleu.SacrebleuScorer()
-    else:
-        scorer = bleu.Scorer(tgt_dict.pad(), tgt_dict.eos(), tgt_dict.unk())
     num_sentences = 0
-    pqueue = Queue()
-    manager = Manager()
-    p = Postprocess(args, task, pqueue)
-    p.start()
+    data_queue = Queue()
+    message_queue = Queue()
+
+    p_list = []
+    for i in range(1):
+        p = Postprocess(args, task, data_queue, message_queue)
+        p_list.append(p)
+        p.start()
+
+    io_process = Process(target=handle_io, args=((message_queue),))
+    io_process.start()
+
     with progress_bar.build_progress_bar(args, itr) as t:
         wps_meter = TimeMeter()
         for sample in t:
@@ -236,17 +273,22 @@ def main_v1(args):
             num_generated_tokens = sum(len(h[0]['tokens']) for h in hypos)
             gen_timer.stop(num_generated_tokens)
 
-            pqueue.put((cpu_sample, hypos))
+            data_queue.put((cpu_sample, hypos))
 
             wps_meter.update(num_generated_tokens)
             t.log({'wps': round(wps_meter.avg)})
             num_sentences += cpu_sample['nsentences']
+
+    data_queue.put('done')
+    for p in p_list:
+        p.join()
 
     print(
         '| Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, {:.2f} tokens/s)'.
         format(num_sentences, gen_timer.n, gen_timer.sum,
                num_sentences / gen_timer.sum, 1. / gen_timer.avg))
 
-    pqueue.put(None)
-    p.join()
+    message_queue.put('done')
+    io_process.join()
+
     return

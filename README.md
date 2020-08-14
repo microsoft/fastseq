@@ -13,7 +13,7 @@ FastSeq provides efficient implementations of the popular sequence models with h
     |:------------------------:|:-------------:|:--------------:|:--------------:|
     |       fairseq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
     | fairseq-0.9.0 + fastseq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
-  
+
   - on NVIDIA-V100-32GB
 
     |         BatchSize        |       32      |       64       |       128      |
@@ -32,15 +32,15 @@ where:
 
 - More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/blob/main/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
 
-## Run `fastseq-generate` + `fairseq-0.9.0` 
+## Run `fastseq-generate` + `fairseq-0.9.0`
 
 - BART model on NVIDIA-V100-16GB
 
   |     BatchSize    |       32      |       64       |      128       |
   |:----------------:|:-------------:|:--------------:|:--------------:|
   | fairseq-generate | 3.5 samples/s |      OOM       |      OOM       |
-  | fastseq-generate | 10.5 samples/s | 14.7 samples/s | 17.3 samples/s |
-  |wo model&data load| 11.3 samples/s | 16.7 samples/s | 20.2 samples/s |
+  | fastseq-generate | 11.1 samples/s | 17.4 samples/s | 19.0 samples/s |
+  |wo model&data load| 11.9 samples/s | 16.7 samples/s | 21.7 samples/s |
 Model load takes 20+s which is relative large when E2E time is only several minutes.
 
 - BART model on NVIDIA-V100-32GB
