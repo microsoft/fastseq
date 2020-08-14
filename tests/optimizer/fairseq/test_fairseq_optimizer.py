@@ -28,6 +28,8 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
     """
 
     def setUp(self):
+        """set up the test environment"""
+
         super(FairseqBeamSearchOptimizerTest, self).setUp()
         # TODO: create a dummy model instead of loading a large-size model.
         if not os.path.exists(CACHED_BART_MODEL_PATHS['bart.large.cnn']):

@@ -12,10 +12,15 @@ class A:
     def name(self):
         return 'A'
 
-
 def func_a():
     return 'a'
 
+class Base:
+    def name(self):
+            return 'Base'
+
+class Child(Base):
+    pass
 
 class APIDecoratorTest(TestCaseBase):
     """ Test the API decorators."""
@@ -76,10 +81,8 @@ class APIDecoratorTest(TestCaseBase):
         b = B()
         self.assertEqual(b.name(), 'C')
 
-    def test_replace(self):
-        """Test replace() decorator."""
-
-        # replace a class.
+    def test_replace_class(self):
+        """Test replace() decorator for class."""
         @replace(A)
         class B:
             def name(self):
@@ -88,12 +91,23 @@ class APIDecoratorTest(TestCaseBase):
         a = A()
         self.assertEqual(a.name(), 'test_replace_B')
 
-        # replace a function.
+    def test_replace_func(self):
+        """Test replace() decorator for function."""
         @replace(func_a)
         def func_b():
             return 'b'
 
         self.assertEqual(func_a(), 'b')
+
+    def test_replace_baseclass(self):
+        """Test replace() decorator for the base class."""
+        @replace(Base)
+        class BaseV2(Base):
+            def name(self):
+                return 'BaseV2'
+
+        child = Child()
+        self.assertEqual(child.name(), 'BaseV2')
 
 
 if __name__ == "__main__":
