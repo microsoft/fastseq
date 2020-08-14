@@ -39,8 +39,9 @@ where:
   |     BatchSize    |       32      |       64       |      128       |
   |:----------------:|:-------------:|:--------------:|:--------------:|
   | fairseq-generate | 3.5 samples/s |      OOM       |      OOM       |
-  | fastseq-generate | 9.3 samples/s | 12.3 samples/s | 14.3 samples/s |
-preprocess (load data&model), and postpross (detokenize/write output to file) cost ~20% total time.
+  | fastseq-generate | 10.5 samples/s | 14.7 samples/s | 17.3 samples/s |
+  |wo model&data load| 11.3 samples/s | 16.7 samples/s | 20.2 samples/s |
+Model load takes 20+s which is relative large when E2E time is only several minutes.
 
 - BART model on NVIDIA-V100-32GB
 
