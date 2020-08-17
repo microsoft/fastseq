@@ -17,7 +17,7 @@ def func_a():
 
 class Base:
     def name(self):
-            return 'Base'
+        return 'Base'
 
 class Child(Base):
     pass

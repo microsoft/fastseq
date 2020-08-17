@@ -6,13 +6,22 @@ FastSeq provides efficient implementations of the popular sequence models with h
 
 # Benchmark
 
-## Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz) 
+## Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz)
   - on NVIDIA-V100-16GB
 
+<<<<<<< HEAD
     |         BatchSize        |       32      |       64       |       128      |
     |:------------------------:|:-------------:|:--------------:|:--------------:|
     |       fairseq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
     | fairseq-0.9.0 + fastseq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
+=======
+    |          BatchSize         |       32      |       64       |       128      |
+    |:--------------------------:|:-------------:|:--------------:|:--------------:|
+    |        fairseq-0.9.0       | 4.2 samples/s |       OOM      |       OOM      |
+    |  fairseq-0.9.0 + fastseq   | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
+    |     transformers-3.0.2     | 3.5 samples/s |       OOM      |       OOM      |
+    |transformers-3.0.2 + fastseq| 6.2 samples/s |  7.8 samples/s | 7.8 samples/s |
+>>>>>>> Turn on fp16 for inference
 
   - on NVIDIA-V100-32GB
 
@@ -27,6 +36,10 @@ where:
   of fairseq
 
 - `fairseq-0.9.0 + fastseq` runs `fastseq` on top of `fairseq-0.9.0`
+
+- `transformers-3.0.2` refers to [the v3.0.2 branch](https://github.com/huggingface/transformers/tree/v3.0.2) of transformers
+
+- `transformers-3.0.2 + fastseq` runs `fastseq` on top of `transformers-3.0.2`
 
 - Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
 

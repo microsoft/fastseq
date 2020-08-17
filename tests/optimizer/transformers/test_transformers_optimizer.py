@@ -118,8 +118,10 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
             early_stopping (bool, optional): indicate if the beam search will be
                                              early stopped.
         """
-        processed_sample_count = 0
         self.bart_model.cuda()
+        self.bart_model.eval()
+        self.bart_model.half()
+        processed_sample_count = 0
         outputs = []
         slines = []
         start = time.time()
