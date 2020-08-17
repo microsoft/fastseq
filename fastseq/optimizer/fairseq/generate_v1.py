@@ -1,14 +1,18 @@
 from multiprocessing import Process, Queue
+import time
 
 import torch
 
 from fairseq_cli.generate import main
 from fairseq import bleu, checkpoint_utils, options, progress_bar, tasks, utils
+from fairseq.options import add_generation_args
 from fairseq.utils import apply_to_sample
 from fairseq.meters import StopwatchMeter, TimeMeter
 
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
+GENERATE_FINISHED = "done"
+POSTPROCESS_FINISHED = None
 
 def move_to_cpu(sample):
     def _move_to_cpu(tensor):
@@ -22,26 +26,68 @@ def move_to_cpu(sample):
     return apply_to_sample(_move_to_cpu, sample)
 
 
-def handle_io(queue):
-    while True:
-        msg = queue.get()
-        if msg == 'done':
-            return
-        print(msg)
-
-
-class Postprocess(Process):
+class IoProcess(Process):
     """
-    Handle detokenize and belu score computation
-
-    Args:
-        args (Namespace): paramerter for model and generation
-        task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
-        data_queue (multiprocessing.Queue): queue store tensor data for detokenize
-        message_queue (multiprocessing.Queue): queue store output
+    Single process to hanlde IO and compute metrics
     """
+    def __init__(self, args, task, message_queue):
+        """
+        Process to handle IO and compute metrics
+
+        Args:
+            args (Namespace): paramerter for model and generation
+            task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
+            message_queue (multiprocessing.Queue): queue store output
+        """
+        super(IoProcess, self).__init__()
+        self.tgt_dict = task.target_dictionary
+
+        # Generate and compute BLEU score
+        if args.sacrebleu:
+            self.scorer = bleu.SacrebleuScorer()
+        else:
+            self.scorer = bleu.Scorer(self.tgt_dict.pad(), self.tgt_dict.eos(),
+                                      self.tgt_dict.unk())
+
+        self.args = args
+        self.message_queue = message_queue
+        self.has_target = True
+
+    def run(self):
+        while True:
+            msg = self.message_queue.get()
+            if isinstance(msg, tuple):
+                t, h = msg
+                if hasattr(self.scorer, 'add_string'):
+                    self.scorer.add_string(t, h)
+                else:
+                    self.scorer.add(t, h)
+            elif msg == GENERATE_FINISHED:
+                if self.has_target:
+                    print('| Generate {} with beam={}: {}'.format(
+                        self.args.gen_subset, self.args.beam,
+                        self.scorer.result_string()))
+                break
+            else:
+                print(msg)
+
+
+class PostProcess(Process):
+    '''
+    Use multiple process to do detokenize
+    '''
+
     def __init__(self, args, task, data_queue, message_queue):
-        super(Postprocess, self).__init__()
+        """
+        Handle detokenize and belu score computation
+
+        Args:
+            args (Namespace): paramerter for model and generation
+            task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
+            data_queue (multiprocessing.Queue): queue store tensor data for detokenize
+            message_queue (multiprocessing.Queue): queue store output
+        """
+        super(PostProcess, self).__init__()
         # Set dictionaries
         try:
             self.src_dict = getattr(task, 'source_dictionary', None)
@@ -152,28 +198,42 @@ class Postprocess(Process):
                         target_tokens = self.tgt_dict.encode_line(
                             target_str, add_if_not_exist=True)
                     if hasattr(self.scorer, 'add_string'):
-                        self.scorer.add_string(target_str, hypo_str)
+                        self.message_queue.put((target_str, hypo_str))
                     else:
-                        self.scorer.add(target_tokens, hypo_tokens)
+                        self.message_queue.put((target_tokens, hypo_tokens))
 
         self.message_queue.put('\n'.join(message_list))
 
     def run(self):
         while True:
             r = self.data_queue.get()
-            if r == "done":
-                self.data_queue.put(None)
-                if self.has_target:
-                    self.message_queue.put(
-                        '| Generate {} with beam={}: {}'.format(
-                            self.args.gen_subset, self.args.beam,
-                            self.scorer.result_string()))
+            if r == GENERATE_FINISHED:
+                self.data_queue.put(POSTPROCESS_FINISHED)
+                time.sleep(1)
                 break
-            elif r is None:
-                self.data_queue.put(None)
+            elif r is POSTPROCESS_FINISHED:
+                self.data_queue.put(POSTPROCESS_FINISHED)
+                time.sleep(1)
                 break
-            sample, hypos = r
-            self._detokenize(sample, hypos)
+            else:
+                sample, hypos = r
+                self._detokenize(sample, hypos)
+
+
+original_add_generation_args = add_generation_args
+
+
+@replace(add_generation_args)
+def add_generation_args_v1(parser):
+    group = original_add_generation_args(parser)
+    # fmt: off
+    group.add_argument(
+        '--post-process-workers',
+        default=2,
+        type=int,
+        metavar='N',
+        help='number of worker for post process')
+    # fmt: on
 
 
 @replace(main)
@@ -246,12 +306,12 @@ def main_v1(args):
     message_queue = Queue()
 
     p_list = []
-    for i in range(1):
-        p = Postprocess(args, task, data_queue, message_queue)
+    for i in range(args.post_process_workers):
+        p = PostProcess(args, task, data_queue, message_queue)
         p_list.append(p)
         p.start()
 
-    io_process = Process(target=handle_io, args=((message_queue),))
+    io_process = IoProcess(args, task, message_queue)
     io_process.start()
 
     with progress_bar.build_progress_bar(args, itr) as t:
@@ -279,16 +339,16 @@ def main_v1(args):
             t.log({'wps': round(wps_meter.avg)})
             num_sentences += cpu_sample['nsentences']
 
-    data_queue.put('done')
+    data_queue.put(GENERATE_FINISHED)
     for p in p_list:
         p.join()
 
-    print(
+    message_queue.put(
         '| Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, {:.2f} tokens/s)'.
         format(num_sentences, gen_timer.n, gen_timer.sum,
                num_sentences / gen_timer.sum, 1. / gen_timer.avg))
 
-    message_queue.put('done')
+    message_queue.put(GENERATE_FINISHED)
     io_process.join()
 
     return
