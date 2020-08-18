@@ -28,7 +28,7 @@ def apply_transformers_optimization():
 
     if v >= version.parse('3.0.2'):
         import fastseq.optimizer.transformers.beam_search_optimizer # pylint: disable=import-outside-toplevel
-        logging.info("transformers == {} has been optimized.".format(v))
+        logging.debug("transformers == {} has been optimized.".format(v))
         return
 
     logging.warning(
