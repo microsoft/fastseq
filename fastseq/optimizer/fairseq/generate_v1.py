@@ -213,7 +213,6 @@ class PostProcess(Process):
                 break
             elif r is POSTPROCESS_FINISHED:
                 self.data_queue.put(POSTPROCESS_FINISHED)
-                #time.sleep(1)
                 break
             else:
                 sample, hypos = r
@@ -235,7 +234,7 @@ def add_generation_args_v1(parser):
         '--post-process-workers',
         default=1,
         type=int,
-        choices=range(1, 5, 1),
+        choices=range(1, 128, 1),
         metavar='N',
         help='number of worker for post process')
     # fmt: on
