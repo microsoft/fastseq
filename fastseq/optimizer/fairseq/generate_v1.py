@@ -26,7 +26,7 @@ def move_to_cpu(sample):
     return apply_to_sample(_move_to_cpu, sample)
 
 
-class IoProcess(Process):
+class IOProcess(Process):
     """
     Single process to hanlde IO and compute metrics
     """
@@ -39,7 +39,7 @@ class IoProcess(Process):
             task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
             message_queue (multiprocessing.Queue): queue store output
         """
-        super(IoProcess, self).__init__()
+        super(IOProcess, self).__init__()
         self.tgt_dict = task.target_dictionary
 
         # Generate and compute BLEU score
@@ -70,6 +70,8 @@ class IoProcess(Process):
                 break
             else:
                 print(msg)
+        self.message_queue.close()
+        self.message_queue.join_thread()
 
 
 class PostProcess(Process):
@@ -209,15 +211,18 @@ class PostProcess(Process):
             r = self.data_queue.get()
             if r == GENERATE_FINISHED:
                 self.data_queue.put(POSTPROCESS_FINISHED)
-                time.sleep(1)
                 break
             elif r is POSTPROCESS_FINISHED:
                 self.data_queue.put(POSTPROCESS_FINISHED)
-                time.sleep(1)
+                #time.sleep(1)
                 break
             else:
                 sample, hypos = r
                 self._detokenize(sample, hypos)
+        self.data_queue.close()
+        self.data_queue.join_thread()
+        self.message_queue.close()
+        self.message_queue.join_thread()
 
 
 original_add_generation_args = add_generation_args
@@ -229,8 +234,9 @@ def add_generation_args_v1(parser):
     # fmt: off
     group.add_argument(
         '--post-process-workers',
-        default=2,
+        default=1,
         type=int,
+        choices=range(1, 5, 1),
         metavar='N',
         help='number of worker for post process')
     # fmt: on
@@ -311,7 +317,7 @@ def main_v1(args):
         p_list.append(p)
         p.start()
 
-    io_process = IoProcess(args, task, message_queue)
+    io_process = IOProcess(args, task, message_queue)
     io_process.start()
 
     with progress_bar.build_progress_bar(args, itr) as t:
