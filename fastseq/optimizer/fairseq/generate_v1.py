@@ -333,10 +333,10 @@ def main_v1(args):
             gen_timer.start()
             hypos = task.inference_step(generator, models, sample,
                                         prefix_tokens)
-            hypos = move_to_cpu(hypos) if use_cuda else hypos
             num_generated_tokens = sum(len(h[0]['tokens']) for h in hypos)
             gen_timer.stop(num_generated_tokens)
 
+            hypos = move_to_cpu(hypos) if use_cuda else hypos
             data_queue.put((cpu_sample, hypos))
 
             wps_meter.update(num_generated_tokens)

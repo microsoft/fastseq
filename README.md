@@ -40,8 +40,7 @@ where:
   |:----------------:|:-------------:|:--------------:|:--------------:|
   | fairseq-generate | 3.5 samples/s |      OOM       |      OOM       |
   | fastseq-generate | 11.1 samples/s | 15.7 samples/s | 19.0 samples/s |
-  |wo model&data load| 11.9 samples/s | 17.6 samples/s | 21.7 samples/s |
-Model load takes 20+s which is relative large when E2E time is only several minutes.
+  |wo model&data load| 11.9 samples/s | 17.6 samples/s | 22.1 samples/s |
 
 - BART model on NVIDIA-V100-32GB
 
