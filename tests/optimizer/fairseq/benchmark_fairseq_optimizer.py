@@ -26,6 +26,8 @@ class FairseqBeamSearchOptimizerBenchmark(BenchmarkBase):
     download. Once downloaded, it will be cached for future usage.
     """
     def setUp(self):
+        """Set up the test environment.
+        """
         super(FairseqBeamSearchOptimizerBenchmark, self).setUp()
         if not os.path.exists(CACHED_BART_MODEL_PATHS['bart.large.cnn']):
             make_dirs(CACHED_BART_MODEL_DIR, exist_ok=True)

@@ -65,7 +65,6 @@ def override_method(method):
     class MyClass:
         def f(self):
             return 'hello world'
-
     @override_method(MyClass.f)
     def f(self):
       print 'hello world'
@@ -87,7 +86,7 @@ def override_method(method):
                 method.__name__))
 
     def decorator(new_method):
-        logging.warning("The method `{}`is replaced by `{}`".format(
+        logging.debug("The method `{}`is replaced by `{}`".format(
             method.__qualname__, new_method.__qualname__))
 
         @wraps(new_method)
@@ -126,7 +125,7 @@ def add_method(cls):
 
     """
     def decorator(method):
-        logging.warning("A new method `{}`is added to `class {}`".format(
+        logging.debug("A new method `{}`is added to `class {}`".format(
             method.__name__, cls.__name__))
 
         @wraps(method)
@@ -167,7 +166,7 @@ def export_api(module_name, obj_name):
         if hasattr(sys.modules[module_name], obj_name):
             delattr(sys.modules[module_name], obj_name)
         setattr(sys.modules[module_name], obj_name, obj)
-        logging.info("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
+        logging.debug("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
         return obj
 
     return decorator
@@ -184,7 +183,6 @@ def replace(target_obj):
     class A:
         def f(self):
             print('class A')
-
     @replace(A)
     class B:
         def f(self):
@@ -204,8 +202,20 @@ def replace(target_obj):
                 and v.__dict__[target_obj.__name__] == target_obj):
                 delattr(sys.modules[k], target_obj.__name__)
                 setattr(sys.modules[k], target_obj.__name__, new_obj)
-                logging.info("In module {}, {} is replaced by {}".format(
+                logging.debug("In module {}, {} is replaced by {}".format(
                     k, target_obj, new_obj))
+            # replace target_obj if it is used as the base classes.
+            for key in list(v.__dict__.keys()):
+                if (inspect.isclass(v.__dict__[key]) and
+                    v.__dict__[key] != new_obj and
+                    target_obj in v.__dict__[key].__bases__):
+                    idx = v.__dict__[key].__bases__.index(target_obj)
+                    bases = list(v.__dict__[key].__bases__)
+                    bases[idx] = new_obj
+                    v.__dict__[key].__bases__ = tuple(bases)
+                    logging.debug(
+                        "In module {}, the base class of {} is replaced by {}"
+                        .format(k, v.__dict__[key], new_obj))
         return new_obj
 
     return decorator
