@@ -9,19 +9,12 @@ FastSeq provides efficient implementations of the popular sequence models with h
 ## Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz)
   - on NVIDIA-V100-16GB
 
-<<<<<<< HEAD
-    |         BatchSize        |       32      |       64       |       128      |
-    |:------------------------:|:-------------:|:--------------:|:--------------:|
-    |       fairseq-0.9.0      | 4.2 samples/s |       OOM      |       OOM      |
-    | fairseq-0.9.0 + fastseq  | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
-=======
     |          BatchSize         |       32      |       64       |       128      |
     |:--------------------------:|:-------------:|:--------------:|:--------------:|
     |        fairseq-0.9.0       | 4.2 samples/s |       OOM      |       OOM      |
     |  fairseq-0.9.0 + fastseq   | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
     |     transformers-3.0.2     | 3.5 samples/s |       OOM      |       OOM      |
-    |transformers-3.0.2 + fastseq| 6.2 samples/s |  7.8 samples/s | 7.8 samples/s |
->>>>>>> Turn on fp16 for inference
+    |transformers-3.0.2 + fastseq| 6.0 samples/s |  7.5 samples/s | 7.4 samples/s |
 
   - on NVIDIA-V100-32GB
 

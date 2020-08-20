@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Iterable, Optional, Tuple
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 
 from fastseq.utils.api_decorator import replace
@@ -16,6 +16,39 @@ from transformers.modeling_bart import BartForConditionalGeneration, SelfAttenti
 
 logger = logging.getLogger(__name__)
 
+
+@replace(calc_banned_ngram_tokens)
+def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
+                                num_hypos: int,
+                                no_repeat_ngram_size: int,
+                                cur_len: int,
+                                pad_token_id: int) -> None:
+    """Copied from fairseq for no_repeat_ngram in beam_search"""
+    if cur_len + 1 < no_repeat_ngram_size:
+        # return no banned tokens if we haven't generated no_repeat_ngram_size
+        # tokens yet
+        return [[] for _ in range(num_hypos)]
+    generated_ngrams = [{} for _ in range(num_hypos)]
+    for idx in range(num_hypos):
+        gen_tokens = prev_input_ids[idx].tolist()
+        generated_ngram = generated_ngrams[idx]
+        for ngram in zip(
+            *[gen_tokens[i:] for i in range(no_repeat_ngram_size)]):
+            if ngram[-1] != pad_token_id:
+                prev_ngram_tuple = tuple(ngram[:-1])
+                generated_ngram[prev_ngram_tuple] = generated_ngram.get(
+                    prev_ngram_tuple, []) + [ngram[-1]]
+
+    def _get_generated_ngrams(hypo_idx):
+        # Before decoding the next token, prevent decoding of ngrams that have
+        # already appeared
+        start_idx = cur_len + 1 - no_repeat_ngram_size
+        ngram_idx = tuple(prev_input_ids[hypo_idx, start_idx:cur_len].tolist())
+        return generated_ngrams[hypo_idx].get(ngram_idx, [])
+
+    banned_tokens = [_get_generated_ngrams(hypo_idx)
+                     for hypo_idx in range(num_hypos)]
+    return banned_tokens
 
 @replace(GenerationMixin)
 class GenerationMixinV2(GenerationMixin):
@@ -286,8 +319,7 @@ class GenerationMixinV2(GenerationMixin):
                                   self.config.decoder_start_token_id)
 
         if input_ids is not None:
-            batch_size = input_ids.shape[
-                0]  # overriden by the input batch_size
+            batch_size = input_ids.shape[0]  # overriden by the input batch_size
         else:
             batch_size = 1
 
@@ -394,6 +426,14 @@ class GenerationMixinV2(GenerationMixin):
               and hasattr(self.config.decoder, "vocab_size")):
             vocab_size = self.config.decoder.vocab_size
 
+        # update the num_beams of self_attn and encoder_decoder_attn in decoder
+        has_num_beams_in_attn_layer = hasattr(
+            self.model.decoder.layers[0].encoder_attn, 'num_beams')
+        if has_num_beams_in_attn_layer:
+            for layer in self.model.decoder.layers:
+                layer.encoder_attn.num_beams = num_beams
+                layer.self_attn.num_beams = num_beams
+
         # set effective batch size and effective batch multiplier according to
         # do_sample
         if do_sample:
@@ -452,6 +492,19 @@ class GenerationMixinV2(GenerationMixin):
                 batch_size == encoder_outputs[0].shape[0]
             ), (f"expected encoder_outputs[0] to have 1st dimension bs="
                 "{batch_size}, got {encoder_outputs[0].shape[0]} ")
+
+            # expand batch_idx to assign correct encoder output for expanded
+            # input_ids (due to num_beams > 1 and num_return_sequences > 1)
+            expanded_batch_idxs = (
+                torch.arange(batch_size)
+                .view(-1, 1)
+                .repeat(1, num_beams * effective_batch_mult)
+                .view(-1)
+                .to(input_ids.device)
+            )
+            # expand encoder_outputs
+            encoder_outputs = (encoder_outputs[0].index_select(
+                0, expanded_batch_idxs), *encoder_outputs[1:])
 
         else:
             encoder_outputs = None
@@ -562,7 +615,7 @@ class GenerationMixinV2(GenerationMixin):
             # from fairseq: https://github.com/pytorch/fairseq/blob/a07cb6f40480928c9e0548b737aadd36ee66ac76/fairseq/sequence_generator.py#L345
             banned_ngram_tokens = calc_banned_ngram_tokens(
                 cpu_input_ids, num_batch_hypotheses, no_repeat_ngram_size,
-                cur_len)
+                cur_len, self.config.pad_token_id)
             _update_scores(banned_ngram_tokens)
 
         if bad_words_ids is not None:
@@ -580,6 +633,20 @@ class SelfAttentionV2(SelfAttention):
     """"
     The BART Model with a language modeling head. Can be used for summarization.
     """
+
+    def __init__(
+        self,
+        embed_dim,
+        num_heads,
+        dropout=0.0,
+        bias=True,
+        encoder_decoder_attention=False,  # otherwise self_attention
+        num_beams=1,
+    ):
+        super().__init__(
+            embed_dim, num_heads, dropout, bias, encoder_decoder_attention)
+        self.num_beams = num_beams
+
     def forward(
         self,
         query,
@@ -592,19 +659,18 @@ class SelfAttentionV2(SelfAttention):
         """Input shape: Time(SeqLen) x Batch x Channel"""
         static_kv: bool = self.encoder_decoder_attention
         tgt_len, bsz, embed_dim = query.size()
-        beam_size = 4
         assert embed_dim == self.embed_dim
         assert list(query.size()) == [tgt_len, bsz, embed_dim]
         # get here for encoder decoder cause of static_kv
         if layer_state is not None:  # reuse k,v and encoder_padding_mask
             saved_state = layer_state.get(self.cache_key, {})
             if "prev_key" in saved_state and static_kv:
-                # previous time steps are cached - no need to recompute key and value if they are static
+                # previous time steps are cached - no need to recompute key and
+                # value if they are static
                 key = None
         else:
             saved_state = None
             layer_state = {}
-
         q = self.q_proj(query) * self.scaling
         if static_kv:
             if key is None:
@@ -617,28 +683,42 @@ class SelfAttentionV2(SelfAttention):
             v = self.v_proj(query)
 
         q = self._shape(q, tgt_len, bsz)
-        cache_bsz = bsz // beam_size if self.encoder_decoder_attention else bsz
         if k is not None:
-            k = self._shape(k, -1, cache_bsz)
+            k = self._shape(k, -1, bsz)
         if v is not None:
-            v = self._shape(v, -1, cache_bsz)
+            v = self._shape(v, -1, bsz)
 
         if saved_state is not None:
             k, v, key_padding_mask = self._use_saved_state(
                 k, v, saved_state, key_padding_mask, static_kv, bsz)
 
         # Update cache
-        layer_state[self.cache_key] = {
-            "prev_key": k.view(cache_bsz, self.num_heads, -1, self.head_dim),
-            "prev_value": v.view(cache_bsz, self.num_heads, -1, self.head_dim),
-            "prev_key_padding_mask":
-            key_padding_mask if not static_kv else None,
-        }
+        cache_bsz = (bsz // self.num_beams
+                     if self.encoder_decoder_attention else bsz)
+
+        if self.encoder_decoder_attention and ("prev_key" not in saved_state):
+            cache_shape = (
+                cache_bsz, self.num_beams, self.num_heads, -1, self.head_dim)
+            k = k.view(cache_shape)[:, 0 : 1, :, :, :].contiguous()
+            v = v.view(cache_shape)[:, 0 : 1, :, :, :].contiguous()
+            layer_state[self.cache_key] = {
+                "prev_key": k,
+                "prev_value": v,
+                "prev_key_padding_mask":
+                key_padding_mask if not static_kv else None,
+            }
+        if not self.encoder_decoder_attention:
+            cache_shape = (bsz, self.num_heads, -1, self.head_dim)
+            layer_state[self.cache_key] = {
+                "prev_key": k.view(cache_shape),
+                "prev_value": v.view(cache_shape),
+                "prev_key_padding_mask":
+                key_padding_mask if not static_kv else None,
+            }
+
         assert k is not None
         if self.encoder_decoder_attention:
-            k = k.view(cache_bsz, 1, self.num_heads, -1, self.head_dim)
-            v = v.view(cache_bsz, 1, self.num_heads, -1, self.head_dim)
-            q = q.view(cache_bsz, beam_size, self.num_heads, tgt_len,
+            q = q.view(cache_bsz, self.num_beams, self.num_heads, tgt_len,
                        self.head_dim)
             src_len = k.size(3)
             attn_weights = torch.einsum("bmhtd,bnhsd->bmhts", q,
@@ -657,7 +737,8 @@ class SelfAttentionV2(SelfAttention):
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len,
                                              src_len)
 
-        # This is part of a workaround to get around fork/join parallelism not supporting Optional types.
+        # This is part of a workaround to get around fork/join parallelism not
+        # supporting Optional types.
         if key_padding_mask is not None and key_padding_mask.dim() == 0:
             key_padding_mask = None
         assert key_padding_mask is None or key_padding_mask.size()[:2] == (
@@ -679,8 +760,8 @@ class SelfAttentionV2(SelfAttention):
 
         assert v is not None
         if self.encoder_decoder_attention:
-            attn_probs = attn_probs.view(cache_bsz, beam_size, self.num_heads,
-                                         tgt_len, src_len)
+            attn_probs = attn_probs.view(
+                cache_bsz, self.num_beams, self.num_heads, tgt_len, src_len)
             attn_output = torch.einsum("bmhts,bnhsd->bmhtd", attn_probs,
                                        v).reshape(-1, tgt_len, self.head_dim)
         else:

@@ -20,6 +20,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
     """Test the optimizations on HuggingFace-transformers.
     """
     def setUp(self):
+        """Load model, tokenizer and expected output."""
+
         self.tokenizer = BartTokenizer.from_pretrained(
             'facebook/bart-large-cnn')
         self.bart_model = BartForConditionalGeneration.from_pretrained(
@@ -52,7 +54,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
             max_token_length (int, optional): max tokenized sentence length.
                                               Defaults to 1024.
             num_beams (int, optional): beam number. Defaults to 4.
-            min_gen_length (int, optional): min generation length. Defaults to 55.
+            min_gen_length (int, optional): min generation length. Defaults to
+                                            55.
             max_gen_length (int, optional): maxium length for the generation
                                             output. Defaults to 199.
             no_repeat_ngram_size (int, optional): size of no repeat gram.
@@ -87,7 +90,7 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         return outputs
 
     @parameterized.named_parameters({
-        'testcase_name': 'Normal',
+        'testcase_name': 'FP32',
         'batch_size': 16,
         'max_token_length': 1024,
         'num_beams': 4,
@@ -111,7 +114,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
             max_token_length (int, optional): max tokenized sentence length.
                                               Defaults to 1024.
             num_beams (int, optional): beam number. Defaults to 4.
-            min_gen_length (int, optional): min generation length. Defaults to 55.
+            min_gen_length (int, optional): min generation length. Defaults to
+                                            55.
             max_gen_length (int, optional): maxium length for the generation
                                             output. Defaults to 199.
             no_repeat_ngram_size (int, optional): size of no repeat gram.
@@ -120,7 +124,6 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         """
         self.bart_model.cuda()
         self.bart_model.eval()
-        self.bart_model.half()
         processed_sample_count = 0
         outputs = []
         slines = []
@@ -154,14 +157,13 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
 
             end = time.time()
             logging.info(
-                "Finish the processing of {} samples with the speed {:.2f} samples/second"
+                "Finish the processing of {} samples with the speed {:.2f} samples/second" # pylint: disable=line-too-long
                 .format(processed_sample_count,
                         processed_sample_count / (end - start)))
 
             for i, output in enumerate(outputs):
                 if output != self.expected_outputs[i]:
-                    logging.error("\n{} \n v.s. \n{}\n".format(
-                        output, self.expected_outputs[i]))
+                    self.assertEqual(output, self.expected_outputs[i])
 
 
 if __name__ == "__main__":
