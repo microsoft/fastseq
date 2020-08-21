@@ -854,4 +854,4 @@ class BartForConditionalGenerationV2(BartForConditionalGeneration):
         past = ((enc_out, new_enc_mask), reordered_past)
         return past
 
-MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[BartConfig] = BartForConditionalGeneration # pylint: disable=line-too-long
+MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[BartConfig] = BartForConditionalGenerationV2 # pylint: disable=line-too-long
