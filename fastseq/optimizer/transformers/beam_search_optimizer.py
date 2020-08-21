@@ -11,7 +11,9 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from fastseq.utils.api_decorator import replace
+from transformers.configuration_auto import BartConfig
 from transformers.generation_utils import calc_banned_ngram_tokens, calc_banned_bad_words_ids, GenerationMixin
+from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 from transformers.modeling_bart import BartForConditionalGeneration, SelfAttention, _reorder_buffer
 
 logger = logging.getLogger(__name__)
@@ -851,3 +853,5 @@ class BartForConditionalGenerationV2(BartForConditionalGeneration):
 
         past = ((enc_out, new_enc_mask), reordered_past)
         return past
+
+MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[BartConfig] = BartForConditionalGeneration # pylint: disable=line-too-long
