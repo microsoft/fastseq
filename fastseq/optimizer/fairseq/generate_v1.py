@@ -349,7 +349,12 @@ def main_v1(args):
                     generator, models, sample, prefix_tokens)
             except:
                 logging.exception(sys.exc_info()[0])
-                break
+                for p in p_list:
+                    p.terminate()
+                io_process.terminate()
+                data_queue.close()
+                message_queue.close()
+                sys.exit(1)
 
             num_generated_tokens = sum(len(h[0]['tokens']) for h in hypos)
             gen_timer.stop(num_generated_tokens)
