@@ -3,7 +3,7 @@ download_if_not_in_cache() {
     local_path=$2
     if [ ! -f "$local_path" ]; then
         echo "Download from " $remote_path " to " $local_path
-        wget -O $local_path "$remote_path"
+        wget -c -O $local_path "$remote_path"
         if [ $? -ne 0 ]; then
             echo "Failed to download '$remote_path'"
             exit -1

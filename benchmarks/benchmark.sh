@@ -10,7 +10,7 @@ if [ "$util" = "fastseq" ]; then
 elif [ "$util" = "fairseq" ]; then
     util=fairseq-generate
 elif [ "$util" = "transformer" ]; then
-    shell=benchmark_tran.sh
+    shell=benchmark_transformers.sh
 else
     echo "Unsupported util '$util'!"
     exit -1

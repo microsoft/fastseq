@@ -7,7 +7,7 @@ split="$1"; shift
 bss="$1"; shift
 perff="$1"; shift
 
-cach_dir=/tmp/fastseq-cache
+cach_dir=~/.cache/fastseq-cache
 mkdir -p $cach_dir
 data_dir=$cach_dir/$task
 mkdir -p $data_dir

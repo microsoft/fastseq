@@ -1,5 +1,5 @@
 #!/bin/bash
-#rm -rf /tmp/fastseq-cache
+#rm -rf ~/.cache/fastseq-cache
 
 # USAGE - ./benchmark.sh 
 #   [fastseq|fairseq|transformer]
