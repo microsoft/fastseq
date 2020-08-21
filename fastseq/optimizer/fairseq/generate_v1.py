@@ -1,3 +1,10 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+"""Optimize fairseq-generate (v0.9.0)"""
+
+import logging
+import sys
 from multiprocessing import Process, Queue
 
 import torch
@@ -35,7 +42,8 @@ class IOProcess(Process):
 
         Args:
             args (Namespace): paramerter for model and generation
-            task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
+            task (fairseq.tasks.fairseq_task.Fairseq):
+                use to load dict for detokenize
             message_queue (multiprocessing.Queue): queue store output
         """
         super(IOProcess, self).__init__()
@@ -84,8 +92,10 @@ class PostProcess(Process):
 
         Args:
             args (Namespace): paramerter for model and generation
-            task (fairseq.tasks.fairseq_task.Fairseq): use to load dict for detokenize
-            data_queue (multiprocessing.Queue): queue store tensor data for detokenize
+            task (fairseq.tasks.fairseq_task.Fairseq):
+                use to load dict for detokenize
+            data_queue (multiprocessing.Queue):
+                queue store tensor data for detokenize
             message_queue (multiprocessing.Queue): queue store output
         """
         super(PostProcess, self).__init__()
@@ -152,14 +162,15 @@ class PostProcess(Process):
 
             # Process top predictions
             for j, hypo in enumerate(hypos[i][:self.args.nbest]):
-                hypo_tokens, hypo_str, alignment = utils.post_process_prediction(
-                    hypo_tokens=hypo['tokens'].int(),
-                    src_str=src_str,
-                    alignment=hypo['alignment'],
-                    align_dict=self.align_dict,
-                    tgt_dict=self.tgt_dict,
-                    remove_bpe=self.args.remove_bpe,
-                )
+                hypo_tokens, hypo_str, alignment = \
+                    utils.post_process_prediction(
+                        hypo_tokens=hypo['tokens'].int(),
+                        src_str=src_str,
+                        alignment=hypo['alignment'],
+                        align_dict=self.align_dict,
+                        tgt_dict=self.tgt_dict,
+                        remove_bpe=self.args.remove_bpe,
+                    )
 
                 if not self.args.quiet:
                     message_list.append('H-{}\t{}\t{}'.format(
@@ -194,8 +205,10 @@ class PostProcess(Process):
 
                 # Score only the top hypothesis
                 if has_target and j == 0:
-                    if self.align_dict is not None or self.args.remove_bpe is not None:
-                        # Convert back to tokens for evaluation with unk replacement and/or without BPE
+                    if (self.align_dict is not None or
+                        self.args.remove_bpe is not None):
+                        # Convert back to tokens for evaluation with unk
+                        # replacement and/or without BPE
                         target_tokens = self.tgt_dict.encode_line(
                             target_str, add_if_not_exist=True)
                     if hasattr(self.scorer, 'add_string'):
@@ -269,7 +282,7 @@ def main_v1(args):
 
     # Load ensemble
     print('| loading model(s) from {}'.format(args.path))
-    models, _model_args = checkpoint_utils.load_model_ensemble(
+    models, model_args_ = checkpoint_utils.load_model_ensemble(
         args.path.split(':'),
         arg_overrides=eval(args.model_overrides),
         task=task,
@@ -331,8 +344,13 @@ def main_v1(args):
                 prefix_tokens = sample['target'][:, :args.prefix_size]
 
             gen_timer.start()
-            hypos = task.inference_step(generator, models, sample,
-                                        prefix_tokens)
+            try:
+                hypos = task.inference_step(
+                    generator, models, sample, prefix_tokens)
+            except:
+                logging.exception(sys.exc_info()[0])
+                break
+
             num_generated_tokens = sum(len(h[0]['tokens']) for h in hypos)
             gen_timer.stop(num_generated_tokens)
 
@@ -348,7 +366,7 @@ def main_v1(args):
         p.join()
 
     message_queue.put(
-        '| Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, {:.2f} tokens/s)'.
+        '| Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, {:.2f} tokens/s)'. # pylint: disable=line-too-long
         format(num_sentences, gen_timer.n, gen_timer.sum,
                num_sentences / gen_timer.sum, 1. / gen_timer.avg))
 
