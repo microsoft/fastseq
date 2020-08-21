@@ -41,10 +41,14 @@ def label_smoothed_nll_loss(lprobs, target, epsilon, ignore_index=-100):
     return loss, nll_loss
 
 
-def encode_line(tokenizer, line, max_length, \
-        pad_to_max_length=True, return_tensors="pt"):
-    extra_kw = {"add_prefix_space": True} \
-                if isinstance(tokenizer, BartTokenizer) else {}
+def encode_line(tokenizer,
+                line,
+                max_length,
+                pad_to_max_length=True,
+                return_tensors="pt"):
+    extra_kw = {
+        "add_prefix_space": True
+    } if isinstance(tokenizer, BartTokenizer) else {}
     return tokenizer(
         [line],
         max_length=max_length,
@@ -114,15 +118,15 @@ class Seq2SeqDataset(Dataset):
 
     def __getitem__(self, index) -> Dict[str, torch.Tensor]:
         index = index + 1  # linecache starts at 1
-        source_line = self.prefix + \
-            linecache.getline(str(self.src_file), index).rstrip("\n")
+        source_line = self.prefix + linecache.getline(str(self.src_file),
+                                                      index).rstrip("\n")
         tgt_line = linecache.getline(str(self.tgt_file), index).rstrip("\n")
         assert source_line, f"empty source line for index {index}"
         assert tgt_line, f"empty tgt line for index {index}"
-        source_inputs = \
-            encode_line(self.tokenizer, source_line, self.max_source_length)
-        target_inputs = \
-            encode_line(self.tokenizer, tgt_line, self.max_target_length)
+        source_inputs = encode_line(self.tokenizer, source_line,
+                                    self.max_source_length)
+        target_inputs = encode_line(self.tokenizer, tgt_line,
+                                    self.max_target_length)
 
         source_ids = source_inputs["input_ids"].squeeze()
         target_ids = target_inputs["input_ids"].squeeze()
@@ -144,8 +148,9 @@ class Seq2SeqDataset(Dataset):
         target_ids = torch.stack([x["decoder_input_ids"] for x in batch])
         pad_token_id = self.pad_token_id
         y = trim_batch(target_ids, pad_token_id)
-        source_ids, source_mask = \
-            trim_batch(input_ids, pad_token_id, attention_mask=masks)
+        source_ids, source_mask = trim_batch(input_ids,
+                                             pad_token_id,
+                                             attention_mask=masks)
         batch = {
             "input_ids": source_ids,
             "attention_mask": source_mask,
@@ -166,13 +171,13 @@ class TranslationDataset(Seq2SeqDataset):
                 f"Mbart is using sequence lengths {self.max_source_length}, \
                     {self.max_target_length}. "
                 f"Imbalanced sequence lengths may be undesired for \
-                    translation tasks")
+                    translation tasks"
+            )
 
     def __getitem__(self, index) -> Dict[str, str]:
         index = index + 1  # linecache starts at 1
-        source_line = \
-            self.prefix + \
-            linecache.getline(str(self.src_file), index).rstrip("\n")
+        source_line = self.prefix + linecache.getline(str(self.src_file),
+                                                      index).rstrip("\n")
         tgt_line = linecache.getline(str(self.tgt_file), index).rstrip("\n")
         assert source_line, f"empty source line for index {index}"
         assert tgt_line, f"empty tgt line for index {index}"
@@ -194,8 +199,10 @@ class TranslationDataset(Seq2SeqDataset):
 
 
 class SortishSampler(Sampler):
-    "Go through the text data by order of src length with a bit of randomness. \
-        From fastai repo."
+    """
+    Go through the text data by order of src length with a bit of randomness.
+    From fastai repo.
+    """
 
     def __init__(self, data, batch_size):
         self.data, self.bs = data, batch_size
@@ -218,8 +225,8 @@ class SortishSampler(Sampler):
                             ])  # find the chunk with the largest key,
         ck_idx[0], ck_idx[max_ck] = ck_idx[max_ck], ck_idx[
             0]  # then make sure it goes first.
-        sort_idx = np.concatenate(np.random.permutation(ck_idx[1:])) \
-                    if len(ck_idx) > 1 else np.array([], dtype=np.int)
+        sort_idx = np.concatenate(np.random.permutation(
+            ck_idx[1:])) if len(ck_idx) > 1 else np.array([], dtype=np.int)
         sort_idx = np.concatenate((ck_idx[0], sort_idx))
         return iter(sort_idx)
 
@@ -314,8 +321,9 @@ def assert_all_frozen(model):
     model_grads: List[bool] = list(grad_status(model))
     n_require_grad = sum(lmap(int, model_grads))
     npars = len(model_grads)
-    assert not any(model_grads), \
-        f"{n_require_grad/npars:.1%} of {npars} weights require grad"
+    assert not any(
+        model_grads
+    ), f"{n_require_grad/npars:.1%} of {npars} weights require grad"
 
 
 def assert_not_all_frozen(model):

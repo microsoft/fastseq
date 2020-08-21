@@ -33,10 +33,12 @@ elif [[ "$util" == "fairseq+fastseq" ]]; then
     util_display="fairseq_v$ver1+fastseq_v$ver2"
 fi
 
-output_file=/tmp/out.pred
+stdout_file=/tmp/fastseq.stdout
+stderr_file=/tmp/fastseq.stderr
 IFS='/' read -ra bs_list <<< "$bss"
+for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
-    echo "Processing BS=$bs"
+    echo "Processing Loop=$i Util=$util_display Model=$model Task=$task Split=$split BS=$bs"
     start=`date +%s`
     if [[ $model == wmt* ]]; then
         $util \
@@ -47,7 +49,7 @@ for bs in "${bs_list[@]}"; do
             --lenpen 0.6 \
             --remove-bpe \
             --gen-subset $split $* \
-        > $output_file
+        > $stdout_file 2> $stderr_file
     else
         $util \
             $data_dir \
@@ -67,14 +69,13 @@ for bs in "${bs_list[@]}"; do
             `#--print-alignment` \
             `#--print-step	# KeyError: steps` \
             --skip-invalid-size-inputs-valid-test $* \
-        > $output_file
+        > $stdout_file 2> $stderr_file
     fi
     ret=$?
-    echo "Return code: " $ret
     end=`date +%s`
     runtime=$(($end-$start))
     if [ $ret -eq 0 ]; then
-        tail=`tail -2 $output_file`
+        tail=`tail -2 $stdout_file`
         samples=`echo $tail | awk '{print $3}'`
         tokens=`echo $tail | awk '{sub(/[(]/, ""); print $5}'`
         bleu4=`echo $tail | awk '{gsub(",", ""); printf "%.2f",$20}'`
@@ -84,5 +85,13 @@ for bs in "${bs_list[@]}"; do
         echo "$util_display $model $task $split $bs $samples $tokens $bleu4 NA NA NA $runtime $throughput1 $throughput2" >> $perff
     else
         echo "$util_display $model $task $split $bs NA NA NA NA NA NA $runtime NA NA" >> $perff
+        if grep -Fxq "RuntimeError: CUDA out of memory" $stderr_file; then
+            : # OOM is expected in some bs settings
+        else
+            cat $stderr_file
+            echo "Return code: " $ret
+            exit $ret
+        fi
     fi
+done
 done

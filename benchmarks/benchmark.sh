@@ -20,4 +20,6 @@ fi
 result_file=perf
 echo "Util Model Task Split BatchSize Samples Tokens BLEU ROUGE1 ROUGE2 ROUGEL Runtime(seconds) Throughput(samples/s) Throughput(tokens/s)" >> $result_file
 bash $shell $util $model $task $split $bss $result_file $*
+ret=$?
 echo "Check result at ./$result_file"
+exit $ret

@@ -21,19 +21,21 @@ extra_param=""
 if [[ $util == transformers ]]; then
     ver=`pip show transformers | awk  '{if($1=="Version:")print $2}'`
     util_display="transformers_v$ver"
-    extra_param="--fastseq_opt 0"
+    extra_param="--without_fastseq_opt"
 elif [[ "$util" == "transformers+fastseq" ]]; then
     ver1=`pip show transformers | awk  '{if($1=="Version:")print $2}'`
     ver2=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
     util_display="transformers_v$ver1+fastseq_v$ver2"
 fi
+stdout_file=/tmp/fastseq.stdout
+stderr_file=/tmp/fastseq.stderr
 IFS='/' read -ra bs_list <<< "$bss"
+for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
-    echo "Processing BS=$bs"
+    echo "Processing Loop=$i Util=$util_display Model=$model Task=$task Split=$split BS=$bs"
     start=`date +%s`
-    transformers-generate $model $data_dir/$split.source /tmp/out.summary --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path /tmp/out.score $extra_param $*
+    fastseq-generate-for-transformers $model $data_dir/$split.source /tmp/out.summary --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path /tmp/out.score $extra_param $* > $stdout_file 2> $stderr_file
     ret=$?
-    echo "Return code: " $ret
     end=`date +%s`
     runtime=$(($end-$start))
     if [ $ret -eq 0 ]; then
@@ -56,5 +58,13 @@ for bs in "${bs_list[@]}"; do
         echo "$util_display $model $task $split $bs $samples $tokens $bleu $rouge1 $rouge2 $rougel $runtime $throughput1 $throughput2" >> $perff
     else
         echo "$util_display $model $task $split $bs NA NA NA NA NA NA $runtime NA NA" >> $perff
+        if grep -Fxq "RuntimeError: CUDA out of memory" $stderr_file; then
+            :   # OOM is expected in some bs settings
+        else
+            cat $stderr_file
+            echo "Return code: " $ret
+            exit $ret
+        fi
     fi
+done
 done
