@@ -5,11 +5,13 @@ split="$1"; shift
 bss="$1"; shift
 
 shell=benchmark_seq.sh
-if [ "$util" = "fastseq" ]; then
-    util=fastseq-generate
+if [ "$util" = "fairseq+fastseq" ]; then
+    :
 elif [ "$util" = "fairseq" ]; then
-    util=fairseq-generate
-elif [ "$util" = "transformer" ]; then
+    :
+elif [ "$util" = "transformers+fastseq" ]; then
+    shell=benchmark_transformers.sh
+elif [ "$util" = "transformers" ]; then
     shell=benchmark_transformers.sh
 else
     echo "Unsupported util '$util'!"

@@ -6,17 +6,13 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
-from fastseq.utils.transformers_utils import calculate_rouge, use_task_specific_params, calculate_bleu_score, trim_batch
-
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
-        yield lst[i : i + n]
+        yield lst[i:i + n]
 
 
 def generate_summaries_or_translations(
@@ -28,9 +24,14 @@ def generate_summaries_or_translations(
     fp16=False,
     task="summarization",
     decoder_start_token_id=None,
+    fastseq_opt=1,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
+    if fastseq_opt > 0:
+        import fastseq
+    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+    from .transformers_utils import use_task_specific_params, trim_batch
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
@@ -92,11 +93,13 @@ def run_generate():
     parser.add_argument("--n_obs", type=int, default=-1, required=False, \
         help="How many observations. Defaults to all.")
     parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--fastseq_opt", type=int, default=1, required=False, \
+        help="If to fastseq optimizations")
     args = parser.parse_args()
     examples = [" " + x.rstrip() if "t5" in args.model_name else x.rstrip() \
         for x in open(args.input_path).readlines()]
     if args.n_obs > 0:
-        examples = examples[: args.n_obs]
+        examples = examples[:args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
     generate_summaries_or_translations(
         examples,
@@ -107,10 +110,12 @@ def run_generate():
         fp16=args.fp16,
         task=args.task,
         decoder_start_token_id=args.decoder_start_token_id,
+        fastseq_opt=args.fastseq_opt,
     )
     if args.reference_path is None:
         return
     # Compute scores
+    from .transformers_utils import calculate_rouge, calculate_bleu_score
     score_fn = \
         calculate_bleu_score if "translation" in args.task else calculate_rouge
     output_lns = [x.rstrip() for x in open(args.save_path).readlines()]
@@ -121,7 +126,7 @@ def run_generate():
     print(scores)
     if args.score_path is not None:
         json.dump(scores, open(args.score_path, "w+"))
-    return scores
+    return
 
 
 if __name__ == "__main__":

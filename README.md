@@ -179,6 +179,9 @@ $ python tests/optimizer/fairseq/benchmark_fairseq_optimizer.py
 
 # run all the tests.
 $ python -m unittest discover -s tests/ -p '*.py'
+
+# run all the benchmarks.
+$ cd benchmarks && bash run_all_benchmarks.sh
 ```
 
 ## Build

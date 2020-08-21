@@ -22,12 +22,15 @@ for f in "${file_list[@]}"; do
     download_if_not_in_cache https://fastseq.blob.core.windows.net/data/tasks/$task/$f $local_path
 done
 
-if [[ $util == fairseq* ]]; then
+if [[ $util == fairseq ]]; then
     ver=`pip show fairseq | awk  '{if($1=="Version:")print $2}'`
-    util_display="fairseq($ver)"
-else
-    ver=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
-    util_display="fastseq($ver)"
+    util=fairseq-generate
+    util_display="fairseq_v$ver"
+elif [[ "$util" == "fairseq+fastseq" ]]; then
+    ver1=`pip show fairseq | awk  '{if($1=="Version:")print $2}'`
+    ver2=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
+    util=fastseq-generate
+    util_display="fairseq_v$ver1+fastseq_v$ver2"
 fi
 
 output_file=/tmp/out.pred
@@ -67,16 +70,17 @@ for bs in "${bs_list[@]}"; do
         > $output_file
     fi
     ret=$?
+    echo "Return code: " $ret
     end=`date +%s`
     runtime=$(($end-$start))
     if [ $ret -eq 0 ]; then
         tail=`tail -2 $output_file`
         samples=`echo $tail | awk '{print $3}'`
         tokens=`echo $tail | awk '{sub(/[(]/, ""); print $5}'`
-        bleu4=`echo $tail | awk '{gsub(",", ""); print $20}'`
-        bleu=`echo $tail | awk '{print $21}'`
-        throughput1=`awk -va=$samples -vb=$runtime 'BEGIN{print a/b}'`
-        throughput2=`awk -va=$tokens -vb=$runtime 'BEGIN{print a/b}'`
+        bleu4=`echo $tail | awk '{gsub(",", ""); printf "%.2f",$20}'`
+        bleu=`echo $tail | awk '{printf "%.2f",$21}'`
+        throughput1=`awk -va=$samples -vb=$runtime 'BEGIN{printf "%.1f",a/b}'`
+        throughput2=`awk -va=$tokens -vb=$runtime 'BEGIN{printf "%.1f",a/b}'`
         echo "$util_display $model $task $split $bs $samples $tokens $bleu4 NA NA NA $runtime $throughput1 $throughput2" >> $perff
     else
         echo "$util_display $model $task $split $bs NA NA NA NA NA NA $runtime NA NA" >> $perff

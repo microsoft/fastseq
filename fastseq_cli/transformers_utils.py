@@ -66,15 +66,19 @@ def calculate_bleu_score(output_lns, refs_lns, **kwargs) -> dict:
 
 
 def trim_batch(
-    input_ids, pad_token_id, attention_mask=None,
+    input_ids,
+    pad_token_id,
+    attention_mask=None,
 ):
     """Remove columns that are populated exclusively by pad_token_id"""
     keep_column_mask = input_ids.ne(pad_token_id).any(dim=0)
     if attention_mask is None:
         return input_ids[:, keep_column_mask]
     else:
-        return (input_ids[:, keep_column_mask],
-                attention_mask[:, keep_column_mask])
+        return (input_ids[:,
+                          keep_column_mask], attention_mask[:,
+                                                            keep_column_mask])
+
 
 class Seq2SeqDataset(Dataset):
     """class Seq2SeqDataset"""
@@ -155,7 +159,6 @@ class Seq2SeqDataset(Dataset):
 
 class TranslationDataset(Seq2SeqDataset):
     """A dataset that calls prepare_seq2seq_batch."""
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.max_source_length != self.max_target_length:
@@ -163,8 +166,7 @@ class TranslationDataset(Seq2SeqDataset):
                 f"Mbart is using sequence lengths {self.max_source_length}, \
                     {self.max_target_length}. "
                 f"Imbalanced sequence lengths may be undesired for \
-                    translation tasks"
-            )
+                    translation tasks")
 
     def __getitem__(self, index) -> Dict[str, str]:
         index = index + 1  # linecache starts at 1
@@ -207,14 +209,15 @@ class SortishSampler(Sampler):
     def __iter__(self):
         idxs = np.random.permutation(len(self.data))
         sz = self.bs * 50
-        ck_idx = [idxs[i : i + sz] for i in range(0, len(idxs), sz)]
+        ck_idx = [idxs[i:i + sz] for i in range(0, len(idxs), sz)]
         sort_idx = np.concatenate(
-            [sorted(s, key=self.key, reverse=True) for s in ck_idx]
-            )
+            [sorted(s, key=self.key, reverse=True) for s in ck_idx])
         sz = self.bs
-        ck_idx = [sort_idx[i : i + sz] for i in range(0, len(sort_idx), sz)]
-        max_ck = np.argmax([self.key(ck[0]) for ck in ck_idx])  # find the chunk with the largest key,
-        ck_idx[0], ck_idx[max_ck] = ck_idx[max_ck], ck_idx[0]  # then make sure it goes first.
+        ck_idx = [sort_idx[i:i + sz] for i in range(0, len(sort_idx), sz)]
+        max_ck = np.argmax([self.key(ck[0]) for ck in ck_idx
+                            ])  # find the chunk with the largest key,
+        ck_idx[0], ck_idx[max_ck] = ck_idx[max_ck], ck_idx[
+            0]  # then make sure it goes first.
         sort_idx = np.concatenate(np.random.permutation(ck_idx[1:])) \
                     if len(ck_idx) > 1 else np.array([], dtype=np.int)
         sort_idx = np.concatenate((ck_idx[0], sort_idx))
@@ -279,9 +282,9 @@ def get_git_info():
 ROUGE_KEYS = ["rouge1", "rouge2", "rougeL"]
 
 
-def calculate_rouge(
-    output_lns: List[str], reference_lns: List[str], use_stemmer=True
-) -> Dict:
+def calculate_rouge(output_lns: List[str],
+                    reference_lns: List[str],
+                    use_stemmer=True) -> Dict:
     """Calculate rouge scores"""
     scorer = rouge_scorer.RougeScorer(ROUGE_KEYS, use_stemmer=use_stemmer)
     aggregator = scoring.BootstrapAggregator()
