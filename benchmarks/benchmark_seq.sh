@@ -35,6 +35,7 @@ fi
 
 stdout_file=/tmp/fastseq.stdout
 stderr_file=/tmp/fastseq.stderr
+mark=" with beam="
 IFS='/' read -ra bs_list <<< "$bss"
 for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
@@ -74,8 +75,8 @@ for bs in "${bs_list[@]}"; do
     ret=$?
     end=`date +%s`
     runtime=$(($end-$start))
-    if [ $ret -eq 0 ]; then
-        tail=`tail -2 $stdout_file`
+    tail=`tail -2 $stdout_file`
+    if [[ $ret -eq 0 &&  $tail == *$mark* ]]; then
         samples=`echo $tail | awk '{print $3}'`
         tokens=`echo $tail | awk '{sub(/[(]/, ""); print $5}'`
         bleu4=`echo $tail | awk '{gsub(",", ""); printf "%.2f",$20}'`
@@ -85,12 +86,12 @@ for bs in "${bs_list[@]}"; do
         echo "$util_display $model $task $split $bs $samples $tokens $bleu4 NA NA NA $runtime $throughput1 $throughput2" >> $perff
     else
         echo "$util_display $model $task $split $bs NA NA NA NA NA NA $runtime NA NA" >> $perff
-        if grep -Fxq "RuntimeError: CUDA out of memory" $stderr_file; then
+        if grep -Fq "RuntimeError: CUDA out of memory" $stderr_file; then
             : # OOM is expected in some bs settings
         else
             cat $stderr_file
             echo "Return code: " $ret
-            exit $ret
+            exit -1
         fi
     fi
 done

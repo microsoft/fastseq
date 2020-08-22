@@ -29,17 +29,20 @@ elif [[ "$util" == "transformers+fastseq" ]]; then
 fi
 stdout_file=/tmp/fastseq.stdout
 stderr_file=/tmp/fastseq.stderr
+summary_file=/tmp/fastseq.summary
+score_file=/tmp/fastseq.score
 IFS='/' read -ra bs_list <<< "$bss"
 for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
     echo "Processing Loop=$i Util=$util_display Model=$model Task=$task Split=$split BS=$bs"
+    rm -rf $summary_file $score_file
     start=`date +%s`
-    fastseq-generate-for-transformers $model $data_dir/$split.source /tmp/out.summary --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path /tmp/out.score $extra_param $* > $stdout_file 2> $stderr_file
+    fastseq-generate-for-transformers $model $data_dir/$split.source $summary_file --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $score_file $extra_param $* > $stdout_file 2> $stderr_file
     ret=$?
     end=`date +%s`
     runtime=$(($end-$start))
-    if [ $ret -eq 0 ]; then
-        samples=`wc -l /tmp/out.summary | awk '{print $1}'`
+    if [[ $ret -eq 0 && -f "$score_file" && -s "$score_file" ]]; then
+        samples=`wc -l $summary_file | awk '{print $1}'`
         throughput1=`awk -va=$samples -vb=$runtime 'BEGIN{printf "%.1f",a/b}'`
         tokens=NA
         throughput2=NA
@@ -47,23 +50,23 @@ for bs in "${bs_list[@]}"; do
         rouge1=NA
         rouge2=NA
         rougel=NA
-        nf=`awk -F'[\s:,{}]' '{print NF}' /tmp/out.score`
+        nf=`awk -F'[\s:,{}]' '{print NF}' $score_file`
         if [ $nf -eq 4 ]; then
-            bleu=`awk -F'[\s:,{}]' '{printf "%.2f",$3}' /tmp/out.score`
+            bleu=`awk -F'[\s:,{}]' '{printf "%.2f",$3}' $score_file`
         else
-            rouge1=`awk -F'[\s:,{}]' '{printf "%.2f",$3}' /tmp/out.score`
-            rouge2=`awk -F'[\s:,{}]' '{printf "%.2f",$5}' /tmp/out.score`
-            rougel=`awk -F'[\s:,{}]' '{printf "%.2f",$7}' /tmp/out.score`
+            rouge1=`awk -F'[\s:,{}]' '{printf "%.2f",$3}' $score_file`
+            rouge2=`awk -F'[\s:,{}]' '{printf "%.2f",$5}' $score_file`
+            rougel=`awk -F'[\s:,{}]' '{printf "%.2f",$7}' $score_file`
         fi
         echo "$util_display $model $task $split $bs $samples $tokens $bleu $rouge1 $rouge2 $rougel $runtime $throughput1 $throughput2" >> $perff
     else
         echo "$util_display $model $task $split $bs NA NA NA NA NA NA $runtime NA NA" >> $perff
-        if grep -Fxq "RuntimeError: CUDA out of memory" $stderr_file; then
+        if grep -Fq "RuntimeError: CUDA out of memory" $stderr_file; then
             :   # OOM is expected in some bs settings
         else
             cat $stderr_file
             echo "Return code: " $ret
-            exit $ret
+            exit -1
         fi
     fi
 done
