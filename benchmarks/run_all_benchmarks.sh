@@ -31,7 +31,7 @@ export LOOP=3   # repeat every generation X times
 # Accuracy
 grep "bart.large.cnn cnn_dm/len-1024.bin valid " perf | awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' | bash range.sh 17.9 18
 # Speed on V100 16GB 250W
-grep -E "fairseq_v0.9.0 bart.large.cnn cnn_dm(.[0-9]*k)?/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 2.2 2.4
+grep -E "fairseq_v0.9.0 bart.large.cnn cnn_dm/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 2.2 2.4
 grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 6 100
 grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 8.7 100
 grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 128 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 10.8 100
@@ -45,6 +45,7 @@ grep "facebook/bart-large-cnn cnn_dm/raw val " perf | awk '{if($9!="NA"){c+=1;s+
 grep -E "transformers_v3.0.2 facebook/bart-large-cnn cnn_dm/raw val 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 2.2 2.4
 grep -E "transformers_v3.0.2\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 3.9 100
 grep -E "transformers_v3.0.2\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 4.5 100
+# todo: investigate why fastseq bs 128 oom
 
 # MODEL - distibart cnn
 ./benchmark.sh transformers sshleifer/distilbart-cnn-12-6 cnn_dm/raw val 64/128 --task summarization  # take 2.5 hours

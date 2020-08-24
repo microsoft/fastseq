@@ -29,7 +29,7 @@ if [[ $util == fairseq ]]; then
 elif [[ "$util" == "fairseq+fastseq" ]]; then
     ver1=`pip show fairseq | awk  '{if($1=="Version:")print $2}'`
     ver2=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
-    util=fastseq-generate
+    util=fastseq-generate-for-fairseqs
     util_display="fairseq_v$ver1+fastseq_v$ver2"
 fi
 

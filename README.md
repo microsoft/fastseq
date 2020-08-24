@@ -59,7 +59,7 @@ Above table not updated yet due to lack access to 32GB V100.
 with the command:
 
 ```bash
-$ fastseq-generate \
+$ fastseq-generate-for-fairseqs \
       DATA_BIN_PATH \
       --path MODEL_PATH \
       --fp16 \
@@ -87,7 +87,7 @@ $ fastseq-generate \
 with the command:
 
 ```bash
-$ fastseq-generate \
+$ fastseq-generate-for-fairseqs \
       wmt14.en-fr.joined-dict.newstest2014/ \
       --path wmt14.en-fr.joined-dict.transformer/model.pt \
       --beam 4 \
@@ -123,8 +123,12 @@ $ fastseq-generate \
 - Python version >= 3.6
 - [torch](http://pytorch.org/) >= 1.4.0
 - [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
+- [transformers](https://github.com/huggingface/transformers) >= 3.0.2
 - [requets](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
+- [rouge-score](https://pypi.org/project/rouge-score/)
+
+If you use fairseq or transformers, you only need to install one of them. If you use both, you need to install both.
 
 ## Python package
 
@@ -167,6 +171,101 @@ hypotheses = bart.sample(
 
 print(hypotheses)
 ```
+## Run generation for fairseq models
+### bart ###
+
+```bash
+$ fastseq-generate-for-fairseqs \
+    cnn_dnn/bin \
+    --path bart.large.cnn/model.pt \
+    --fp16 \
+    --task translation \
+    --batch-size 128 \
+    --gen-subset valid \
+    --truncate-source  \
+    --bpe gpt2 \
+    --beam 4 \
+    --num-workers 4 \
+    --min-len 55 \
+    --max-len-b 140 \
+    --no-repeat-ngram-size 3 \
+    --lenpen 2.0
+```
+
+### wmt14 ###
+
+```bash
+$ fastseq-generate-for-fairseqs \
+      wmt14.en-fr.joined-dict.newstest2014/ \
+      --path wmt14.en-fr.joined-dict.transformer/model.pt \
+      --beam 4 \
+      --lenpen 0.6 \
+      --remove-bpe \
+      --batch-size 32
+```
+
+## Run generation for transformer models
+###bart###
+
+```bash
+$ fastseq-generate-for-transformers \
+    facebook/bart-large-cnn \
+    cnn_dm/val.source \
+    out.summary \
+    --reference_path cnn_dm/val.target \
+    --device cuda \
+    --bs 128 \
+    --fp16 \
+    --score_path out.score \
+    --task summarization
+```
+
+###distibart###
+
+```bash
+$ fastseq-generate-for-transformers \
+    sshleifer/distilbart-cnn-12-6 \
+    cnn_dm/val.source \
+    out.summary \
+    --reference_path cnn_dm/val.target \
+    --device cuda \
+    --bs 128 \
+    --fp16 \
+    --score_path out.score \
+    --task summarization
+```
+
+###T5###
+For t5, you need to specify --task translation_{src}to{tgt} as follows:
+
+```bash
+$ fastseq-generate-for-transformers \
+    t5-base \
+    wmt_en_ro/val.source \
+    out.summary \
+    --reference_path wmt_en_ro/val.target \
+    --device cuda \
+    --bs 64 \
+    --fp16 \
+    --score_path out.score \
+    --task translation_en_to_ro
+```
+
+###mbart###
+
+```bash
+$ fastseq-generate-for-transformers \
+    facebook/mbart-large-en-ro \
+    wmt_en_ro/val.source \
+    out.summary \
+    --reference_path wmt_en_ro/val.target \
+    --device cuda \
+    --bs 256 \
+    --fp16 \
+    --score_path out.score \
+    --task translation
+```
+
 
 ## Run tests
 

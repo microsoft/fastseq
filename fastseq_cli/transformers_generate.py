@@ -6,6 +6,9 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from .transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
+
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -24,14 +27,12 @@ def generate_summaries_or_translations(
     fp16=False,
     task="summarization",
     decoder_start_token_id=None,
-    fastseq_opt=1,
+    fastseq_opt=True,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
-    if fastseq_opt > 0:
+    if fastseq_opt:
         import fastseq  #pylint: disable=import-outside-toplevel
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer   #pylint: disable=import-outside-toplevel
-    from .transformers_utils import use_task_specific_params, trim_batch    #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
@@ -135,7 +136,6 @@ def run_generate():
     if args.reference_path is None:
         return
     # Compute scores
-    from .transformers_utils import calculate_rouge, calculate_bleu_score   #pylint: disable=import-outside-toplevel
     score_fn = calculate_bleu_score \
         if "translation" in args.task else calculate_rouge
     output_lns = [x.rstrip() for x in open(args.save_path).readlines()]
