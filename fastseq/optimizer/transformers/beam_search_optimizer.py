@@ -58,6 +58,27 @@ class GenerationMixinV2(GenerationMixin):
     A class contraining all of the functions supporting generation, to be used
     as a mixin in PreTrainedModel.
     """
+
+    def _update_beam_size(self, num_beams):
+        """
+        Update num_beams in the decoder's self_attn and encoder_decoder_attn
+        layers if they have been optimized.
+
+        Different implementations of ConditionalGeneration class (e.g.
+        T5ForConditionalGeneration and BartForConditionalGeneration) may have
+        different attribute hierarchies and their self_attn and
+        encoder_decoder_attn may have been optimized or not. As a result, this
+        function need to handle different cases without breaking the program.
+        """
+        try:
+            for layer in self.model.decoder.layers:
+                layer.encoder_attn.num_beams = num_beams
+                layer.self_attn.num_beams = num_beams
+            logger.debug(
+                "num_beams has been updated to {}".format(num_beams))
+        except:
+            pass
+
     @torch.no_grad()
     def generate(self,
                  input_ids: Optional[torch.LongTensor] = None,
@@ -428,13 +449,7 @@ class GenerationMixinV2(GenerationMixin):
               and hasattr(self.config.decoder, "vocab_size")):
             vocab_size = self.config.decoder.vocab_size
 
-        # update the num_beams of self_attn and encoder_decoder_attn in decoder
-        has_num_beams_in_attn_layer = hasattr(
-            self.model.decoder.layers[0].encoder_attn, 'num_beams')
-        if has_num_beams_in_attn_layer:
-            for layer in self.model.decoder.layers:
-                layer.encoder_attn.num_beams = num_beams
-                layer.self_attn.num_beams = num_beams
+        self._update_beam_size(num_beams)
 
         # set effective batch size and effective batch multiplier according to
         # do_sample
