@@ -37,7 +37,7 @@ for bs in "${bs_list[@]}"; do
     echo "Processing Loop=$i Util=$util_display Model=$model Task=$task Split=$split BS=$bs"
     rm -rf $summary_file $score_file
     start=`date +%s`
-    fastseq-generate-for-transformers $model $data_dir/$split.source $summary_file --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $score_file $extra_param $* > $stdout_file 2> $stderr_file
+    fastseq-evaluate $model $data_dir/$split.source $summary_file --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $score_file $extra_param $* > $stdout_file 2> $stderr_file
     ret=$?
     end=`date +%s`
     runtime=$(($end-$start))
