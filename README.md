@@ -4,64 +4,42 @@
 
 FastSeq provides efficient implementations of the popular sequence models with high performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
 
-# Benchmark
+# Supported Models
 
-## Run [bart.large.cnn](https://dl.fbaipublicfiles.com/fairseq/models/bart.large.cnn.tar.gz)
-  - on NVIDIA-V100-16GB
+## Supported models in [fairseq](https://github.com/pytorch/fairseq)
 
-    |          BatchSize         |       32      |       64       |       128      |
-    |:--------------------------:|:-------------:|:--------------:|:--------------:|
-    |        fairseq-0.9.0       | 4.2 samples/s |       OOM      |       OOM      |
-    |  fairseq-0.9.0 + fastseq   | 9.5 samples/s | 12.8 samples/s | 13.9 samples/s |
-    |     transformers-3.0.2     | 3.5 samples/s |       OOM      |       OOM      |
-    |transformers-3.0.2 + fastseq| 6.0 samples/s |  7.5 samples/s | 7.4 samples/s |
+- [x] [BART](https://arxiv.org/pdf/1910.13461.pdf)
+- [x] [Scaling Neural Machine Translation (Ott et al., 2018)](https://github.com/pytorch/fairseq/blob/master/examples/scaling_nmt/README.md)
+- [x] [Mixture Models for Diverse Machine Translation: Tricks of the Trade (Shen et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/translation_moe/README.md)
+- [x] [Pay Less Attention with Lightweight and Dynamic Convolutions (Wu et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/pay_less_attention_paper/README.md)
 
-  - on NVIDIA-V100-32GB
 
-    |         BatchSize        |       32      |       64       |       128      |
-    |:------------------------:|:-------------:|:--------------:|:--------------:|
-    |       fairseq-0.9.0      | 4.3 samples/s |  4.5 samples/s |       OOM      |
-    | fairseq-0.9.0 + fastseq  | 10.3 samples/s| 13.5 samples/s | 14.5 samples/s |
+## Supported models in [huggingFace-transformer](https://github.com/huggingface/transformers)
 
-where:
+- [x] [BART](https://huggingface.co/transformers/model_doc/bart.html)
+- [ ] [GPT-2](https://huggingface.co/transformers/model_doc/gpt2.html)
+- [ ] [UniLM-V1](https://github.com/microsoft/unilm)
+- [ ] [UniLM-V2](https://github.com/microsoft/unilm)
+- [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
+- [ ] [T5](https://huggingface.co/transformers/model_doc/t5.html)
 
-- `fairseq-0.9.0` refers to [the v0.9.0 branch](https://github.com/pytorch/fairseq/tree/v0.9.0)
-  of fairseq
+# Benchmarks
 
-- `fairseq-0.9.0 + fastseq` runs `fastseq` on top of `fairseq-0.9.0`
+## BART from Fairseq
 
-- `transformers-3.0.2` refers to [the v3.0.2 branch](https://github.com/huggingface/transformers/tree/v3.0.2) of transformers
-
-- `transformers-3.0.2 + fastseq` runs `fastseq` on top of `transformers-3.0.2`
-
-- Parameters: `beam_size=4`, `lenpen=2.0`, `max_len_b=140`, `min_len=55`, `no_repeat_ngram_size=3`
-
-- More details can be found at [tests/optimizer/fairseq/benchmark_fairseq_optimizer.py](https://github.com/microsoft/fastseq/blob/main/tests/optimizer/fairseq/benchmark_fairseq_optimizer.py)
-
-## Run `fastseq-generate` + `fairseq-0.9.0`
-
-- BART model on NVIDIA-V100-16GB
+- CNN daily mail val data, NVIDIA-V100-16GB
 
   |     BatchSize    |       32      |       64       |      128       |
   |:----------------:|:-------------:|:--------------:|:--------------:|
-  | fairseq-generate | 3.5 samples/s |      OOM       |      OOM       |
-  | fastseq-generate | 11.1 samples/s | 15.7 samples/s | 19.0 samples/s |
-  |wo model&data load| 11.9 samples/s | 17.6 samples/s | 22.1 samples/s |
+  | fairseq-0.9.0    | 2.3 samples/s |      OOM       |      OOM       |
+  | above + fastseq  | 6.1 samples/s | 8.7 samples/s  | 11.0 samples/s |
 
-- BART model on NVIDIA-V100-32GB
-
-  |     BatchSize    |       32      |       64      |      128      |
-  |:----------------:|:-------------:|:-------------:|:-------------:|
-  | fairseq-generate | 3.8 samples/s | 4.0 samples/s |      OOM      |
-  | fastseq-generate | 6.4 samples/s | 7.1 samples/s | 7.5 samples/s |
-Above table not updated yet due to lack access to 32GB V100.
-
-with the command:
+with setting:
 
 ```bash
 $ fastseq-generate-for-fairseqs \
-      DATA_BIN_PATH \
-      --path MODEL_PATH \
+      cnn_dm/len-1024.bin \
+      --path bart.large.cnn/model.pt \
       --fp16 \
       --task translation \
       --batch-size BATCH_SIZE \
@@ -76,15 +54,44 @@ $ fastseq-generate-for-fairseqs \
       --lenpen 2.0
 ```
 
+To get fairseq speed number, replace `fastseq-generate-for-fairseqs` by `fairseq-generate`.
+
+## BART from Transformers
+
+- CNN daily mail val data, NVIDIA-V100-16GB
+
+  |     BatchSize    |       32      |       64       |
+  |:----------------:|:-------------:|:--------------:|
+  | fairseq-0.9.0    | 2.3 samples/s |      OOM       |
+  | above + fastseq  | 3.9 samples/s | 4.5 samples/s  |
+
+with setting:
+
+```bash
+$ fastseq-generate-for-transformers \
+    facebook/bart-large-cnn \
+    cnn_dm/val.source \
+    out.summary \
+    --reference_path cnn_dm/val.target \
+    --device cuda \
+    --bs 128 \
+    --fp16 \
+    --score_path out.score \
+    --task summarization
+```
+
+To get baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers git repo.
+
+## WMT from Fairseq
 - [transformer_vaswani_wmt_en_fr_big](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
 
   |     BatchSize    |       32       |       64       |      128       |      256       |      512       |      1024      |
   |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-generate | 22.8 samples/s | 36.1 samples/s | 38.0 samples/s | 41.0 samples/s | 38.6 samples/s |      OOM       |
-  | fastseq-generate | 31.2 samples/s | 50.6 samples/s | 54.1 samples/s | 59.3 samples/s | 63.1 samples/s | 54.6 samples/s |
+  | fairseq-0.9.0    | 22.8 samples/s | 36.1 samples/s | 38.0 samples/s | 41.0 samples/s | 38.6 samples/s |      OOM       |
+  | above + fastseq  | 31.2 samples/s | 50.6 samples/s | 54.1 samples/s | 59.3 samples/s | 63.1 samples/s | 54.6 samples/s |
 
 
-with the command:
+with setting:
 
 ```bash
 $ fastseq-generate-for-fairseqs \
@@ -96,25 +103,7 @@ $ fastseq-generate-for-fairseqs \
       --batch-size 32
 ```
 
-
-# Models
-
-## Supported models in [fairseq](https://github.com/pytorch/fairseq)
-
-- [x] [BART](https://arxiv.org/pdf/1910.13461.pdf)
-- [x] [Scaling Neural Machine Translation (Ott et al., 2018)](https://github.com/pytorch/fairseq/blob/master/examples/scaling_nmt/README.md)
-- [x] [Mixture Models for Diverse Machine Translation: Tricks of the Trade (Shen et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/translation_moe/README.md)
-- [x] [Pay Less Attention with Lightweight and Dynamic Convolutions (Wu et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/pay_less_attention_paper/README.md)
-
-
-## Supported models in [huggingFace-transformer](https://github.com/huggingface/transformers)
-
-- [ ] [BART](https://huggingface.co/transformers/model_doc/bart.html)
-- [ ] [GPT-2](https://huggingface.co/transformers/model_doc/gpt2.html)
-- [ ] [UniLM-V1](https://github.com/microsoft/unilm)
-- [ ] [UniLM-V2](https://github.com/microsoft/unilm)
-- [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
-- [ ] [T5](https://huggingface.co/transformers/model_doc/t5.html)
+To get fairseq speed number, replace `fastseq-generate-for-fairseqs` by `fairseq-generate`.
 
 # Installation
 
@@ -171,8 +160,8 @@ hypotheses = bart.sample(
 
 print(hypotheses)
 ```
-## Run generation for fairseq models
-### bart ###
+## Command line tool for fairseq models
+Example
 
 ```bash
 $ fastseq-generate-for-fairseqs \
@@ -192,20 +181,8 @@ $ fastseq-generate-for-fairseqs \
     --lenpen 2.0
 ```
 
-### wmt14 ###
-
-```bash
-$ fastseq-generate-for-fairseqs \
-      wmt14.en-fr.joined-dict.newstest2014/ \
-      --path wmt14.en-fr.joined-dict.transformer/model.pt \
-      --beam 4 \
-      --lenpen 0.6 \
-      --remove-bpe \
-      --batch-size 32
-```
-
-## Run generation for transformer models
-###bart###
+## Command line tool for transformer models
+Example
 
 ```bash
 $ fastseq-generate-for-transformers \
@@ -219,53 +196,6 @@ $ fastseq-generate-for-transformers \
     --score_path out.score \
     --task summarization
 ```
-
-###distibart###
-
-```bash
-$ fastseq-generate-for-transformers \
-    sshleifer/distilbart-cnn-12-6 \
-    cnn_dm/val.source \
-    out.summary \
-    --reference_path cnn_dm/val.target \
-    --device cuda \
-    --bs 128 \
-    --fp16 \
-    --score_path out.score \
-    --task summarization
-```
-
-###T5###
-For t5, you need to specify --task translation_{src}to{tgt} as follows:
-
-```bash
-$ fastseq-generate-for-transformers \
-    t5-base \
-    wmt_en_ro/val.source \
-    out.summary \
-    --reference_path wmt_en_ro/val.target \
-    --device cuda \
-    --bs 64 \
-    --fp16 \
-    --score_path out.score \
-    --task translation_en_to_ro
-```
-
-###mbart###
-
-```bash
-$ fastseq-generate-for-transformers \
-    facebook/mbart-large-en-ro \
-    wmt_en_ro/val.source \
-    out.summary \
-    --reference_path wmt_en_ro/val.target \
-    --device cuda \
-    --bs 256 \
-    --fp16 \
-    --score_path out.score \
-    --task translation
-```
-
 
 ## Run tests
 
