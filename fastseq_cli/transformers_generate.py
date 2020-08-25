@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from .transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
+from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

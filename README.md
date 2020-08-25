@@ -14,7 +14,7 @@ FastSeq provides efficient implementations of the popular sequence models with h
 - [x] [Pay Less Attention with Lightweight and Dynamic Convolutions (Wu et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/pay_less_attention_paper/README.md)
 
 
-## Supported models in [huggingFace-transformer](https://github.com/huggingface/transformers)
+## Supported models in [HuggingFace-Transformers](https://github.com/huggingface/transformers)
 
 - [x] [BART](https://huggingface.co/transformers/model_doc/bart.html)
 - [ ] [GPT-2](https://huggingface.co/transformers/model_doc/gpt2.html)
@@ -37,7 +37,7 @@ FastSeq provides efficient implementations of the popular sequence models with h
 with setting:
 
 ```bash
-$ fastseq-generate-for-fairseqs \
+$ fastseq-generate-for-fairseq \
       cnn_dm/len-1024.bin \
       --path bart.large.cnn/model.pt \
       --fp16 \
@@ -54,7 +54,7 @@ $ fastseq-generate-for-fairseqs \
       --lenpen 2.0
 ```
 
-To get fairseq speed number, replace `fastseq-generate-for-fairseqs` by `fairseq-generate`.
+To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
 
 ## BART from Transformers
 
@@ -80,7 +80,7 @@ $ fastseq-generate-for-transformers \
     --task summarization
 ```
 
-To get baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers git repo.
+To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
 
 ## WMT from Fairseq
 - [transformer_vaswani_wmt_en_fr_big](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
@@ -94,7 +94,7 @@ To get baseline transformers' speed number, we can either add option `--without_
 with setting:
 
 ```bash
-$ fastseq-generate-for-fairseqs \
+$ fastseq-generate-for-fairseq \
       wmt14.en-fr.joined-dict.newstest2014/ \
       --path wmt14.en-fr.joined-dict.transformer/model.pt \
       --beam 4 \
@@ -103,7 +103,7 @@ $ fastseq-generate-for-fairseqs \
       --batch-size 32
 ```
 
-To get fairseq speed number, replace `fastseq-generate-for-fairseqs` by `fairseq-generate`.
+To get the fairseq's speed number, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
 
 # Installation
 
@@ -164,7 +164,7 @@ print(hypotheses)
 Example
 
 ```bash
-$ fastseq-generate-for-fairseqs \
+$ fastseq-generate-for-fairseq \
     cnn_dnn/bin \
     --path bart.large.cnn/model.pt \
     --fp16 \
@@ -181,7 +181,7 @@ $ fastseq-generate-for-fairseqs \
     --lenpen 2.0
 ```
 
-## Command line tool for transformer models
+## Command line tool for transformers models
 Example
 
 ```bash
