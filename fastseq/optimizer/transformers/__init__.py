@@ -28,6 +28,8 @@ def apply_transformers_optimization():
 
     if v >= version.parse('3.0.2'):
         import fastseq.optimizer.transformers.beam_search_optimizer # pylint: disable=import-outside-toplevel
+        import fastseq.optimizer.transformers.modeling_t5_optimizer # pylint: disable=import-outside-toplevel
+
         logging.debug("transformers == {} has been optimized.".format(v))
         return
 

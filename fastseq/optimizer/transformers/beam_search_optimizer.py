@@ -70,12 +70,26 @@ class GenerationMixinV2(GenerationMixin):
         encoder_decoder_attn may have been optimized or not. As a result, this
         function need to handle different cases without breaking the program.
         """
+
+        # Update num_beams for BART decoder attention layer
         try:
             for layer in self.model.decoder.layers:
                 layer.encoder_attn.num_beams = num_beams
                 layer.self_attn.num_beams = num_beams
             logger.debug(
                 "num_beams has been updated to {}".format(num_beams))
+            return
+        except:
+            pass
+
+        # Update num_beams for T5 decoder attention layer
+        try:
+            for block in self.decoder.block:
+                block.layer[0].SelfAttention.num_beams = num_beams
+                block.layer[1].EncDecAttention.num_beams = num_beams
+            logger.debug(
+                "num_beams has been updated to {}".format(num_beams))
+            return
         except:
             pass
 
@@ -630,7 +644,7 @@ class GenerationMixinV2(GenerationMixin):
             # generating the same ngrams
             num_batch_hypotheses = batch_size * num_beams
             # from fairseq: https://github.com/pytorch/fairseq/blob/a07cb6f40480928c9e0548b737aadd36ee66ac76/fairseq/sequence_generator.py#L345
-            banned_ngram_tokens = calc_banned_ngram_tokens(
+            banned_ngram_tokens = calc_banned_ngram_tokens( # pylint: disable=too-many-function-args
                 cpu_input_ids, num_batch_hypotheses, no_repeat_ngram_size,
                 cur_len, self.config.pad_token_id)
             _update_scores(banned_ngram_tokens)
