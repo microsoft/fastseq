@@ -593,13 +593,11 @@ class SequenceGeneratorV2(SequenceGenerator):
                 encoder_outs = model.reorder_encoder_out(
                     encoder_outs, reorder_state)
 
-            torch.cuda.nvtx.range_push("forward_decoder")
             lprobs, avg_attn_scores = model.forward_decoder(
                 tokens[:, :step + 1],
                 encoder_outs,
                 temperature=self.temperature,
             )
-            torch.cuda.nvtx.range_pop()
 
             lprobs[:, self.pad] = -math.inf  # never select pad
             lprobs[:, self.unk] -= self.unk_penalty  # apply unk penalty
@@ -645,11 +643,9 @@ class SequenceGeneratorV2(SequenceGenerator):
                 lprobs[:, self.eos] = -math.inf
 
             if self.no_repeat_ngram_size > 0:
-                torch.cuda.nvtx.range_push("ngram_part1")
                 # for each beam and batch sentence, generate a list of previous ngrams
                 banned_list = [[] for bbsz_idx in range(bsz * beam_size)]
                 cpu_tokens = tokens.cpu()[:, :step + 1].numpy()
-                # def calculate_banned_list(bbsz_idx):
                 check_start_pos = step + 2 - self.no_repeat_ngram_size
                 for bbsz_idx in range(bsz * beam_size):
                     for i in range(step + 2 - self.no_repeat_ngram_size):
@@ -660,9 +656,6 @@ class SequenceGeneratorV2(SequenceGenerator):
                                 break
                         if is_banned:
                             banned_list[bbsz_idx].append(cpu_tokens[bbsz_idx, i + self.no_repeat_ngram_size - 1])
-                # p.imap(range(bsz * beam_size), calculate_banned_list)
-
-                torch.cuda.nvtx.range_pop()
 
             # Record attention scores
             if avg_attn_scores is not None:
@@ -680,7 +673,6 @@ class SequenceGeneratorV2(SequenceGenerator):
             self.search.set_src_lengths(src_lengths)
 
             if self.no_repeat_ngram_size > 0:
-                torch.cuda.nvtx.range_push("ngram_part2")
 
                 def calculate_banned_tokens(bbsz_idx):
                     # before decoding the next token, prevent decoding of ngrams that have already appeared
@@ -699,7 +691,6 @@ class SequenceGeneratorV2(SequenceGenerator):
                     lprobs.index_put_(
                         tuple(banned_tokens.t()),
                         lprobs.new_tensor([-math.inf] * len(banned_tokens)))
-                torch.cuda.nvtx.range_pop()
 
             cand_scores, cand_indices, cand_beams = self.search.step(
                 step,
