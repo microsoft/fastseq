@@ -1,9 +1,9 @@
-""" script for importing transformers tests """
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+""" script for importing transformers tests """
+
 import glob
-import unittest
 import sys
 import os
 import argparse
@@ -17,7 +17,7 @@ TRANSFORMERS_PATH = '/tmp/transformers/'
 TRANSFORMERS_GIT_URL = 'https://github.com/huggingface/transformers.git'
 
 
-class FairseqUnitTests(parameterized.TestCase):
+class TransformersUnitTests(parameterized.TestCase):
     def prepare_env(self):
         """set env variables"""
         original_pythonpath = os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '' 

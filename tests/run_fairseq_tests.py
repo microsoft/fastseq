@@ -1,14 +1,15 @@
-""" script for importing fairseq tests """
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+""" script for importing fairseq tests """
+
 import glob
-import unittest
 import sys
 import os
 import argparse
 import logging
 import shutil
+import unittest
 from git import Repo
 from absl.testing import absltest, parameterized
 
@@ -55,7 +56,7 @@ class FairseqUnitTests(parameterized.TestCase):
     
     @parameterized.named_parameters({
             'testcase_name': 'Normal',
-            'without_fastseq_opt': True,
+            'without_fastseq_opt': False,
             'fairseq_version': 'v0.9.0',
             'blocked_tests':['test_binaries.py', 'test_bmuf.py',
                             'test_reproducibility.py'
