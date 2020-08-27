@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Iterable, Optional, Tuple
 
 import torch
-from torch import Tensor, nn
+from torch import Tensor
 from torch.nn import functional as F
 
 from fastseq.utils.api_decorator import replace
@@ -15,6 +15,7 @@ from transformers.configuration_auto import BartConfig
 from transformers.generation_utils import calc_banned_ngram_tokens, calc_banned_bad_words_ids, GenerationMixin
 from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 from transformers.modeling_bart import BartForConditionalGeneration, SelfAttention, _reorder_buffer
+from transformers.modeling_t5 import T5ForConditionalGeneration
 
 logger = logging.getLogger(__name__)
 
@@ -72,26 +73,26 @@ class GenerationMixinV2(GenerationMixin):
         """
 
         # Update num_beams for BART decoder attention layer
-        try:
+        if isinstance(self, BartForConditionalGeneration):
             for layer in self.model.decoder.layers:
                 layer.encoder_attn.num_beams = num_beams
                 layer.self_attn.num_beams = num_beams
             logger.debug(
                 "num_beams has been updated to {}".format(num_beams))
             return
-        except:
-            pass
 
         # Update num_beams for T5 decoder attention layer
-        try:
+        if isinstance(self, T5ForConditionalGeneration):
             for block in self.decoder.block:
                 block.layer[0].SelfAttention.num_beams = num_beams
                 block.layer[1].EncDecAttention.num_beams = num_beams
             logger.debug(
                 "num_beams has been updated to {}".format(num_beams))
             return
-        except:
-            pass
+
+        logger.debug(
+            "The num_beams optimization in self_attn and encoder_decoder_attn "
+            "does not support {} yet.".format(self.__class__))
 
     @torch.no_grad()
     def generate(self,
