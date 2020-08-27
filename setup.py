@@ -4,10 +4,11 @@ extras = {}
 
 extras["torch"] = ["torch>=1.4.0"]
 extras["fairseq"] = ["fairseq>=0.9.0"]
+extras["transformers"] = ["transformers>=3.0.2"]
 
 setup(
     name="fastseq",
-    version="0.0.1",
+    version="0.0.3",
     author="Microsft AdsBrain Team",
     author_email="fastseq@microsoft.com",
     description="Efficient implementations of sequence models with fast performance",
@@ -16,7 +17,7 @@ setup(
     keywords="NLP NLG deep learning transformer sequence pytorch tensorflow BERT GPT GPT-2 Microsoft",
     license="MIT",
     url="https://github.com/microsoft/fastseq",
-    packages=find_packages(where=".", exclude=["tests", "__py_cache__"]),
+    packages=find_packages(where=".", exclude=["benchmarks", "tests", "__py_cache__"]),
     setup_requires=[
         'cython',
         'numpy',
@@ -44,7 +45,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'fastseq-generate = fastseq_cli.generate:cli_main',
+            'fastseq-generate-for-fairseq = fastseq_cli.generate:cli_main',
+            'fastseq-generate-for-transformers = fastseq_cli.transformers_generate:run_generate',
         ],
     },
 )

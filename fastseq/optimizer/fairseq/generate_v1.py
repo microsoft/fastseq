@@ -5,7 +5,7 @@
 
 import logging
 import sys
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, JoinableQueue
 
 import torch
 
@@ -77,6 +77,7 @@ class IOProcess(Process):
                 break
             else:
                 print(msg)
+            self.message_queue.task_done()
         self.message_queue.close()
         self.message_queue.join_thread()
 
@@ -234,6 +235,7 @@ class PostProcess(Process):
         self.data_queue.join_thread()
         self.message_queue.close()
         self.message_queue.join_thread()
+        self.message_queue.join()
 
 
 original_add_generation_args = add_generation_args
@@ -320,7 +322,7 @@ def main_v1(args):
 
     num_sentences = 0
     data_queue = Queue()
-    message_queue = Queue()
+    message_queue = JoinableQueue()
 
     p_list = []
     for i in range(args.post_process_workers):
