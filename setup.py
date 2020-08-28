@@ -47,6 +47,7 @@ setup(
         'console_scripts': [
             'fastseq-generate-for-fairseq = fastseq_cli.generate:cli_main',
             'fastseq-generate-for-transformers = fastseq_cli.transformers_generate:run_generate',
+            'fastseq-eval-lm-for-fairseq = fastseq_cli.eval_lm:cli_main',
         ],
     },
 )
