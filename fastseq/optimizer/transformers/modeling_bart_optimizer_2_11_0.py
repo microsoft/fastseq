@@ -18,7 +18,6 @@ from transformers.modeling_bart import BartForConditionalGeneration, SelfAttenti
 logger = logging.getLogger(__name__)
 
 
-@replace(calc_banned_ngram_tokens)
 def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor, num_hypos: int,
                                 no_repeat_ngram_size: int, cur_len: int,
                                 pad_token_id: int) -> None:
