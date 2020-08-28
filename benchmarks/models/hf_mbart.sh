@@ -8,10 +8,6 @@
 #   <batch-sizes>
 source utils.sh
 
-# clean cache if you want to start from a clean environment
-#rm -rf ~/.cache/fastseq-cache
-export LOOP=3   # repeat every generation X times
-
 # MODEL - mbart
 ./benchmark.sh transformers facebook/mbart-large-en-ro wmt_en_ro/raw val 64 --task translation    # each bs takes 5 minutes
 ./benchmark.sh transformers+fastseq facebook/mbart-large-en-ro wmt_en_ro/raw val 64 --task translation    # each bs takes 5 minutes

@@ -8,10 +8,6 @@
 #   <batch-sizes>
 source utils.sh
 
-# clean cache if you want to start from a clean environment
-#rm -rf ~/.cache/fastseq-cache
-export LOOP=3   # repeat every generation X times
-
 # MODEL - bart large cnn from transformer
 # TASK - cnn dm val 1k set
 ./benchmark.sh transformers facebook/bart-large-cnn cnn_dm.1k/raw val 32 --task summarization    # each loop 5 minutes

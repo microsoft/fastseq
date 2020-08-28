@@ -8,11 +8,6 @@
 #   <batch-sizes>
 source utils.sh
 
-# clean cache if you want to start from a clean environment
-#rm -rf ~/.cache/fastseq-cache
-export LOOP=3   # repeat every generation X times
-
-# MODEL - t5
 ./benchmark.sh transformers t5-base wmt_en_ro/raw val 64 --task translation_en_to_ro          # each bs takes 5 minutes
 ./benchmark.sh transformers+fastseq t5-base wmt_en_ro/raw val 64 --task translation_en_to_ro  # each bs takes 5 minutes
 # Accuracy

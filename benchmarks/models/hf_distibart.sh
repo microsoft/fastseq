@@ -8,10 +8,6 @@
 #   <batch-sizes>
 source utils.sh
 
-# clean cache if you want to start from a clean environment
-#rm -rf ~/.cache/fastseq-cache
-export LOOP=3   # repeat every generation X times
-
 # MODEL - distibart cnn
 # TASK - cnn dm val 1k set
 ./benchmars.sh transformers sshleifer/distilbart-cnn-12-6 cnn_dm.1k/raw val 64 --task summarization  # each loop takes 7 minutes

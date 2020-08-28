@@ -8,10 +8,6 @@
 #   <batch-sizes>
 source utils.sh
 
-# clean cache if you want to start from a clean environment
-#rm -rf ~/.cache/fastseq-cache
-export LOOP=3   # repeat every generation X times
-
 ## TASK - cnn dm val 1k set
 ./benchmark.sh fairseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 32          # each loop 7 minutes
 ./benchmark.sh fairseq+fastseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 32/64/128  # each loop 5 minutes

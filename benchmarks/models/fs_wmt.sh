@@ -8,10 +8,6 @@
 #   <batch-sizes>
 source utils.sh
 
-# clean cache if you want to start from a clean environment
-#rm -rf ~/.cache/fastseq-cache
-export LOOP=3   # repeat every generation X times
-
 # below only works with python 1.6+, comment out for now
 ## MODEL - wmt16
 #./benchmark.sh fairseq wmt16.en.de.32k wmt16_en_de_bpe32k/bin test 256  # take 20 minutes
