@@ -1,4 +1,4 @@
-export LOOP=1   # repeat every generation X times
+export LOOP=3   # repeat every generation X times
 export CACHE_DIR=~/.cache/fastseq-cache
 mkdir -p $CACHE_DIR
 export STDOUT_FILE=/tmp/fastseq.stdout
