@@ -34,7 +34,7 @@ score_file=/tmp/fastseq.score
 IFS='/' read -ra bs_list <<< "$bss"
 for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
-    echo "Processing Loop=$i Util=$util_display Model=$model Task=$task Split=$split BS=$bs"
+    echo "Processing Loop=$i/$LOOP Util=$util_display Model=$model Task=$task Split=$split BS=$bs"
     rm -rf $summary_file $score_file
     start=`date +%s`
     fastseq-generate-for-transformers $model $data_dir/$split.source $summary_file --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $score_file $extra_param $* > $stdout_file 2> $stderr_file
@@ -52,22 +52,19 @@ for bs in "${bs_list[@]}"; do
         rougel=NA
         nf=`awk -F'[\s:,{}]' '{print NF}' $score_file`
         if [ $nf -eq 4 ]; then
-            bleu=`awk -F'[\s:,{}]' '{printf "%.2f",$3}' $score_file`
+            bleu=`sed 's/.*"bleu": \([.0-9]*\).*/\1/' $score_file | awk '{printf "%.2f",$1}'`
         else
-            rouge1=`awk -F'[\s:,{}]' '{printf "%.2f",$3}' $score_file`
-            rouge2=`awk -F'[\s:,{}]' '{printf "%.2f",$5}' $score_file`
-            rougel=`awk -F'[\s:,{}]' '{printf "%.2f",$7}' $score_file`
+            rouge1=`sed 's/.*"rouge1": \([.0-9]*\).*/\1/' $score_file | awk '{printf "%.2f",$1}'`
+            rouge2=`sed 's/.*"rouge2": \([.0-9]*\).*/\1/' $score_file | awk '{printf "%.2f",$1}'`
+            rougel=`sed 's/.*"rougeL": \([.0-9]*\).*/\1/' $score_file | awk '{printf "%.2f",$1}'`
+            rougel=`awk -F'[\s:,{}]' '{printf "%.2f",$7}' $score_file | awk '{printf "%.2f",$1}'`
         fi
-        echo "$util_display $model $task $split $bs $samples $tokens $bleu $rouge1 $rouge2 $rougel $runtime $throughput1 $throughput2" >> $perff
+        echo "$util_display $model $task $split $bs $samples $tokens $bleu $rouge1|$rouge2|$rougel NA NA $runtime $throughput1 $throughput2" >> $perff
     else
         echo "$util_display $model $task $split $bs NA NA NA NA NA NA $runtime NA NA" >> $perff
-        if grep -Fq "RuntimeError: CUDA out of memory" $stderr_file; then
-            :   # OOM is expected in some bs settings
-        else
-            cat $stderr_file
-            echo "Return code: " $ret
-            exit -1
-        fi
+        cat $stderr_file
+        echo "Return code: " $ret
+        exit -1 # force to fail
     fi
 done
 done
