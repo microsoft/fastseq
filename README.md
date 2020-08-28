@@ -29,10 +29,10 @@ FastSeq provides efficient implementations of the popular sequence models with h
 
 - CNN daily mail val data, NVIDIA-V100-16GB
 
-  |     BatchSize    |       32      |       64       |      128       |
-  |:----------------:|:-------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    | 2.3 samples/s |      OOM       |      OOM       |
-  | above + fastseq  | 6.1 samples/s | 8.7 samples/s  | 11.0 samples/s |
+  |     BatchSize    |       32      |        64       |      128       |
+  |:----------------:|:-------------:|:---------------:|:--------------:|
+  | fairseq-0.9.0    | 2.3 samples/s |       OOM       |      OOM       |
+  | above + fastseq  | 7.5 samples/s | 11.6 samples/s  | 14.8 samples/s |
 
 with setting:
 
