@@ -13,6 +13,7 @@ import unittest
 from git import Repo
 from absl.testing import absltest, parameterized
 
+
 FASTSEQ_PATH = '/'.join(os.path.realpath(__file__).split('/')[0:-2])
 FAIRSEQ_PATH = '/tmp/fairseq/'
 FAIRSEQ_GIT_URL = 'https://github.com/pytorch/fairseq.git'
@@ -21,23 +22,22 @@ FAIRSEQ_GIT_URL = 'https://github.com/pytorch/fairseq.git'
 class FairseqUnitTests(parameterized.TestCase):
     def prepare_env(self):
         """set env variables"""
-        original_pythonpath = os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '' 
-        os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
         #Removing following path since it contains utils directory
         #which clashes with utils.py file in fairseq/tests.
         if FASTSEQ_PATH in sys.path:
             sys.path.remove(FASTSEQ_PATH)
-        if '' in sys.path:
-            sys.path.remove('')
         sys.path.insert(0, FAIRSEQ_PATH)
     
     
-    def clone_fairseq(self, repo, version):
-        """clone fairseq repo"""
+    def clone_and_build_fairseq(self, repo, version):
+        """clone and build fairseq repo"""
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
-    
+        os.chdir(FAIRSEQ_PATH)
+        os.system('pip install --editable .')
+        original_pythonpath = os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '' 
+        os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
     
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
@@ -63,13 +63,10 @@ class FairseqUnitTests(parameterized.TestCase):
                             ]
         })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
-    
+        self.clone_and_build_fairseq(FAIRSEQ_GIT_URL, fairseq_version)
         if not without_fastseq_opt:
             import fastseq  #pylint: disable=import-outside-toplevel
-    
         self.prepare_env()
-        self.clone_fairseq(FAIRSEQ_GIT_URL, fairseq_version)
-    
         test_files_path = FAIRSEQ_PATH + '/tests/test_*.py'
         suites = self.get_test_suites(test_files_path, blocked_tests)
         test_suite = unittest.TestSuite(suites)
