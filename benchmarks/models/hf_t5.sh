@@ -8,8 +8,8 @@
 #   <batch-sizes>
 source utils.sh
 
-./benchmark.sh transformers t5-base wmt_en_ro/raw val 64 --task translation_en_to_ro          # each bs takes 5 minutes
-./benchmark.sh transformers+fastseq t5-base wmt_en_ro/raw val 64 --task translation_en_to_ro  # each bs takes 5 minutes
+./benchmark.sh transformers t5-base wmt_en_ro/raw val 64 --task translation_en_to_ro --no_repeat_ngram_size 3         # each bs takes 5 minutes
+./benchmark.sh transformers+fastseq t5-base wmt_en_ro/raw val 64 --task translation_en_to_ro --no_repeat_ngram_size 3  # each bs takes 5 minutes
 # Accuracy
 grep "t5-base wmt_en_ro/raw val " perf | awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' | bash range.sh 27.82 27.84
 # Speed on V100 16GB 250W

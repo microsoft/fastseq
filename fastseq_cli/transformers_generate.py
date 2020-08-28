@@ -28,14 +28,12 @@ def generate_summaries_or_translations(
     task="summarization",
     decoder_start_token_id=None,
     fastseq_opt=True,
-    no_repeat_ngram_size=3,
+    no_repeat_ngram_size=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
     if fastseq_opt:
         import fastseq  #pylint: disable=import-outside-toplevel
-    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer   #pylint: disable=import-outside-toplevel
-    from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch    #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
