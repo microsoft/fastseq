@@ -5,7 +5,8 @@
 
 import logging
 import sys
-from multiprocessing import Process, Queue, JoinableQueue
+from multiprocessing import Queue, JoinableQueue
+from torch.multiprocessing import Process
 
 import torch
 
@@ -361,6 +362,7 @@ def main_v1(args):
             num_generated_tokens = sum(len(h[0]['tokens']) for h in hypos)
             gen_timer.stop(num_generated_tokens)
 
+            hypos = [h[:args.nbest] for h in hypos]
             hypos = move_to_cpu(hypos) if use_cuda else hypos
             data_queue.put((cpu_sample, hypos))
 
