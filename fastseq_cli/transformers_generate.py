@@ -118,8 +118,8 @@ def run_generate():
                         help="How many observations. Defaults to all.")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--without_fastseq_opt", action="store_true")
-    parser.add_argument("--no_repeat_ngram_size", type=int, default=3,
-                         required=True, help="size of no repeat ngram")
+    parser.add_argument("--no_repeat_ngram_size", type=int, default=None,
+                         required=False, help="size of no repeat ngram")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
