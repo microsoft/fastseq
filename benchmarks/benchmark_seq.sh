@@ -51,9 +51,9 @@ fi
 
 mark1=" with beam="
 mark2="| Evaluated "
-for i in `seq $LOOP`; do
+for i in `seq ${LOOP:-3}`; do
 for bs in "${bs_list[@]}"; do
-    echo "Processing Loop=$i/$LOOP Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
+    echo "Processing Loop=$i/${LOOP:-3} Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
     start=`date +%s`
     if [[ $type == lm ]]; then
         $util $data_dir \
