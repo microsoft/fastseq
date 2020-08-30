@@ -1,4 +1,4 @@
-export LOOP=${LOOP:-3}
+export LOOP=${LOOP:-3}  # repeat every benchmark X times
 export CACHE_DIR=~/.cache/fastseq-cache
 mkdir -p $CACHE_DIR
 export STDOUT_FILE=/tmp/fastseq.stdout
