@@ -12,12 +12,11 @@ from torch.nn import functional as F
 
 from fastseq.utils.api_decorator import replace
 from transformers.configuration_auto import BartConfig
-from transformers.generation_utils import calc_banned_ngram_tokens, calc_banned_bad_words_ids, GenerationMixin
+from transformers.generation_utils import calc_banned_ngram_tokens, calc_banned_bad_words_ids, GenerationMixin, BeamHypotheses
 from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 from transformers.modeling_bart import BartForConditionalGeneration, SelfAttention, _reorder_buffer
 
 logger = logging.getLogger(__name__)
-
 
 @replace(calc_banned_ngram_tokens)
 def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
@@ -26,6 +25,7 @@ def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
                                 cur_len: int,
                                 pad_token_id: int) -> None:
     """Copied from fairseq for no_repeat_ngram in beam_search"""
+    
     if cur_len + 1 < no_repeat_ngram_size:
         # return no banned tokens if we haven't generated no_repeat_ngram_size
         # tokens yet
@@ -51,6 +51,8 @@ def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
     banned_tokens = [_get_generated_ngrams(hypo_idx)
                      for hypo_idx in range(num_hypos)]
     return banned_tokens
+
+
 
 @replace(GenerationMixin)
 class GenerationMixinV2(GenerationMixin):
@@ -643,6 +645,281 @@ class GenerationMixinV2(GenerationMixin):
             _update_scores(banned_bad_words_tokens)
 
         return scores
+
+
+    def _generate_beam_search(
+        self,
+        input_ids,
+        cur_len,
+        max_length,
+        min_length,
+        do_sample,
+        early_stopping,
+        temperature,
+        top_k,
+        top_p,
+        repetition_penalty,
+        no_repeat_ngram_size,
+        bad_words_ids,
+        pad_token_id,
+        eos_token_id,
+        batch_size,
+        num_return_sequences,
+        length_penalty,
+        num_beams,
+        vocab_size,
+        encoder_outputs,
+        attention_mask,
+        use_cache,
+        model_specific_kwargs,
+    ):
+        """Generate sequences for each example with beam search."""
+
+        # generated hypotheses
+        generated_hyps = [
+            BeamHypotheses(num_beams, max_length, length_penalty, early_stopping=early_stopping)
+            for _ in range(batch_size)
+        ]
+
+        # scores for each sentence in the beam
+        beam_scores = torch.zeros((batch_size, num_beams), dtype=torch.float, device=input_ids.device)
+
+        # for greedy decoding it is made sure that only tokens of the first beam are considered to avoid sampling the exact same tokens three times
+        if do_sample is False:
+            beam_scores[:, 1:] = -1e9
+        beam_scores = beam_scores.view(-1)  # shape (batch_size * num_beams,)
+
+        # cache compute states
+        past = (encoder_outputs, None) if encoder_outputs is not None else None
+
+        # done sentences
+        done = [False for _ in range(batch_size)]
+
+        while cur_len < max_length:
+            torch.cuda.nvtx.range_push("decoder_input_prepare ")
+            model_inputs = self.prepare_inputs_for_generation(
+                input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
+            )
+            torch.cuda.nvtx.range_pop()
+            
+            
+            
+            torch.cuda.nvtx.range_push("decoder_layers_forward")
+            outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
+            torch.cuda.nvtx.range_pop()
+            
+            
+            
+            next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
+
+            # if model has past, then set the past variable to speed up decoding
+            if self._use_cache(outputs, use_cache):
+                past = outputs[1]
+            if self.config.is_encoder_decoder and do_sample is False:
+                # TODO (PVP) still a bit hacky here - there might be a better solution
+                next_token_logits = self.adjust_logits_during_generation(
+                    next_token_logits, cur_len=cur_len, max_length=max_length
+                )
+
+
+            torch.cuda.nvtx.range_push("curr_scores_to_next_tokens")
+            scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
+
+            scores = self.postprocess_next_token_scores(
+                scores=scores,
+                input_ids=input_ids,
+                no_repeat_ngram_size=no_repeat_ngram_size,
+                bad_words_ids=bad_words_ids,
+                cur_len=cur_len,
+                min_length=min_length,
+                max_length=max_length,
+                eos_token_id=eos_token_id,
+                repetition_penalty=repetition_penalty,
+                batch_size=batch_size,
+                num_beams=num_beams,
+            )
+
+            assert scores.shape == (batch_size * num_beams, vocab_size), "Shapes of scores: {} != {}".format(
+                scores.shape, (batch_size * num_beams, vocab_size)
+            )
+
+            if do_sample:
+                _scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
+                # Temperature
+                if temperature != 1.0:
+                    _scores = _scores / temperature
+                # Top-p/top-k filtering
+                _scores = top_k_top_p_filtering(
+                    _scores, top_k=top_k, top_p=top_p, min_tokens_to_keep=2
+                )  # (batch_size * num_beams, vocab_size)
+                # re-organize to group the beam together to sample from all beam_idxs
+                _scores = _scores.contiguous().view(
+                    batch_size, num_beams * vocab_size
+                )  # (batch_size, num_beams * vocab_size)
+
+                # Sample 2 next tokens for each beam (so we have some spare tokens and match output of greedy beam search)
+                probs = F.softmax(_scores, dim=-1)
+                next_tokens = torch.multinomial(probs, num_samples=2 * num_beams)  # (batch_size, num_beams * 2)
+                # Compute next scores
+                next_scores = torch.gather(_scores, -1, next_tokens)  # (batch_size, num_beams * 2)
+                # sort the sampled vector to make sure that the first num_beams samples are the best
+                next_scores, next_scores_indices = torch.sort(next_scores, descending=True, dim=1)
+                next_tokens = torch.gather(next_tokens, -1, next_scores_indices)  # (batch_size, num_beams * 2)
+            
+            else:
+                next_scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
+
+                # re-organize to group the beam together (we are keeping top hypothesis accross beams)
+                next_scores = next_scores.view(
+                    batch_size, num_beams * vocab_size
+                )  # (batch_size, num_beams * vocab_size)
+
+                next_scores, next_tokens = torch.topk(next_scores, 2 * num_beams, dim=1, largest=True, sorted=True)
+
+            assert next_scores.size() == next_tokens.size() == (batch_size, 2 * num_beams)
+
+            torch.cuda.nvtx.range_pop()
+            # next batch beam content
+            next_batch_beam = []
+
+            torch.cuda.nvtx.range_push("collect generated hypothesis")
+            
+            next_tokens_id = next_tokens % vocab_size  
+            next_beams_id = next_tokens // vocab_size 
+            beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(1).type_as(next_beams_id)
+            effective_beam_id =  next_beams_id + beams_offset 
+            eos_mask = next_tokens_id.eq(eos_token_id)
+
+            eos_effective_idx = torch.masked_select(
+                effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
+            )
+            
+            eos_effective_scores = torch.masked_select(
+                    next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
+                )
+            
+            for i in range (0, eos_effective_idx.size()[-1]):
+                batch_idx = eos_effective_idx[i] // num_beams
+                if not done[batch_idx] : 
+                    generated_hyps[batch_idx.item()].add(
+                                input_ids[eos_effective_idx[i]].clone(),
+                                eos_effective_scores[i],
+                            )
+                done[batch_idx] = done[batch_idx] or generated_hyps[batch_idx].is_done(
+                    next_scores[batch_idx].max().item(), cur_len
+                        )
+
+            cand_offsets = torch.arange(0, 2*num_beams).type_as(input_ids)
+            active_mask = torch.add(
+                eos_mask.type_as(cand_offsets) * (2*num_beams),
+                cand_offsets[: eos_mask.size(1)],
+            )
+            _, active_hypos = torch.topk(
+                active_mask, k=num_beams, dim=1, largest=False
+            )
+            active_effective_beam_id  = torch.gather(effective_beam_id, dim=1, index=active_hypos)
+            active_scores  = torch.gather(next_scores, dim=1, index=active_hypos)
+            active_tokens  = torch.gather(next_tokens_id, dim=1, index=active_hypos)
+            beam_idx = active_effective_beam_id.view(-1)
+            beam_scores = active_scores.view(-1)
+            beam_tokens = active_tokens.view(-1)
+            
+            torch.cuda.nvtx.range_pop()
+            
+            #stop when we are done with each sentence
+            if all(done):
+                break
+
+            # re-order batch and update current length
+            input_ids = input_ids[beam_idx, :]
+            input_ids = torch.cat([input_ids, beam_tokens.unsqueeze(1)], dim=-1)
+            cur_len = cur_len + 1
+            
+            torch.cuda.nvtx.range_push("decoder_states_reorder")
+            # re-order internal states
+            if past is not None:
+                past = self._reorder_cache(past, beam_idx)
+            torch.cuda.nvtx.range_pop()
+
+            # extend attention_mask for new generated input if only decoder
+            if self.config.is_encoder_decoder is False:
+                attention_mask = torch.cat(
+                    [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
+                )
+        
+        # finalize all open beam hypotheses and add to generated hypotheses
+        for batch_idx in range(batch_size):
+            if done[batch_idx]:
+                continue
+
+            # test that beam scores match previously calculated scores if not eos and batch_idx not done
+            if eos_token_id is not None and all(
+                (token_id % vocab_size).item() != eos_token_id for token_id in next_tokens[batch_idx]
+            ):
+                assert torch.all(
+                    next_scores[batch_idx, :num_beams] == beam_scores.view(batch_size, num_beams)[batch_idx]
+                ), "If batch_idx is not done, final next scores: {} have to equal to accumulated beam_scores: {}".format(
+                    next_scores[:, :num_beams][batch_idx],
+                    beam_scores.view(batch_size, num_beams)[batch_idx],
+                )
+
+            # need to add best num_beams hypotheses to generated hyps
+            for beam_id in range(num_beams):
+                effective_beam_id = batch_idx * num_beams + beam_id
+                final_score = beam_scores[effective_beam_id].item()
+                final_tokens = input_ids[effective_beam_id]
+                generated_hyps[batch_idx].add(final_tokens, final_score)
+
+        # depending on whether greedy generation is wanted or not define different output_batch_size and output_num_return_sequences_per_batch
+        output_batch_size = batch_size if do_sample else batch_size * num_return_sequences
+        output_num_return_sequences_per_batch = 1 if do_sample else num_return_sequences
+
+        # select the best hypotheses
+        sent_lengths = input_ids.new(output_batch_size)
+        best = []
+
+        
+        
+        torch.cuda.nvtx.range_push("get_best_hypo")
+        # retrieve best hypotheses
+        for i, hypotheses in enumerate(generated_hyps):
+            sorted_hyps = sorted(hypotheses.beams, key=lambda x: x[0])
+            for j in range(output_num_return_sequences_per_batch):
+                effective_batch_idx = output_num_return_sequences_per_batch * i + j
+                best_hyp = sorted_hyps.pop()[1]
+                sent_lengths[effective_batch_idx] = len(best_hyp)
+                best.append(best_hyp)
+        torch.cuda.nvtx.range_pop()
+        
+        # shorter batches are padded
+        if sent_lengths.min().item() != sent_lengths.max().item():
+            assert pad_token_id is not None, "`Pad_token_id` has to be defined"
+            sent_max_len = min(sent_lengths.max().item() + 1, max_length)
+            decoded = input_ids.new(output_batch_size, sent_max_len).fill_(pad_token_id)
+
+            # fill with hypothesis and eos_token_id if necessary
+            for i, hypo in enumerate(best):
+                decoded[i, : sent_lengths[i]] = hypo
+                if sent_lengths[i] < max_length:
+                    decoded[i, sent_lengths[i]] = eos_token_id
+        else:
+            # none of the hypotheses have an eos_token
+            assert (len(hypo) == max_length for hypo in best)
+            decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
+
+        return decoded
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @replace(SelfAttention)
