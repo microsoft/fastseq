@@ -1,4 +1,3 @@
-export LOOP=3   # repeat every generation X times
 export CACHE_DIR=~/.cache/fastseq-cache
 mkdir -p $CACHE_DIR
 export STDOUT_FILE=/tmp/fastseq.stdout
@@ -11,7 +10,7 @@ failure() {
     local file=$1
     local lineno=$2
     local msg=$3
-    echo "Failed at $file (line $lineno): $msg"
+    echo "`date` - Failed at $file (line $lineno): $msg"
     echo
     cat $STDERR_FILE
 }

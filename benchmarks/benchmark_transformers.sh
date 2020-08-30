@@ -26,9 +26,9 @@ elif [[ "$framework" == "transformers+fastseq" ]]; then
     framework_versioned="transformers_v$ver1+fastseq_v$ver2"
 fi
 IFS='/' read -ra bs_list <<< "$bss"
-for i in `seq $LOOP`; do
+for i in `seq ${LOOP:-3}`; do
 for bs in "${bs_list[@]}"; do
-    echo "Processing Loop=$i/$LOOP Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
+    echo "Processing Loop=$i/${LOOP:-3} Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
     rm -rf $SUMMARY_FILE $SCORE_FILE
     start=`date +%s`
     fastseq-generate-for-transformers $model $data_dir/$split.source $SUMMARY_FILE --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $SCORE_FILE $extra_param $* > $STDOUT_FILE 2> $STDERR_FILE
