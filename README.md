@@ -38,7 +38,7 @@ with setting:
 
 ```bash
 $ fastseq-generate-for-fairseq \
-      cnn_dm/len-1024.bin \
+      cnn_dm.1k/len-1024.bin \
       --path bart.large.cnn/model.pt \
       --fp16 \
       --task translation \
@@ -62,17 +62,19 @@ To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairse
 
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 2.6 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 4.3 samples/s | 5.5 samples/s  | >5.5 samples/s |
+  | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
+  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
   | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
   |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
+
+(numbers for 2.11.0 needs to be updated based on docker env.)
 
 with setting:
 
 ```bash
 $ fastseq-generate-for-transformers \
     facebook/bart-large-cnn \
-    cnn_dm/val.source \
+    cnn_dm.1k/val.source \
     out.summary \
     --reference_path cnn_dm/val.target \
     --device cuda \
