@@ -1,3 +1,4 @@
+export LOOP=${LOOP:-3}
 export CACHE_DIR=~/.cache/fastseq-cache
 mkdir -p $CACHE_DIR
 export STDOUT_FILE=/tmp/fastseq.stdout
@@ -10,12 +11,16 @@ failure() {
     local file=$1
     local lineno=$2
     local msg=$3
+    local ret=$4
+    if [[ $file == benchmark* ]]; then
+        cat $STDERR_FILE 
+        echo
+    fi
     echo "`date` - Failed at $file (line $lineno): $msg"
-    echo
-    cat $STDERR_FILE
+    exit $ret
 }
 me=`basename $0`
-trap 'failure $me ${LINENO} "$BASH_COMMAND"' ERR
+trap 'failure $me ${LINENO} "$BASH_COMMAND" $?' ERR
 
 download_if_not_in_cache() {
     remote_path=$1

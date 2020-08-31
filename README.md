@@ -60,12 +60,12 @@ To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairse
 
 - CNN daily mail val data, NVIDIA-V100-16GB
 
-  |      BatchSize      |       32      |       64       |
-  |:-------------------:|:-------------:|:--------------:|
-  | transformers-3.0.2  | 2.6 samples/s |      OOM       |
-  |  above + fastseq    | 4.3 samples/s | 5.5 samples/s  |
-  | transformers-2.11.0 | 2.5 samples/s |      OOM       |
-  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  |
+  |      BatchSize      |       32      |       64       |       128      |
+  |:-------------------:|:-------------:|:--------------:|:--------------:|
+  | transformers-3.0.2  | 2.6 samples/s |      OOM       |      OOM       |
+  |  above + fastseq    | 4.3 samples/s | 5.5 samples/s  | >5.5 samples/s |
+  | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
+  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
 
 with setting:
 
@@ -85,12 +85,12 @@ $ fastseq-generate-for-transformers \
 To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
 
 ## WMT from Fairseq
-- [transformer_vaswani_wmt_en_fr_big](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
+- [WMT16 En-De](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
 
-  |     BatchSize    |       32       |       64       |      128       |      256       |      512       |      1024      |
-  |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    | 22.8 samples/s | 36.1 samples/s | 38.0 samples/s | 41.0 samples/s | 38.6 samples/s |      OOM       |
-  | above + fastseq  | 31.2 samples/s | 50.6 samples/s | 54.1 samples/s | 59.3 samples/s | 63.1 samples/s | 54.6 samples/s |
+  |     BatchSize    |      256       |      512       |      1024      |
+  |:----------------:|:--------------:|:--------------:|:--------------:|
+  | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
+  | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
 
 
 with setting:
