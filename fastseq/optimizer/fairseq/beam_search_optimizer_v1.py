@@ -648,7 +648,7 @@ class SequenceGeneratorV2(SequenceGenerator):
                 cpu_tokens = tokens.cpu()[:, :step + 1].numpy()
                 check_start_pos = step + 2 - self.no_repeat_ngram_size
                 for bbsz_idx in range(bsz * beam_size):
-                    for i in range(step + 2 - self.no_repeat_ngram_size):
+                    for i in range(check_start_pos):
                         is_banned = True
                         for k in range(self.no_repeat_ngram_size - 1):
                             if cpu_tokens[bbsz_idx, i + k] != cpu_tokens[bbsz_idx, check_start_pos + k]:
