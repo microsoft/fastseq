@@ -60,10 +60,12 @@ To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairse
 
 - CNN daily mail val data, NVIDIA-V100-16GB
 
-  |     BatchSize    |       32      |       64       |
-  |:----------------:|:-------------:|:--------------:|
-  | fairseq-0.9.0    | 2.3 samples/s |      OOM       |
-  | above + fastseq  | 3.9 samples/s | 4.5 samples/s  |
+  |      BatchSize      |       32      |       64       |
+  |:-------------------:|:-------------:|:--------------:|
+  | transformers-3.0.2  | 2.6 samples/s |      OOM       |
+  |  above + fastseq    | 4.3 samples/s | 5.5 samples/s  |
+  | transformers-2.11.0 | 2.5 samples/s |      OOM       |
+  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  |
 
 with setting:
 

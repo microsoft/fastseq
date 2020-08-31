@@ -31,6 +31,11 @@ def apply_transformers_optimization():
         logging.debug("transformers == {} has been optimized.".format(v))
         return
 
+    if v == version.parse('2.11.0'):
+        import fastseq.optimizer.transformers.modeling_bart_optimizer_2_11_0 # pylint: disable=import-outside-toplevel
+        logging.debug("transformers == {} has been optimized.".format(v))
+        return
+
     logging.warning(
         "transformers == {} is not supported yet, please upgrade it to 3.0.2 or above" # pylint: disable=line-too-long
         .format(v))
