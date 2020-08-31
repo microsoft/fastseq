@@ -31,8 +31,8 @@ FastSeq provides efficient implementations of the popular sequence models with h
 
   |     BatchSize    |       32      |        64       |      128       |
   |:----------------:|:-------------:|:---------------:|:--------------:|
-  | fairseq-0.9.0    | 2.3 samples/s |       OOM       |      OOM       |
-  | above + fastseq  | 7.5 samples/s | 11.6 samples/s  | 14.8 samples/s |
+  | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
+  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 14.5 samples/s |
 
 with setting:
 
