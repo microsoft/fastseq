@@ -11,5 +11,6 @@ if [[ $ret == Error* ]]; then
     echo "Test failed! $n is not in [$1, $2]."
     exit -1
 else
-    echo "Test passed! $n is in [$1, $2]."
+    :
+    #echo "Test passed! $n is in [$1, $2]."
 fi
