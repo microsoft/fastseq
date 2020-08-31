@@ -21,7 +21,7 @@ FastSeq provides efficient implementations of the popular sequence models with h
 - [ ] [UniLM-V1](https://github.com/microsoft/unilm)
 - [ ] [UniLM-V2](https://github.com/microsoft/unilm)
 - [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
-- [ ] [T5](https://huggingface.co/transformers/model_doc/t5.html)
+- [x] [T5](https://huggingface.co/transformers/model_doc/t5.html)
 
 # Benchmarks
 
