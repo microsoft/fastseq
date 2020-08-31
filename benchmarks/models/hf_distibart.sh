@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run it at its parent folder, and check result at ../perf. 
-# USAGE - ./benchmark.sh 
+# Run it at its parent folder, and check result at ../perf.
+# USAGE - ./benchmark.sh
 #   [fairseq|fairseq+fastseq|transformers|transformers+fastseq]
 #   <model>
 #   <task>
@@ -10,7 +10,7 @@ source utils.sh
 
 # MODEL - distibart cnn
 # TASK - cnn dm val 1k set
-./benchmars.sh transformers sshleifer/distilbart-cnn-12-6 cnn_dm.1k/raw val 64 --task summarization  # each loop takes 7 minutes
+./benchmark.sh transformers sshleifer/distilbart-cnn-12-6 cnn_dm.1k/raw val 64 --task summarization  # each loop takes 7 minutes
 ./benchmark.sh transformers+fastseq sshleifer/distilbart-cnn-12-6 cnn_dm.1k/raw val 64/128 --task summarization  # each loop takes 7 minutes
 # Accuracy
 grep "sshleifer/distilbart-cnn-12-6 cnn_dm.1k/raw val " perf | awk '{print $9}' | awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' | bash range.sh 35.1 35.3
