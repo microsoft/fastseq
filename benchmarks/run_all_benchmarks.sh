@@ -6,5 +6,6 @@
 for f in `ls ./models/`; do
     echo "Run $f ..."
     bash ./models/$f
-    echo "`date`	$f	$?" >> perf.summary
+    ret=$?
+    echo "`date`	$f	$ret" >> perf.summary
 done
