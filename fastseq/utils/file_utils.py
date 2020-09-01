@@ -10,9 +10,12 @@ import tempfile
 from zipfile import ZipFile, is_zipfile
 
 import requests
-from absl import logging
 from filelock import FileLock
 from tqdm.auto import tqdm
+
+from fastseq.logging import get_logger
+
+logger = get_logger(__name__)
 
 get_named_temp_file = tempfile.NamedTemporaryFile
 
@@ -33,7 +36,7 @@ def make_dirs(path, mode=0o777, exist_ok=False):
     try:
         os.makedirs(path, mode, exist_ok)
     except OSError as error:
-        logging.error(error)
+        logger.error(error)
 
 
 def wget(url, target_file_handling):

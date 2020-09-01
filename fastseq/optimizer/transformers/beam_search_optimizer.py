@@ -613,6 +613,7 @@ class GenerationMixinV2(GenerationMixin):
         batch_size,
         num_beams,
     ):
+        """Postprocess to update the next token scores"""
         # repetition penalty (from CTRL paper https://arxiv.org/abs/1909.05858)
         if repetition_penalty != 1.0:
             self.enforce_repetition_penalty_(

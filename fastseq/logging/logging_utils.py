@@ -5,29 +5,36 @@
 
 import os
 
-import absl
-from absl import logging
+import logging
 
 FASTSEQ_LOG_LEVEL = 'FASTSEQ_LOG_LEVEL'
+FASTSEQ_LOG_FORMATTER = logging.Formatter(
+    '%(asctime)s %(levelname)s %(filename)s:%(lineno)d] %(message)s')
 
-logging.get_absl_handler().use_absl_log_file()
-absl.flags.FLAGS.mark_as_parsed()
+def get_logger(name=None, level=logging.INFO):
+    """
+    Return a logger with the specific name, creating it if necessary.
 
-
-def set_log_level(log_level=None):
-    """Set the log level.
-
-    If there is no log level specified, it will be default to `INFO`.
+    If no name is specified, return the root logger.
 
     Args:
-        log_level (int/str, optional): the log level. Defaults to None.
+        name (str, optional): logger name. Defaults to None.
+
+    Returns:
+        Logger : the specified logger.
     """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    return logger
 
-    level = os.environ.get(
-        FASTSEQ_LOG_LEVEL) if log_level is None else log_level
+def update_all_log_level(level=logging.INFO):
+    """
+    Update all the loggers to use the specified level.
 
-    if level is not None:
-        logging.set_verbosity(level)
-        return
-
-    logging.set_verbosity(logging.INFO)
+    Args:
+        level (int/str, optional): the log level. Defaults to logging.INFO.
+    """
+    loggers = [
+        logging.getLogger(name) for name in logging.root.manager.loggerDict]
+    for logger in loggers:
+        logger.setLevel(level)

@@ -3,14 +3,16 @@
 
 """Import the optimization for beam search related parts in FairSeq."""
 
-from absl import logging
 from packaging import version
 
 import fairseq
 from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY
 from fairseq.sequence_generator import SequenceGenerator
 
+from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import FAIRSEQ_OPTIMIZED_CLASSES
+
+logger = get_logger(__name__)
 
 LATEST_VERSION = 'latest'
 
@@ -45,16 +47,16 @@ def apply_fairseq_optimization():
         import fastseq.optimizer.fairseq.beam_search_optimizer_v1  # pylint: disable=import-outside-toplevel
         import fastseq.optimizer.fairseq.generate_v1  # pylint: disable=import-outside-toplevel
         _update_fairseq_model_registration()
-        logging.debug("fairseq == {} has been optimized.".format(v))
+        logger.debug("fairseq == {} has been optimized.".format(v))
         return
 
     if v > version.parse('0.9.0') or isinstance(v, version.LegacyVersion):
         import fastseq.optimizer.fairseq.beam_search_optimizer_v2  # pylint: disable=import-outside-toplevel
         import fastseq.optimizer.fairseq.generate_v2  # pylint: disable=import-outside-toplevel
         _update_fairseq_model_registration()
-        logging.debug("fairseq == {} has been optimized.".format(v))
+        logger.debug("fairseq == {} has been optimized.".format(v))
         return
-    logging.warning(
+    logger.warning(
         "fairseq == {} is not supported yet, please upgrade it to 0.9.0 or above" # pylint: disable=line-too-long
         .format(v))
 
@@ -70,11 +72,11 @@ def _update_fairseq_model_registration():
         for optimized_cls in FAIRSEQ_OPTIMIZED_CLASSES:
             if model_class == optimized_cls.__base__:
                 MODEL_REGISTRY[model_name] = optimized_cls
-                logging.debug(
+                logger.debug(
                     "Update the register model {} from {} to {}".format(
                         model_name, model_class, optimized_cls))
             elif model_class.__base__ == optimized_cls.__base__:
-                logging.debug(
+                logger.debug(
                     "Update the base class of {} from {} to {}".format(
                         model_class, model_class.__base__, optimized_cls))
                 MODEL_REGISTRY[model_name].__bases__ = (optimized_cls,)
@@ -83,11 +85,11 @@ def _update_fairseq_model_registration():
         for optimized_cls in FAIRSEQ_OPTIMIZED_CLASSES:
             if model_class in optimized_cls.__bases__:
                 ARCH_MODEL_REGISTRY[arch_name] = optimized_cls
-                logging.debug(
+                logger.debug(
                     "Update the register model arch {} from {} to {}".format(
                         arch_name, model_class, optimized_cls))
             elif model_class.__base__ == optimized_cls.__base__:
-                logging.debug(
+                logger.debug(
                     "Update the base class of {} from {} to {}".format(
                         model_class, model_class.__base__, optimized_cls))
                 ARCH_MODEL_REGISTRY[arch_name].__bases__ = (optimized_cls,)

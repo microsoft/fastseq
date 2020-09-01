@@ -7,17 +7,15 @@ import os
 from statistics import mean, stdev
 import time
 
-from absl import logging
 from absl.testing import parameterized
 
+from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import get_class
 
+logger = get_logger(__name__)
 
 class TestCaseBase(parameterized.TestCase):
     """Base class used for unittest."""
-
-    def tearDown(self):
-        print('Log output path: {}'.format(logging.get_log_file_name()))
 
 
 class BenchmarkBase(TestCaseBase):
@@ -51,7 +49,7 @@ def benchmark(repeat_times=3):
                                        func.__name__) if cls else func.__name__
             avg_time = mean(exec_times)
             stdev_time = stdev(exec_times) if repeat_times > 1 else 0.0
-            logging.info(
+            logger.info(
                 "Benchmarking for {} with {} repeat executions: avg = {} seconds, stdev = {}"  # pylint: disable=line-too-long
                 .format(func_name, repeat_times, avg_time, stdev_time))
 

@@ -183,16 +183,17 @@ def _main_v2(args, output_file):
 
             # Process top predictions
             for j, hypo in enumerate(hypos[i][:args.nbest]):
-                hypo_tokens, hypo_str, alignment = utils.post_process_prediction(
-                    hypo_tokens=hypo['tokens'].int(),
-                    src_str=src_str,
-                    alignment=hypo['alignment'],
-                    align_dict=align_dict,
-                    tgt_dict=tgt_dict,
-                    remove_bpe=args.remove_bpe,
-                    extra_symbols_to_ignore=get_symbols_to_strip_from_output(
-                        generator),
-                )
+                hypo_tokens, hypo_str, alignment = \
+                    utils.post_process_prediction(
+                        hypo_tokens=hypo['tokens'].int(),
+                        src_str=src_str,
+                        alignment=hypo['alignment'],
+                        align_dict=align_dict,
+                        tgt_dict=tgt_dict,
+                        remove_bpe=args.remove_bpe,
+                        extra_symbols_to_ignore=\
+                            get_symbols_to_strip_from_output(generator),
+                    )
                 detok_hypo_str = decode_fn(hypo_str)
                 if not args.quiet:
                     score = hypo['score'] / math.log(2)  # convert to base 2
@@ -264,20 +265,25 @@ def _main_v2(args, output_file):
 
     logger.info('NOTE: hypothesis and token scores are output in base 2')
     logger.info(
-        'Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, {:.2f} tokens/s)'.
-        format(num_sentences, gen_timer.n, gen_timer.sum,
-               num_sentences / gen_timer.sum, 1. / gen_timer.avg))
+        "Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, "
+        "{:.2f} tokens/s)".format(num_sentences, gen_timer.n, gen_timer.sum,
+                                  num_sentences / gen_timer.sum,
+                                  1. / gen_timer.avg))
     if has_target:
         if args.bpe and not args.sacrebleu:
             if args.remove_bpe:
                 logger.warning(
-                    "BLEU score is being computed by splitting detokenized string on spaces, this is probably not what you want. Use --sacrebleu for standard 13a BLEU tokenization"
+                    'BLEU score is being computed by splitting detokenized '
+                    'string on spaces, this is probably not what you want. Use '
+                    '--sacrebleu for standard 13a BLEU tokenization'
                 )
             else:
                 logger.warning(
-                    "If you are using BPE on the target side, the BLEU score is computed on BPE tokens, not on proper words.  Use --sacrebleu for standard 13a BLEU tokenization"
-                )
-        # use print to be consistent with other main outputs: S-, H-, T-, D- and so on
+                    'If you are using BPE on the target side, the BLEU score is'
+                    ' computed on BPE tokens, not on proper words.  Use '
+                    '--sacrebleu for standard 13a BLEU tokenization')
+        # use print to be consistent with other main outputs: S-, H-, T-, D- and
+        # so on
         print(
             'Generate {} with beam={}: {}'.format(args.gen_subset, args.beam,
                                                   scorer.result_string()),
