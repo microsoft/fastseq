@@ -201,7 +201,7 @@ def replace(target_obj):
     def decorator(new_obj):
         for k, v in sys.modules.items():
             if (target_obj.__name__ in v.__dict__
-                and v.__dict__[target_obj.__name__] == target_obj):
+                and v.__dict__[target_obj.__name__] is target_obj):
                 delattr(sys.modules[k], target_obj.__name__)
                 setattr(sys.modules[k], target_obj.__name__, new_obj)
                 logger.debug("In module {}, {} is replaced by {}".format(
