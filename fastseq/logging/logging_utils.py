@@ -6,16 +6,17 @@
 import os
 import logging
 
+from logging import _checkLevel
+
 FASTSEQ_LOG_LEVEL = 'FASTSEQ_LOG_LEVEL'
 FASTSEQ_LOG_FORMAT = (
     '%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s')
 
 def set_default_log_level():
-    fastseq_log_level = os.environ[FASTSEQ_LOG_LEVEL]
-    if fastseq_log_level is not None:
+    if os.environ[FASTSEQ_LOG_LEVEL] is not None:
+        fastseq_log_level = _checkLevel(os.environ[FASTSEQ_LOG_LEVEL])
         logging.basicConfig(level=fastseq_log_level,
-                            format=FASTSEQ_LOG_FORMAT,
-                            force=True)
+                            format=FASTSEQ_LOG_FORMAT)
         return
     logging.basicConfig(level=logging.INFO, format=format)
 
@@ -34,7 +35,8 @@ def get_logger(name=None, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     if os.environ[FASTSEQ_LOG_LEVEL] is not None:
-        logger.setLevel(os.environ[FASTSEQ_LOG_LEVEL])
+        fastseq_log_level = _checkLevel(os.environ[FASTSEQ_LOG_LEVEL])
+        logger.setLevel(fastseq_log_level)
     return logger
 
 def update_all_log_level(level=logging.INFO):
