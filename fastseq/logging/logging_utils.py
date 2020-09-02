@@ -12,13 +12,22 @@ FASTSEQ_LOG_LEVEL = 'FASTSEQ_LOG_LEVEL'
 FASTSEQ_LOG_FORMAT = (
     '%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s')
 
+
 def set_default_log_level():
-    if os.environ[FASTSEQ_LOG_LEVEL] is not None:
-        fastseq_log_level = _checkLevel(os.environ[FASTSEQ_LOG_LEVEL])
+    """Set the default log level from the environment variable"""
+    if os.getenv(FASTSEQ_LOG_LEVEL) is not None:
+        try:
+            fastseq_log_level = _checkLevel(os.getenv(FASTSEQ_LOG_LEVEL))
+        except (ValueError, TypeError) as e:
+            logging.error(
+                "Please input a valid value for FASTSEQ_LOG_LEVEL (e.g. "
+                "'DEBUG', 'INFO'): {}".format(e))
+            raise
+
         logging.basicConfig(level=fastseq_log_level,
                             format=FASTSEQ_LOG_FORMAT)
         return
-    logging.basicConfig(level=logging.INFO, format=format)
+    logging.basicConfig(level=logging.INFO, format=FASTSEQ_LOG_FORMAT)
 
 def get_logger(name=None, level=logging.INFO):
     """
@@ -34,8 +43,14 @@ def get_logger(name=None, level=logging.INFO):
     """
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    if os.environ[FASTSEQ_LOG_LEVEL] is not None:
-        fastseq_log_level = _checkLevel(os.environ[FASTSEQ_LOG_LEVEL])
+    if os.getenv(FASTSEQ_LOG_LEVEL) is not None:
+        try:
+            fastseq_log_level = _checkLevel(os.getenv(FASTSEQ_LOG_LEVEL))
+        except (ValueError, TypeError) as e:
+            logging.error(
+                "Please input a valid value for FASTSEQ_LOG_LEVEL (e.g. "
+                "'DEBUG', 'INFO'): {}".format(e))
+            raise
         logger.setLevel(fastseq_log_level)
     return logger
 
