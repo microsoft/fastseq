@@ -20,6 +20,8 @@ FAIRSEQ_GIT_URL = 'https://github.com/pytorch/fairseq.git'
 
 
 class FairseqUnitTests(parameterized.TestCase):
+    """Run the unit tests under fairseq"""
+
     def prepare_env(self):
         """set env variables"""
         #Removing following path since it contains utils directory
@@ -27,8 +29,7 @@ class FairseqUnitTests(parameterized.TestCase):
         if FASTSEQ_PATH in sys.path:
             sys.path.remove(FASTSEQ_PATH)
         sys.path.insert(0, FAIRSEQ_PATH)
-    
-    
+
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""
         if os.path.isdir(FAIRSEQ_PATH):
@@ -36,9 +37,10 @@ class FairseqUnitTests(parameterized.TestCase):
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
         os.chdir(FAIRSEQ_PATH)
         os.system('pip install --editable .')
-        original_pythonpath = os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '' 
+        original_pythonpath = (
+            os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '')
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
-    
+
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
         test_files = [os.path.basename(x) for x in glob.glob(test_files_path)]
@@ -53,16 +55,17 @@ class FairseqUnitTests(parameterized.TestCase):
             for test_file in module_strings
         ]
         return suites
-    
+
     @parameterized.named_parameters({
-            'testcase_name': 'Normal',
-            'without_fastseq_opt': False,
-            'fairseq_version': 'v0.9.0',
-            'blocked_tests':['test_binaries.py', 'test_bmuf.py',
-                            'test_reproducibility.py'
-                            ]
-        })
+        'testcase_name': 'Normal',
+        'without_fastseq_opt': False,
+        'fairseq_version': 'v0.9.0',
+        'blocked_tests': [
+            'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py']
+    })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
+        """Run the tests"""
+
         self.clone_and_build_fairseq(FAIRSEQ_GIT_URL, fairseq_version)
         if not without_fastseq_opt:
             import fastseq  #pylint: disable=import-outside-toplevel

@@ -70,7 +70,7 @@ class MultiheadAttentionV2(MultiheadAttention):
         q_noise=0.0,
         qn_block_size=8,
     ):
-        super().__init__(embed_dim, num_heads, kdim, vdim, dropout, bias,
+        super().__init__(embed_dim, num_heads, kdim, vdim, dropout, bias, # pylint: disable=too-many-function-args
                          add_bias_kv, add_zero_attn, self_attention,
                          encoder_decoder_attention, q_noise, qn_block_size)
         self.dropout = dropout
@@ -414,6 +414,7 @@ class SequenceGeneratorV2(SequenceGenerator):
 
     def _no_repeat_ngram(self, tokens, lprobs, bsz: int, beam_size: int,
                          step: int):
+        """Compute the ngrams"""
         # for each beam and batch sentence, generate a list of previous ngrams
         gen_ngrams: List[Dict[str, List[int]]] = [
             torch.jit.annotate(Dict[str, List[int]], {})

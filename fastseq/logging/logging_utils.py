@@ -4,30 +4,64 @@
 """Logging related module."""
 
 import os
+import logging
 
-import absl
-from absl import logging
+from logging import _checkLevel
 
 FASTSEQ_LOG_LEVEL = 'FASTSEQ_LOG_LEVEL'
+FASTSEQ_LOG_FORMAT = (
+    '%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s')
 
-logging.get_absl_handler().use_absl_log_file()
-absl.flags.FLAGS.mark_as_parsed()
 
+def set_default_log_level():
+    """Set the default log level from the environment variable"""
+    if os.getenv(FASTSEQ_LOG_LEVEL) is not None:
+        try:
+            fastseq_log_level = _checkLevel(os.getenv(FASTSEQ_LOG_LEVEL))
+        except (ValueError, TypeError) as e:
+            logging.error(
+                "Please input a valid value for FASTSEQ_LOG_LEVEL (e.g. "
+                "'DEBUG', 'INFO'): {}".format(e))
+            raise
 
-def set_log_level(log_level=None):
-    """Set the log level.
+        logging.basicConfig(level=fastseq_log_level,
+                            format=FASTSEQ_LOG_FORMAT)
+        return
+    logging.basicConfig(level=logging.INFO, format=FASTSEQ_LOG_FORMAT)
 
-    If there is no log level specified, it will be default to `INFO`.
+def get_logger(name=None, level=logging.INFO):
+    """
+    Return a logger with the specific name, creating it if necessary.
+
+    If no name is specified, return the root logger.
 
     Args:
-        log_level (int/str, optional): the log level. Defaults to None.
+        name (str, optional): logger name. Defaults to None.
+
+    Returns:
+        Logger : the specified logger.
     """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    if os.getenv(FASTSEQ_LOG_LEVEL) is not None:
+        try:
+            fastseq_log_level = _checkLevel(os.getenv(FASTSEQ_LOG_LEVEL))
+        except (ValueError, TypeError) as e:
+            logging.error(
+                "Please input a valid value for FASTSEQ_LOG_LEVEL (e.g. "
+                "'DEBUG', 'INFO'): {}".format(e))
+            raise
+        logger.setLevel(fastseq_log_level)
+    return logger
 
-    level = os.environ.get(
-        FASTSEQ_LOG_LEVEL) if log_level is None else log_level
+def update_all_log_level(level=logging.INFO):
+    """
+    Update all the loggers to use the specified level.
 
-    if level is not None:
-        logging.set_verbosity(level)
-        return
-
-    logging.set_verbosity(logging.INFO)
+    Args:
+        level (int/str, optional): the log level. Defaults to logging.INFO.
+    """
+    loggers = [
+        logging.getLogger(name) for name in logging.root.manager.loggerDict]
+    for logger in loggers:
+        logger.setLevel(level)

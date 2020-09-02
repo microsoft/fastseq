@@ -9,15 +9,16 @@ model accuracy.
 import os
 
 import torch
-from absl import logging
 from absl.testing import absltest, parameterized
 from fairseq.models.bart.model import BARTModel
 
 import fastseq
+from fastseq.logging import get_logger
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS, TestCaseBase)
 
+logger = get_logger(__name__)
 
 class FairseqBeamSearchOptimizerTest(TestCaseBase):
     """Test the optimizations on FairSeq
@@ -114,7 +115,7 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
 
             for i, output in enumerate(outputs):
                 if output != self.expected_outputs[i]:
-                    logging.error("\n{} \n v.s. \n{}\n".format(
+                    logger.error("\n{} \n v.s. \n{}\n".format(
                         output, self.expected_outputs[i]))
 
 

@@ -8,13 +8,15 @@ model accuracy.
 import time
 
 import torch
-from absl import logging
 from absl.testing import absltest, parameterized
 
 import fastseq
+from fastseq.logging import get_logger
 from fastseq.utils.test_utils import TestCaseBase
 from transformers import (T5ForConditionalGeneration, T5Tokenizer)
 
+
+logger = get_logger(__name__)
 
 class TransformersBeamSearchOptimizerTest(TestCaseBase):
     """Test the optimizations on HuggingFace-transformers-T5.
@@ -63,7 +65,7 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         Returns:
             List(str): a list of generated summaries.
         """
-        logging.info("Start to process batch-{}".format(self.batch_count))
+        logger.info("Start to process batch-{}".format(self.batch_count))
         start = time.time()
         with torch.no_grad():
             inputs = self.tokenizer(slines,
@@ -83,7 +85,7 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
             outputs = [self.tokenizer.decode(g) for g in summary_ids]
             self.batch_count += 1
         end = time.time()
-        logging.info("Process {} samples in {:.2f} seconds".format(
+        logger.info("Process {} samples in {:.2f} seconds".format(
             len(slines), end - start))
         return outputs
 
@@ -154,7 +156,7 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                 processed_sample_count += len(slines)
 
             end = time.time()
-            logging.info(
+            logger.info(
                 "Finish the processing of {} samples with the speed {:.2f} "
                 "samples/second".format(
                     processed_sample_count,

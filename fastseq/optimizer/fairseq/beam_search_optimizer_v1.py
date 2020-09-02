@@ -651,11 +651,14 @@ class SequenceGeneratorV2(SequenceGenerator):
                     for i in range(check_start_pos):
                         is_banned = True
                         for k in range(self.no_repeat_ngram_size - 1):
-                            if cpu_tokens[bbsz_idx, i + k] != cpu_tokens[bbsz_idx, check_start_pos + k]:
+                            if cpu_tokens[bbsz_idx, i + k] != cpu_tokens[
+                                bbsz_idx, check_start_pos + k]:
                                 is_banned = False
                                 break
                         if is_banned:
-                            banned_list[bbsz_idx].append(cpu_tokens[bbsz_idx, i + self.no_repeat_ngram_size - 1])
+                            banned_list[bbsz_idx].append(
+                                cpu_tokens[bbsz_idx,
+                                           i + self.no_repeat_ngram_size - 1])
 
             # Record attention scores
             if avg_attn_scores is not None:

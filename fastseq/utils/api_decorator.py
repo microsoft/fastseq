@@ -11,7 +11,9 @@ import sys
 from types import ModuleType
 from functools import wraps
 
-from absl import logging
+from fastseq.logging import get_logger
+
+logger = get_logger(__name__)
 
 FAIRSEQ_OPTIMIZED_CLASSES = []
 
@@ -86,7 +88,7 @@ def override_method(method):
                 method.__name__))
 
     def decorator(new_method):
-        logging.debug("The method `{}`is replaced by `{}`".format(
+        logger.debug("The method `{}`is replaced by `{}`".format(
             method.__qualname__, new_method.__qualname__))
 
         @wraps(new_method)
@@ -125,7 +127,7 @@ def add_method(cls):
 
     """
     def decorator(method):
-        logging.debug("A new method `{}`is added to `class {}`".format(
+        logger.debug("A new method `{}`is added to `class {}`".format(
             method.__name__, cls.__name__))
 
         @wraps(method)
@@ -166,7 +168,7 @@ def export_api(module_name, obj_name):
         if hasattr(sys.modules[module_name], obj_name):
             delattr(sys.modules[module_name], obj_name)
         setattr(sys.modules[module_name], obj_name, obj)
-        logging.debug("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
+        logger.debug("Export {} as `{}.{}`.".format(obj, module_name, obj_name))
         return obj
 
     return decorator
@@ -202,7 +204,7 @@ def replace(target_obj):
                 and v.__dict__[target_obj.__name__] == target_obj):
                 delattr(sys.modules[k], target_obj.__name__)
                 setattr(sys.modules[k], target_obj.__name__, new_obj)
-                logging.debug("In module {}, {} is replaced by {}".format(
+                logger.debug("In module {}, {} is replaced by {}".format(
                     k, target_obj, new_obj))
             # replace target_obj if it is used as the base classes.
             for key in list(v.__dict__.keys()):
@@ -213,7 +215,7 @@ def replace(target_obj):
                     bases = list(v.__dict__[key].__bases__)
                     bases[idx] = new_obj
                     v.__dict__[key].__bases__ = tuple(bases)
-                    logging.debug(
+                    logger.debug(
                         "In module {}, the base class of {} is replaced by {}"
                         .format(k, v.__dict__[key], new_obj))
         return new_obj
