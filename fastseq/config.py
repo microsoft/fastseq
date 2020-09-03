@@ -4,10 +4,9 @@
 """Fastseq related configurations"""
 
 import os
-import logging
 
 # define fastseq environment variables
-FASTSEQ_DEFAULT_LOG_LEVEL = logging.INFO
+FASTSEQ_DEFAULT_LOG_LEVEL = 'INFO'
 FASTSEQ_LOG_LEVEL = os.getenv('FASTSEQ_LOG_LEVEL', FASTSEQ_DEFAULT_LOG_LEVEL)
 FASTSEQ_CACHE_DIR = os.getenv('FASTSEQ_CACHE_DIR', os.path.join(os.sep, 'tmp'))
 
