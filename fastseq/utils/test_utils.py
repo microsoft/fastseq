@@ -9,6 +9,7 @@ import time
 
 from absl.testing import parameterized
 
+from fastseq.config import FASTSEQ_CACHE_DIR
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import get_class
 
@@ -70,7 +71,7 @@ BART_MODEL_URLS[
 BART_MODEL_URLS[
     'bart.large.xsum'] = 'https://dl.fbaipublicfiles.com/fairseq/models/bart.large.xsum.tar.gz'
 
-CACHED_BART_MODEL_DIR = os.path.join(os.sep, 'tmp', 'fairseq_bart_models')
+CACHED_BART_MODEL_DIR = os.path.join(FASTSEQ_CACHE_DIR, 'fairseq_bart_models')
 
 CACHED_BART_MODEL_PATHS = {}
 CACHED_BART_MODEL_PATHS['bart.base'] = os.path.join(CACHED_BART_MODEL_DIR,
