@@ -1,5 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+
 """ script for importing transformers tests """
 
 import glob
@@ -25,22 +26,19 @@ class TransformersUnitTests(parameterized.TestCase):
         if FASTSEQ_PATH in sys.path:
             sys.path.remove(FASTSEQ_PATH)
         sys.path.insert(0, TRANSFORMERS_PATH)
-
+    
+    
     def clone_and_build_transformers(self, repo, version):
         """clone and build transformers repo"""
         if os.path.isdir(TRANSFORMERS_PATH):
             shutil.rmtree(TRANSFORMERS_PATH)
-        Repo.clone_from(TRANSFORMERS_GIT_URL,
-                        TRANSFORMERS_PATH,
-                        branch=version)
-        os.system(
-            'pip install git+https://github.com/huggingface/transformers.git@'
-            + version)
-        original_pythonpath = os.environ[
-            'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
-        os.environ[
-            'PYTHONPATH'] = TRANSFORMERS_PATH + ':' + original_pythonpath
-
+        Repo.clone_from(TRANSFORMERS_GIT_URL, TRANSFORMERS_PATH, branch=version)
+        os.chdir(TRANSFORMERS_PATH)
+        os.system('pip install --editable .')
+        original_pythonpath = os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '' 
+        os.environ['PYTHONPATH'] = TRANSFORMERS_PATH + ':' + original_pythonpath
+    
+    
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
         test_files = [os.path.basename(x) for x in glob.glob(test_files_path)]
@@ -55,21 +53,20 @@ class TransformersUnitTests(parameterized.TestCase):
             for test_file in module_strings
         ]
         return suites
-
+    
     @parameterized.named_parameters({
-        'testcase_name': 'Normal',
-        'without_fastseq_opt': False,
-        'transformers_version': 'v3.0.2',
-        'blocked_tests': []
-    })
-    def test_suites(self, without_fastseq_opt, transformers_version,
-                    blocked_tests):
-
-        self.clone_and_build_transformers(TRANSFORMERS_GIT_URL,
-                                          transformers_version)
+            'testcase_name': 'Normal',
+            'without_fastseq_opt': False,
+            'transformers_version':'v3.0.2',
+            'blocked_tests':[
+                            ]
+        })
+    def test_suites(self, without_fastseq_opt, transformers_version, blocked_tests):
+    
+        self.clone_and_build_transformers(TRANSFORMERS_GIT_URL, transformers_version)
         if not without_fastseq_opt:
             import fastseq  #pylint: disable=import-outside-toplevel
-
+    
         self.prepare_env()
         test_files_path = TRANSFORMERS_PATH + '/tests/test_*.py'
         suites = self.get_test_suites(test_files_path, blocked_tests)
