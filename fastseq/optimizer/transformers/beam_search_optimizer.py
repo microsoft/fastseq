@@ -478,7 +478,6 @@ class GenerationMixinV2(GenerationMixin):
 
             # get encoder and store encoder outputs
             encoder = self.get_encoder()
-
             encoder_outputs: tuple = encoder(input_ids,
                                              attention_mask=attention_mask)
 
@@ -674,7 +673,7 @@ class GenerationMixinV2(GenerationMixin):
         model_specific_kwargs,
     ):
         """Generate sequences for each example with beam search."""
-
+        
         # generated hypotheses
         generated_hyps = [
             BeamHypotheses(num_beams, max_length, length_penalty, early_stopping=early_stopping)
@@ -696,20 +695,10 @@ class GenerationMixinV2(GenerationMixin):
         done = [False for _ in range(batch_size)]
 
         while cur_len < max_length:
-            torch.cuda.nvtx.range_push("decoder_input_prepare ")
             model_inputs = self.prepare_inputs_for_generation(
                 input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
             )
-            torch.cuda.nvtx.range_pop()
-            
-            
-            
-            torch.cuda.nvtx.range_push("decoder_layers_forward")
             outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
-            torch.cuda.nvtx.range_pop()
-            
-            
-            
             next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
 
             # if model has past, then set the past variable to speed up decoding
@@ -721,10 +710,7 @@ class GenerationMixinV2(GenerationMixin):
                     next_token_logits, cur_len=cur_len, max_length=max_length
                 )
 
-
-            torch.cuda.nvtx.range_push("curr_scores_to_next_tokens")
             scores = F.log_softmax(next_token_logits, dim=-1)  # (batch_size * num_beams, vocab_size)
-
             scores = self.postprocess_next_token_scores(
                 scores=scores,
                 input_ids=input_ids,
@@ -777,38 +763,32 @@ class GenerationMixinV2(GenerationMixin):
                 next_scores, next_tokens = torch.topk(next_scores, 2 * num_beams, dim=1, largest=True, sorted=True)
 
             assert next_scores.size() == next_tokens.size() == (batch_size, 2 * num_beams)
-
-            torch.cuda.nvtx.range_pop()
             # next batch beam content
             next_batch_beam = []
-
-            torch.cuda.nvtx.range_push("collect generated hypothesis")
-            
             next_tokens_id = next_tokens % vocab_size  
             next_beams_id = next_tokens // vocab_size 
             beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(1).type_as(next_beams_id)
             effective_beam_id =  next_beams_id + beams_offset 
             eos_mask = next_tokens_id.eq(eos_token_id)
-
             eos_effective_idx = torch.masked_select(
                 effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
             )
-            
             eos_effective_scores = torch.masked_select(
                     next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
                 )
-            
-            for i in range (0, eos_effective_idx.size()[-1]):
-                batch_idx = eos_effective_idx[i] // num_beams
+            input_ids_cpu = input_ids.cpu()
+            eos_effective_idx_cpu= eos_effective_idx.cpu()
+            eos_effective_scores_cpu = eos_effective_scores.cpu()
+            for i in range (0, eos_effective_idx_cpu.size()[-1]):
+                batch_idx = eos_effective_idx_cpu[i] // num_beams
                 if not done[batch_idx] : 
                     generated_hyps[batch_idx.item()].add(
-                                input_ids[eos_effective_idx[i]].clone(),
-                                eos_effective_scores[i],
+                                input_ids_cpu[eos_effective_idx_cpu[i]].clone(),
+                                eos_effective_scores_cpu[i],
                             )
                 done[batch_idx] = done[batch_idx] or generated_hyps[batch_idx].is_done(
                     next_scores[batch_idx].max().item(), cur_len
                         )
-
             cand_offsets = torch.arange(0, 2*num_beams).type_as(input_ids)
             active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * (2*num_beams),
@@ -824,22 +804,17 @@ class GenerationMixinV2(GenerationMixin):
             beam_scores = active_scores.view(-1)
             beam_tokens = active_tokens.view(-1)
             
-            torch.cuda.nvtx.range_pop()
-            
             #stop when we are done with each sentence
             if all(done):
                 break
-
             # re-order batch and update current length
             input_ids = input_ids[beam_idx, :]
             input_ids = torch.cat([input_ids, beam_tokens.unsqueeze(1)], dim=-1)
             cur_len = cur_len + 1
             
-            torch.cuda.nvtx.range_push("decoder_states_reorder")
             # re-order internal states
             if past is not None:
                 past = self._reorder_cache(past, beam_idx)
-            torch.cuda.nvtx.range_pop()
 
             # extend attention_mask for new generated input if only decoder
             if self.config.is_encoder_decoder is False:
@@ -873,14 +848,11 @@ class GenerationMixinV2(GenerationMixin):
         # depending on whether greedy generation is wanted or not define different output_batch_size and output_num_return_sequences_per_batch
         output_batch_size = batch_size if do_sample else batch_size * num_return_sequences
         output_num_return_sequences_per_batch = 1 if do_sample else num_return_sequences
-
+        
         # select the best hypotheses
         sent_lengths = input_ids.new(output_batch_size)
         best = []
-
         
-        
-        torch.cuda.nvtx.range_push("get_best_hypo")
         # retrieve best hypotheses
         for i, hypotheses in enumerate(generated_hyps):
             sorted_hyps = sorted(hypotheses.beams, key=lambda x: x[0])
@@ -889,7 +861,6 @@ class GenerationMixinV2(GenerationMixin):
                 best_hyp = sorted_hyps.pop()[1]
                 sent_lengths[effective_batch_idx] = len(best_hyp)
                 best.append(best_hyp)
-        torch.cuda.nvtx.range_pop()
         
         # shorter batches are padded
         if sent_lengths.min().item() != sent_lengths.max().item():
@@ -908,19 +879,6 @@ class GenerationMixinV2(GenerationMixin):
             decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
 
         return decoded
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 @replace(SelfAttention)
 class SelfAttentionV2(SelfAttention):
