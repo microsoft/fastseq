@@ -1,6 +1,5 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-
 """ script for importing transformers tests """
 
 import glob
@@ -19,8 +18,6 @@ TRANSFORMERS_GIT_URL = 'https://github.com/huggingface/transformers.git'
 
 
 class TransformersUnitTests(parameterized.TestCase):
-    """Run all the unit tests under transformers"""
-
     def prepare_env(self):
         """set env variables"""
         #Removing following path since it contains utils directory
@@ -33,12 +30,16 @@ class TransformersUnitTests(parameterized.TestCase):
         """clone and build transformers repo"""
         if os.path.isdir(TRANSFORMERS_PATH):
             shutil.rmtree(TRANSFORMERS_PATH)
-        Repo.clone_from(TRANSFORMERS_GIT_URL, TRANSFORMERS_PATH, branch=version)
-        os.chdir(TRANSFORMERS_PATH)
-        os.system('pip install --editable .')
-        original_pythonpath = (
-            os.environ['PYTHONPATH'] if 'PYTHONPATH' in os.environ else '')
-        os.environ['PYTHONPATH'] = TRANSFORMERS_PATH + ':' + original_pythonpath
+        Repo.clone_from(TRANSFORMERS_GIT_URL,
+                        TRANSFORMERS_PATH,
+                        branch=version)
+        os.system(
+            'pip install git+https://github.com/huggingface/transformers.git@'
+            + version)
+        original_pythonpath = os.environ[
+            'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
+        os.environ[
+            'PYTHONPATH'] = TRANSFORMERS_PATH + ':' + original_pythonpath
 
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
@@ -61,14 +62,11 @@ class TransformersUnitTests(parameterized.TestCase):
         'transformers_version': 'v3.0.2',
         'blocked_tests': []
     })
-    def test_suites(self,
-                    without_fastseq_opt,
-                    transformers_version,
+    def test_suites(self, without_fastseq_opt, transformers_version,
                     blocked_tests):
-        """Run the tests"""
 
-        self.clone_and_build_transformers(
-            TRANSFORMERS_GIT_URL, transformers_version)
+        self.clone_and_build_transformers(TRANSFORMERS_GIT_URL,
+                                          transformers_version)
         if not without_fastseq_opt:
             import fastseq  #pylint: disable=import-outside-toplevel
 
