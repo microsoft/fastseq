@@ -1,5 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+
 """
 Test the optimizations on Huggingface to make sure the changes do not affect the
 model accuracy.
@@ -12,27 +13,25 @@ from absl.testing import absltest, parameterized
 import fastseq
 from fastseq.logging import get_logger
 from fastseq.utils.test_utils import TestCaseBase
-import transformers
-from transformers import (BartForConditionalGeneration, BartTokenizer)
+from transformers import (T5ForConditionalGeneration, T5Tokenizer)
+
 
 logger = get_logger(__name__)
 
 class TransformersBeamSearchOptimizerTest(TestCaseBase):
-    """Test the optimizations on HuggingFace-transformers.
+    """Test the optimizations on HuggingFace-transformers-T5.
     """
     def setUp(self):
         """Load model, tokenizer and expected output."""
 
-        self.tokenizer = BartTokenizer.from_pretrained(
-            'facebook/bart-large-cnn')
-        self.bart_model = BartForConditionalGeneration.from_pretrained(
-            'facebook/bart-large-cnn')
+        self.tokenizer = T5Tokenizer.from_pretrained('t5-base')
+        self.model = T5ForConditionalGeneration.from_pretrained('t5-base')
 
         self.source_path = 'tests/optimizer/transformers/data/cnndm_128.txt'
 
-        # The expected output is generated based on transformers-v2.11.0 with
+        # The expected output is generated based on transformers-v3.0.2 with
         # batch_size = 16.
-        self.expected_output_path = 'tests/optimizer/transformers/data/transformers(2.11.0)_bart_expected_output.txt'  # pylint: disable=line-too-long
+        self.expected_output_path = 'tests/optimizer/transformers/data/expected_t5_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []
         with open(self.expected_output_path, 'rt',
                   encoding="utf-8") as expected_output_file:
@@ -40,8 +39,14 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                 self.expected_outputs.append(line.strip())
         self.batch_count = 0
 
-    def _generate(self, slines, max_token_length, num_beams, min_gen_length,
-                  max_gen_length, no_repeat_ngram_size, early_stopping):
+    def _generate(self,
+                  slines,
+                  max_token_length,
+                  num_beams,
+                  min_gen_length,
+                  max_gen_length,
+                  no_repeat_ngram_size,
+                  early_stopping):
         """Generate the summaries.
 
         Args:
@@ -63,16 +68,15 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         logger.info("Start to process batch-{}".format(self.batch_count))
         start = time.time()
         with torch.no_grad():
-            inputs = self.tokenizer.batch_encode_plus(
-                slines,
-                max_length=max_token_length,
-                pad_to_max_length=True,
-                truncation=True,
-                return_tensors='pt')
+            inputs = self.tokenizer(slines,
+                                    max_length=max_token_length,
+                                    padding=True,
+                                    truncation=True,
+                                    return_tensors='pt')
 
             # Generate Summary
-            summary_ids = self.bart_model.generate(
-                inputs["input_ids"].cuda(),
+            summary_ids = self.model.generate(
+                inputs['input_ids'].cuda(),
                 num_beams=num_beams,
                 min_length=min_gen_length,
                 max_length=max_gen_length,
@@ -95,9 +99,14 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         'no_repeat_ngram_size': 3,
         'early_stopping': True,
     })
-    def test_beam_search_optimizer(self, batch_size, max_token_length,
-                                   num_beams, min_gen_length, max_gen_length,
-                                   no_repeat_ngram_size, early_stopping):
+    def test_beam_search_optimizer(self,
+                                   batch_size,
+                                   max_token_length,
+                                   num_beams,
+                                   min_gen_length,
+                                   max_gen_length,
+                                   no_repeat_ngram_size,
+                                   early_stopping):
         """Make sure the changes do not affect the model accuracy.
 
         Args:
@@ -113,8 +122,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
             early_stopping (bool, optional): indicate if the beam search will be
                                              early stopped.
         """
-        self.bart_model.cuda()
-        self.bart_model.eval()
+        self.model.cuda()
+        self.model.eval()
         processed_sample_count = 0
         outputs = []
         slines = []
@@ -124,31 +133,39 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                 slines.append(sline)
                 if len(slines) % batch_size:
                     continue
-                outputs.extend(
-                    self._generate(slines, max_token_length, num_beams,
-                                   min_gen_length, max_gen_length,
-                                   no_repeat_ngram_size, early_stopping))
+                outputs.extend(self._generate(
+                    slines,
+                    max_token_length,
+                    num_beams,
+                    min_gen_length,
+                    max_gen_length,
+                    no_repeat_ngram_size,
+                    early_stopping))
                 processed_sample_count += len(slines)
                 slines = []
 
             if slines:
-                outputs.extend(
-                    self._generate(slines, max_token_length, num_beams,
-                                   min_gen_length, max_gen_length,
-                                   no_repeat_ngram_size, early_stopping))
+                outputs.extend(self._generate(
+                    slines,
+                    max_token_length,
+                    num_beams,
+                    min_gen_length,
+                    max_gen_length,
+                    no_repeat_ngram_size,
+                    early_stopping))
                 processed_sample_count += len(slines)
 
             end = time.time()
-        logger.info(
-            "Finish the processing of {} samples with the speed {:.2f} samples/second"  # pylint: disable=line-too-long
-            .format(processed_sample_count,
+            logger.info(
+                "Finish the processing of {} samples with the speed {:.2f} "
+                "samples/second".format(
+                    processed_sample_count,
                     processed_sample_count / (end - start)))
 
         for i, output in enumerate(outputs):
             if output != self.expected_outputs[i]:
-                self.assertEqual(output, self.expected_outputs[i])
+                self.assertEqual(output.strip(), self.expected_outputs[i])
 
 
 if __name__ == "__main__":
-    if transformers.__version__ == '2.11.0':
-        absltest.main()
+    absltest.main()

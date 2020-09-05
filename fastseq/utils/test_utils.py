@@ -7,17 +7,16 @@ import os
 from statistics import mean, stdev
 import time
 
-from absl import logging
 from absl.testing import parameterized
 
+from fastseq.config import FASTSEQ_CACHE_DIR
+from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import get_class
 
+logger = get_logger(__name__)
 
 class TestCaseBase(parameterized.TestCase):
     """Base class used for unittest."""
-
-    def tearDown(self):
-        print('Log output path: {}'.format(logging.get_log_file_name()))
 
 
 class BenchmarkBase(TestCaseBase):
@@ -51,7 +50,7 @@ def benchmark(repeat_times=3):
                                        func.__name__) if cls else func.__name__
             avg_time = mean(exec_times)
             stdev_time = stdev(exec_times) if repeat_times > 1 else 0.0
-            logging.info(
+            logger.info(
                 "Benchmarking for {} with {} repeat executions: avg = {} seconds, stdev = {}"  # pylint: disable=line-too-long
                 .format(func_name, repeat_times, avg_time, stdev_time))
 
@@ -72,7 +71,7 @@ BART_MODEL_URLS[
 BART_MODEL_URLS[
     'bart.large.xsum'] = 'https://dl.fbaipublicfiles.com/fairseq/models/bart.large.xsum.tar.gz'
 
-CACHED_BART_MODEL_DIR = os.path.join(os.sep, 'tmp', 'fairseq_bart_models')
+CACHED_BART_MODEL_DIR = os.path.join(FASTSEQ_CACHE_DIR, 'fairseq_bart_models')
 
 CACHED_BART_MODEL_PATHS = {}
 CACHED_BART_MODEL_PATHS['bart.base'] = os.path.join(CACHED_BART_MODEL_DIR,

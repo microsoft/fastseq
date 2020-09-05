@@ -21,7 +21,7 @@ FastSeq provides efficient implementations of the popular sequence models with h
 - [ ] [UniLM-V1](https://github.com/microsoft/unilm)
 - [ ] [UniLM-V2](https://github.com/microsoft/unilm)
 - [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
-- [ ] [T5](https://huggingface.co/transformers/model_doc/t5.html)
+- [x] [T5](https://huggingface.co/transformers/model_doc/t5.html)
 
 # Benchmarks
 
@@ -29,16 +29,16 @@ FastSeq provides efficient implementations of the popular sequence models with h
 
 - CNN daily mail val data, NVIDIA-V100-16GB
 
-  |     BatchSize    |       32      |       64       |      128       |
-  |:----------------:|:-------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    | 2.3 samples/s |      OOM       |      OOM       |
-  | above + fastseq  | 6.1 samples/s | 8.7 samples/s  | 11.0 samples/s |
+  |     BatchSize    |       32      |        64       |      128       |
+  |:----------------:|:-------------:|:---------------:|:--------------:|
+  | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
+  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 14.5 samples/s |
 
 with setting:
 
 ```bash
 $ fastseq-generate-for-fairseq \
-      cnn_dm/len-1024.bin \
+      cnn_dm.1k/len-1024.bin \
       --path bart.large.cnn/model.pt \
       --fp16 \
       --task translation \
@@ -60,19 +60,21 @@ To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairse
 
 - CNN daily mail val data, NVIDIA-V100-16GB
 
-  |      BatchSize      |       32      |       64       |
-  |:-------------------:|:-------------:|:--------------:|
-  | transformers-3.0.2  | 2.6 samples/s |      OOM       |
-  |  above + fastseq    | 4.3 samples/s | 5.5 samples/s  |
-  | transformers-2.11.0 | 2.5 samples/s |      OOM       |
-  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  |
+  |      BatchSize      |       32      |       64       |       128      |
+  |:-------------------:|:-------------:|:--------------:|:--------------:|
+  | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
+  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
+  | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
+  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
+
+(numbers for 2.11.0 needs to be updated based on docker env.)
 
 with setting:
 
 ```bash
 $ fastseq-generate-for-transformers \
     facebook/bart-large-cnn \
-    cnn_dm/val.source \
+    cnn_dm.1k/val.source \
     out.summary \
     --reference_path cnn_dm/val.target \
     --device cuda \
@@ -85,12 +87,12 @@ $ fastseq-generate-for-transformers \
 To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
 
 ## WMT from Fairseq
-- [transformer_vaswani_wmt_en_fr_big](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
+- [WMT16 En-De](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
 
-  |     BatchSize    |       32       |       64       |      128       |      256       |      512       |      1024      |
-  |:----------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    | 22.8 samples/s | 36.1 samples/s | 38.0 samples/s | 41.0 samples/s | 38.6 samples/s |      OOM       |
-  | above + fastseq  | 31.2 samples/s | 50.6 samples/s | 54.1 samples/s | 59.3 samples/s | 63.1 samples/s | 54.6 samples/s |
+  |     BatchSize    |      256       |      512       |      1024      |
+  |:----------------:|:--------------:|:--------------:|:--------------:|
+  | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
+  | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
 
 
 with setting:

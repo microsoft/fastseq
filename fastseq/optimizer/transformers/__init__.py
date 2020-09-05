@@ -6,8 +6,10 @@ Automatically apply the optimizations if the supported versions of transformers
 are detected.
 """
 
-from absl import logging
 from packaging import version
+from fastseq.logging import get_logger
+
+logger = get_logger(__name__)
 
 def get_transformers_version():
     """Return the version of transformers as a string.
@@ -28,15 +30,17 @@ def apply_transformers_optimization():
 
     if v >= version.parse('3.0.2'):
         import fastseq.optimizer.transformers.beam_search_optimizer # pylint: disable=import-outside-toplevel
-        logging.debug("transformers == {} has been optimized.".format(v))
+        import fastseq.optimizer.transformers.modeling_t5_optimizer # pylint: disable=import-outside-toplevel
+
+        logger.debug("transformers == {} has been optimized.".format(v))
         return
 
     if v == version.parse('2.11.0'):
         import fastseq.optimizer.transformers.modeling_bart_optimizer_2_11_0 # pylint: disable=import-outside-toplevel
-        logging.debug("transformers == {} has been optimized.".format(v))
+        logger.debug("transformers == {} has been optimized.".format(v))
         return
 
-    logging.warning(
+    logger.warning(
         "transformers == {} is not supported yet, please upgrade it to 3.0.2 or above" # pylint: disable=line-too-long
         .format(v))
 
@@ -44,4 +48,5 @@ try:
     import transformers
     apply_transformers_optimization()
 except ImportError as error:
-    logging.warning(error)
+    logger.warning('transformers can not be imported. Please ignore this '
+                   'warning if you are not using transformers')

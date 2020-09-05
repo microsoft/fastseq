@@ -644,18 +644,21 @@ class SequenceGeneratorV2(SequenceGenerator):
 
             if self.no_repeat_ngram_size > 0:
                 # for each beam and batch sentence, generate a list of previous ngrams
-                gen_ngrams = [{} for bbsz_idx in range(bsz * beam_size)]
-                cpu_tokens = tokens.cpu()[:, :step + 1]
+                banned_list = [[] for bbsz_idx in range(bsz * beam_size)]
+                cpu_tokens = tokens.cpu()[:, :step + 1].numpy()
+                check_start_pos = step + 2 - self.no_repeat_ngram_size
                 for bbsz_idx in range(bsz * beam_size):
-                    gen_tokens = cpu_tokens[bbsz_idx].tolist()
-                    for ngram in zip(*[
-                        gen_tokens[i:]
-                        for i in range(self.no_repeat_ngram_size)
-                    ]):
-                        if ngram[-1] != self.pad:
-                            gen_ngrams[bbsz_idx][tuple(ngram[:-1])] = \
-                                gen_ngrams[bbsz_idx].get(tuple(ngram[:-1]), [])\
-                                + [ngram[-1]]
+                    for i in range(check_start_pos):
+                        is_banned = True
+                        for k in range(self.no_repeat_ngram_size - 1):
+                            if cpu_tokens[bbsz_idx, i + k] != cpu_tokens[
+                                bbsz_idx, check_start_pos + k]:
+                                is_banned = False
+                                break
+                        if is_banned:
+                            banned_list[bbsz_idx].append(
+                                cpu_tokens[bbsz_idx,
+                                           i + self.no_repeat_ngram_size - 1])
 
             # Record attention scores
             if avg_attn_scores is not None:
@@ -676,14 +679,8 @@ class SequenceGeneratorV2(SequenceGenerator):
 
                 def calculate_banned_tokens(bbsz_idx):
                     # before decoding the next token, prevent decoding of ngrams that have already appeared
-                    ngram_index = tuple(
-                        cpu_tokens[bbsz_idx,
-                                   step + 2 - self.no_repeat_ngram_size:step +
-                                   1].tolist())
-                    banned_tokens_per_sample = gen_ngrams[bbsz_idx].get(
-                        ngram_index, [])
                     banned_tokens_per_sample = [
-                        (bbsz_idx, t) for t in banned_tokens_per_sample
+                        (bbsz_idx, t) for t in banned_list[bbsz_idx]
                     ]
                     return banned_tokens_per_sample
 

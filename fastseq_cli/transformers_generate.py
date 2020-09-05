@@ -6,8 +6,8 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -28,6 +28,7 @@ def generate_summaries_or_translations(
     task="summarization",
     decoder_start_token_id=None,
     fastseq_opt=True,
+    no_repeat_ngram_size=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -59,6 +60,7 @@ def generate_summaries_or_translations(
             input_ids=input_ids,
             attention_mask=attention_mask,
             decoder_start_token_id=decoder_start_token_id,
+            no_repeat_ngram_size=no_repeat_ngram_size,
             **gen_kwargs,
         )
         dec = tokenizer.batch_decode(summaries,
@@ -114,6 +116,8 @@ def run_generate():
                         help="How many observations. Defaults to all.")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--without_fastseq_opt", action="store_true")
+    parser.add_argument("--no_repeat_ngram_size", type=int, default=None,
+                         required=False, help="size of no repeat ngram")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -132,6 +136,7 @@ def run_generate():
         task=args.task,
         decoder_start_token_id=args.decoder_start_token_id,
         fastseq_opt=not args.without_fastseq_opt,
+        no_repeat_ngram_size=args.no_repeat_ngram_size,
     )
     if args.reference_path is None:
         return

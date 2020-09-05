@@ -9,15 +9,16 @@ model accuracy.
 import os
 
 import torch
-from absl import logging
 from absl.testing import absltest, parameterized
 from fairseq.models.bart.model import BARTModel
 
 import fastseq
+from fastseq.logging import get_logger
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS, TestCaseBase)
 
+logger = get_logger(__name__)
 
 class FairseqBeamSearchOptimizerTest(TestCaseBase):
     """Test the optimizations on FairSeq
@@ -57,7 +58,7 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
         'beam_size': 4,
-        'batch_size': 128,
+        'batch_size': 16,
         'need_attn': False,
         'lenpen': 2.0,
         'max_len_b': 140,
@@ -83,7 +84,6 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
                                               need_attn=need_attn)
         self.bart.cuda()
         self.bart.eval()
-        self.bart.half()
         count = 0
         outputs = []
         with open(self.source_path, 'rt', encoding="utf-8") as source:
@@ -112,10 +112,8 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
 
             self.assertEqual(len(outputs), len(self.expected_outputs))
 
-            for i, output in enumerate(outputs):
-                if output != self.expected_outputs[i]:
-                    logging.error("\n{} \n v.s. \n{}\n".format(
-                        output, self.expected_outputs[i]))
+        for i, output in enumerate(outputs):
+            self.assertEqual(output, self.expected_outputs[i])
 
 
 if __name__ == "__main__":
