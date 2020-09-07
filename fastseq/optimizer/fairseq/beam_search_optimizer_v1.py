@@ -362,6 +362,8 @@ class MultiheadAttentionV2(MultiheadAttention):
             if not need_head_weights:
                 # average attention weights over heads
                 attn_weights = attn_weights.mean(dim=0)
+        else:
+            attn_weights = None
 
         return attn, attn_weights
 
