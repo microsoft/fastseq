@@ -63,7 +63,7 @@ To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairse
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
   | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
+  |  above + fastseq    | 6.8 samples/s | 8.7 samples/s  | 9.1 samples/s  |
   | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
   |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
 
