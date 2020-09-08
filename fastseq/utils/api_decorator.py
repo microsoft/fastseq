@@ -199,7 +199,7 @@ def replace(target_obj):
         A decorator function to replace the input object.
     """
     def decorator(new_obj):
-        for k, v in sys.modules.items():
+        for k, v in list(sys.modules.items()):
             if (target_obj.__name__ in v.__dict__
                 and v.__dict__[target_obj.__name__] is target_obj):
                 delattr(sys.modules[k], target_obj.__name__)
