@@ -1,10 +1,8 @@
 """From Huggingface Transformers."""
 import argparse
 import json
-import time
 from pathlib import Path
 import torch
-import time
 from tqdm import tqdm
 from multiprocessing import Process, Queue, JoinableQueue, cpu_count
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -77,6 +75,7 @@ def generate_summaries_or_translations(
     task="summarization",
     decoder_start_token_id=None,
     fastseq_opt=True,
+    no_repeat_ngram_size=None,	
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -89,6 +88,7 @@ def generate_summaries_or_translations(
         model = model.half()
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
+    
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     
     # update config with summarization specific params
@@ -109,18 +109,17 @@ def generate_summaries_or_translations(
     for batch in tqdm(list(chunks(examples, batch_size))):
         if "t5" in model_name:
             batch = [model.config.prefix + text for text in batch]
-        torch.cuda.nvtx.range_push("tokenization_step")
         batch = tokenizer(batch,
                           return_tensors="pt",
                           truncation=True,
                           padding="max_length").to(device)
         input_ids, attention_mask = trim_batch(
             **batch, pad_token_id=tokenizer.pad_token_id)
-        torch.cuda.nvtx.range_pop()
         summaries = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
             decoder_start_token_id=decoder_start_token_id,
+            no_repeat_ngram_size=no_repeat_ngram_size,
             **gen_kwargs,
         )
         summaries_cpu = summaries.cpu()
@@ -176,6 +175,8 @@ def run_generate():
                         help="How many observations. Defaults to all.")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--without_fastseq_opt", action="store_true")
+    parser.add_argument("--no_repeat_ngram_size", type=int, default=None,	
+                         required=False, help="size of no repeat ngram")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -194,6 +195,7 @@ def run_generate():
         task=args.task,
         decoder_start_token_id=args.decoder_start_token_id,
         fastseq_opt=not args.without_fastseq_opt,
+        no_repeat_ngram_size=args.no_repeat_ngram_size,
     )
     if args.reference_path is None:
         return
