@@ -56,8 +56,8 @@ class PostProcess (Process) :
                 break
             else :
                 dec = self.tokenizer.batch_decode(summaries,
-                                 self.skip_special_tokens,
-                                 self.clean_up_tokenization_spaces)
+                                 skip_special_tokens = self.skip_special_tokens,
+                                 clean_up_tokenization_spaces = self.clean_up_tokenization_spaces)
                 self.msg_queue.put(dec) 
 
         self.data_queue.close() 
@@ -180,8 +180,6 @@ def run_generate():
     parser.add_argument("--without_fastseq_opt", action="store_true")
     parser.add_argument("--no_repeat_ngram_size", type=int, default=None,	
                          required=False, help="size of no repeat ngram")
-    parser.add_argument("--include_special_tokens", action="store_true")
-    parser.add_argument("--leave_tokenization_spaces", action="store_false")
     
     args = parser.parse_args()
     examples = [
@@ -202,8 +200,8 @@ def run_generate():
         decoder_start_token_id=args.decoder_start_token_id,
         fastseq_opt=not args.without_fastseq_opt,
         no_repeat_ngram_size=args.no_repeat_ngram_size,
-        skip_special_tokens = not args.include_special_tokens,
-        clean_up_tokenization_spaces = not args.leave_tokenization_spaces,
+        skip_special_tokens=True,
+        clean_up_tokenization_spaces=False,
         )
     if args.reference_path is None:
         return
