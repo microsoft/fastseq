@@ -75,6 +75,21 @@ for bs in "${bs_list[@]}"; do
             --remove-bpe \
             --gen-subset $split $* \
         > $STDOUT_FILE 2> $STDERR_FILE
+    elif [[ $type == seq2seq && $model == prophetnet* ]]; then
+        $util \
+            $data_dir \
+            --path $model_path \
+            --task translation_prophetnet \
+            --batch-size $bs \
+            --beam 4 \
+            --num-workers 4 \
+            --min-len 55 \
+            --max-len-b 140 \
+            --no-repeat-ngram-size 3 \
+            --lenpen 2.0 \
+            --remove-bpe \
+            --gen-subset $split $* \
+        > $STDOUT_FILE 2> $STDERR_FILE
     else
         $util \
             $data_dir \
