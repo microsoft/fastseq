@@ -42,15 +42,11 @@ class ProphetNetModelTest(TestCaseBase):
             'prophetnet_large_160G_gigaword']
         if not os.path.exists(prophetnet_dir):
             make_dirs(prophetnet_dir)
-            with open(
-                os.path.join(prophetnet_dir, 'model.pt'), 'xb') as model_file:
-                wget(urljoin(prophetnet_url_base, 'model.pt'), model_file)
-            with open(
-                os.path.join(prophetnet_dir, 'dict.src.txt'), 'xb') as dict_src:
-                wget(urljoin(prophetnet_url_base, 'dict.src.txt'), dict_src)
-            with open(
-                os.path.join(prophetnet_dir, 'dict.tgt.txt'), 'xb') as dict_tgt:
-                wget(urljoin(prophetnet_url_base, 'dict.tgt.txt'), dict_tgt)
+            for download_file in ['model.pt', 'dict.src.txt', 'dict.tgt.txt']:
+                output_path = os.path.join(prophetnet_dir, download_file)
+                with open(output_path, 'xb') as fout:
+                    download_url = urljoin(prophetnet_url_base, download_file)
+                    wget(download_url, fout)
 
         self.prophetnet = NgramTransformerProphetModel.from_pretrained(
             prophetnet_dir, checkpoint_file='model.pt')
