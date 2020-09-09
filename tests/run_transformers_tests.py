@@ -11,13 +11,15 @@ import shutil
 import unittest
 from git import Repo
 from absl.testing import absltest, parameterized
+from pip._internal import main as pipmain
 
-FASTSEQ_PATH = '/'.join(os.path.realpath(__file__).split('/')[0:-2])
+FASTSEQ_PATH = os.sep.join(os.path.realpath(__file__).split('/')[0:-2])
 TRANSFORMERS_PATH = '/tmp/transformers/'
 TRANSFORMERS_GIT_URL = 'https://github.com/huggingface/transformers.git'
 
 
 class TransformersUnitTests(parameterized.TestCase):
+    """Run all the unit tests under transformers"""
     def prepare_env(self):
         """set env variables"""
         #Removing following path since it contains utils directory
@@ -33,9 +35,8 @@ class TransformersUnitTests(parameterized.TestCase):
         Repo.clone_from(TRANSFORMERS_GIT_URL,
                         TRANSFORMERS_PATH,
                         branch=version)
-        os.system(
-            'pip install git+https://github.com/huggingface/transformers.git@'
-            + version)
+        pipmain(['install', 'git+https://github.com/huggingface/transformers.git@' +
+                    version])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ[
@@ -64,7 +65,7 @@ class TransformersUnitTests(parameterized.TestCase):
     })
     def test_suites(self, without_fastseq_opt, transformers_version,
                     blocked_tests):
-
+        """run test suites"""
         self.clone_and_build_transformers(TRANSFORMERS_GIT_URL,
                                           transformers_version)
         if not without_fastseq_opt:
