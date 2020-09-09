@@ -37,11 +37,13 @@ class IOProcess (Process) :
         self.msg_queue.join_thread() 
 
 class PostProcess (Process) :
-    def __init__ (self, tokenizer, data_queue, msg_queue) : 
+    def __init__ (self, tokenizer, data_queue, msg_queue, skip_special_tokens, clean_up_tokenization_spaces) : 
         super(PostProcess, self).__init__() 
         self.data_queue = data_queue 
         self.msg_queue  = msg_queue 
-        self.tokenizer = tokenizer 
+        self.tokenizer = tokenizer
+        self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
+        self.skip_special_tokens = skip_special_tokens
 
     def run (self) : 
         while True : 
@@ -54,15 +56,14 @@ class PostProcess (Process) :
                 break
             else :
                 dec = self.tokenizer.batch_decode(summaries,
-                                 skip_special_tokens=True,
-                                 clean_up_tokenization_spaces=False)
+                                 self.skip_special_tokens,
+                                 self.clean_up_tokenization_spaces)
                 self.msg_queue.put(dec) 
 
         self.data_queue.close() 
         self.data_queue.join_thread()
         self.msg_queue.close() 
         self.msg_queue.join_thread()
-        self.msg_queue.join() 
 
 
 def generate_summaries_or_translations(
@@ -75,7 +76,9 @@ def generate_summaries_or_translations(
     task="summarization",
     decoder_start_token_id=None,
     fastseq_opt=True,
-    no_repeat_ngram_size=None,	
+    no_repeat_ngram_size=None,
+    skip_special_tokens=True,
+    clean_up_tokenization_spaces=False,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -99,7 +102,7 @@ def generate_summaries_or_translations(
     threads = cpu_count()
     
     for i in range (threads) : 
-        p = PostProcess(tokenizer, data_queue, msg_queue)
+        p = PostProcess(tokenizer, data_queue, msg_queue, skip_special_tokens, clean_up_tokenization_spaces)
         p_list.append(p)
         p.start()
     
@@ -177,6 +180,9 @@ def run_generate():
     parser.add_argument("--without_fastseq_opt", action="store_true")
     parser.add_argument("--no_repeat_ngram_size", type=int, default=None,	
                          required=False, help="size of no repeat ngram")
+    parser.add_argument("--include_special_tokens", action="store_true")
+    parser.add_argument("--leave_tokenization_spaces", action="store_false")
+    
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -196,7 +202,9 @@ def run_generate():
         decoder_start_token_id=args.decoder_start_token_id,
         fastseq_opt=not args.without_fastseq_opt,
         no_repeat_ngram_size=args.no_repeat_ngram_size,
-    )
+        skip_special_tokens = not args.include_special_tokens,
+        clean_up_tokenization_spaces = not args.leave_tokenization_spaces,
+        )
     if args.reference_path is None:
         return
     # Compute scores
