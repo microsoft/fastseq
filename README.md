@@ -8,6 +8,7 @@ FastSeq provides efficient implementations of the popular sequence models with h
 
 ## Supported models in [fairseq](https://github.com/pytorch/fairseq)
 
+- [x] [ProphetNet](https://github.com/microsoft/ProphetNet)
 - [x] [BART](https://arxiv.org/pdf/1910.13461.pdf)
 - [x] [Scaling Neural Machine Translation (Ott et al., 2018)](https://github.com/pytorch/fairseq/blob/master/examples/scaling_nmt/README.md)
 - [x] [Mixture Models for Diverse Machine Translation: Tricks of the Trade (Shen et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/translation_moe/README.md)
@@ -17,13 +18,40 @@ FastSeq provides efficient implementations of the popular sequence models with h
 ## Supported models in [HuggingFace-Transformers](https://github.com/huggingface/transformers)
 
 - [x] [BART](https://huggingface.co/transformers/model_doc/bart.html)
+- [x] [T5](https://huggingface.co/transformers/model_doc/t5.html)
 - [ ] [GPT-2](https://huggingface.co/transformers/model_doc/gpt2.html)
 - [ ] [UniLM-V1](https://github.com/microsoft/unilm)
 - [ ] [UniLM-V2](https://github.com/microsoft/unilm)
 - [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
-- [x] [T5](https://huggingface.co/transformers/model_doc/t5.html)
 
 # Benchmarks
+
+## ProphetNet
+
+- CNN daily mail val data, NVIDIA-V100-16GB
+
+  |       BatchSize      |       32      |        64       |      128       |
+  |:--------------------:|:-------------:|:---------------:|:--------------:|
+  | prophetnet + fastseq | 6.4 samples/s |  9.3 samples/s  | 11.4 samples/s |
+
+with setting:
+
+```bash
+$ fastseq-generate-for-fairseq \
+      cnn_dm_bert.1k/len-1024.bin \
+      --path prophetnet/model.pt \
+      --fp16 \
+      --task translation_prophetnet \
+      --batch-size BATCH_SIZE \
+      --beam 4 \
+      --num-workers 4 \
+      --min-len 55 \
+      --max-len-b 140 \
+      --no-repeat-ngram-size 3 \
+      --lenpen 2.0 \
+      --remove-bpe \
+      --gen-subset valid \
+```
 
 ## BART from Fairseq
 
@@ -164,6 +192,7 @@ hypotheses = bart.sample(
 
 print(hypotheses)
 ```
+
 ## Command line tool for fairseq models
 Example
 

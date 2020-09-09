@@ -79,6 +79,7 @@ for bs in "${bs_list[@]}"; do
         $util \
             $data_dir \
             --path $model_path \
+            --fp16 \
             --task translation_prophetnet \
             --batch-size $bs \
             --beam 4 \
