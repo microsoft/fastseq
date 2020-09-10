@@ -19,7 +19,8 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-class IOProcess (Process) : 
+class IOProcess (Process) :
+    """ Write detokenized output to file in order.""" 
     def __init__ (self, msg_queue, fout): 
         super(IOProcess, self).__init__() 
         self.msg_queue = msg_queue 
@@ -55,6 +56,7 @@ class IOProcess (Process) :
         self.msg_queue.join_thread() 
 
 class PostProcess (Process) :
+    """ Parallel detokenization """
     def __init__ (self, tokenizer, data_queue, msg_queue, skip_special_tokens, clean_up_tokenization_spaces) : 
         super(PostProcess, self).__init__() 
         self.data_queue = data_queue 
@@ -119,7 +121,7 @@ def generate_summaries_or_translations(
     p_list = []
     threads = cpu_count()
     
-    for i in range (threads) : 
+    for i in range(threads) : 
         p = PostProcess(tokenizer, data_queue, msg_queue, skip_special_tokens, clean_up_tokenization_spaces)
         p_list.append(p)
         p.start()
