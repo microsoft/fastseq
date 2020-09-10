@@ -60,8 +60,8 @@ class FairseqUnitTests(parameterized.TestCase):
         False,
         'fairseq_version':
         'v0.9.0',
-        'blocked_tests':
-        ['test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py']
+        'blocked_tests': [
+           'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py']
     })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
         """"run test suites"""

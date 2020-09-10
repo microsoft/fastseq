@@ -8,6 +8,7 @@ pip install absl-py
 pip install packaging
 cd ${FASTSEQ_TEST_PATH}/../
 pip install --editable .
+pip install torch==1.5.0+cu101 torchvision==0.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 cd tests
-python run_fairseq_tests.py 
+CUDA_VISIBLE_DEVICES=1 python run_fairseq_tests.py 
 deactivate
