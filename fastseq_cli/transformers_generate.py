@@ -24,15 +24,33 @@ class IOProcess (Process) :
         super(IOProcess, self).__init__() 
         self.msg_queue = msg_queue 
         self.fout = fout
-    def run (self) : 
+        self.waiting_for=0
+        self.dec_buf = {}
+
+    def process_dec (self, dec) : 
+        for hypothesis in dec:
+            self.fout.write(hypothesis + "\n")
+            self.fout.flush()
+    
+    def process_buffer (self):
+        while self.waiting_for in self.dec_buf : 
+            self.process_dec(self.dec_buf[self.waiting_for])
+            del self.dec_buf[self.waiting_for]
+            self.waiting_for+=1
+
+    def run (self) :
         while (True) : 
-            dec = self.msg_queue.get() 
+            ind, dec = self.msg_queue.get() 
             if dec == GENERATE_FINISHED : 
                 break 
-            else :
-                for hypothesis in dec:
-                    self.fout.write(hypothesis + "\n")
-                    self.fout.flush()
+            elif ind != self.waiting_for: 
+                self.dec_buf[ind] = dec
+            else : 
+                self.process_dec(dec)
+                self.waiting_for+=1
+                self.process_buffer()
+        self.process_buffer()  
+        assert not self.dec_buf, "IO Buffer not empty" 
         self.msg_queue.close() 
         self.msg_queue.join_thread() 
 
@@ -47,18 +65,18 @@ class PostProcess (Process) :
 
     def run (self) : 
         while True : 
-            summaries = self.data_queue.get() 
+            ind, summaries = self.data_queue.get() 
             if summaries == GENERATE_FINISHED : 
-                self.data_queue.put(POSTPROCESS_FINISHED) 
+                self.data_queue.put((-1,POSTPROCESS_FINISHED)) 
                 break 
             elif summaries == POSTPROCESS_FINISHED : 
-                self.data_queue.put(POSTPROCESS_FINISHED) 
+                self.data_queue.put((-1,POSTPROCESS_FINISHED)) 
                 break
             else :
                 dec = self.tokenizer.batch_decode(summaries,
                                  skip_special_tokens = self.skip_special_tokens,
                                  clean_up_tokenization_spaces = self.clean_up_tokenization_spaces)
-                self.msg_queue.put(dec) 
+                self.msg_queue.put((ind,dec)) 
 
         self.data_queue.close() 
         self.data_queue.join_thread()
@@ -109,7 +127,7 @@ def generate_summaries_or_translations(
     io_process = IOProcess( msg_queue, fout)
     io_process.start()
     
-    for batch in tqdm(list(chunks(examples, batch_size))):
+    for ind, batch in tqdm(enumerate(list(chunks(examples, batch_size)))):
         if "t5" in model_name:
             batch = [model.config.prefix + text for text in batch]
         batch = tokenizer(batch,
@@ -126,11 +144,11 @@ def generate_summaries_or_translations(
             **gen_kwargs,
         )
         summaries_cpu = summaries.cpu()
-        data_queue.put(summaries_cpu)
-    data_queue.put(GENERATE_FINISHED) 
+        data_queue.put((ind,summaries_cpu))
+    data_queue.put((-1,GENERATE_FINISHED)) 
     for p in p_list :
         p.join() 
-    msg_queue.put(GENERATE_FINISHED)
+    msg_queue.put((-1,GENERATE_FINISHED))
     io_process.join()
     
 def run_generate():
