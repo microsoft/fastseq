@@ -690,15 +690,16 @@ class GenerationMixinV2(GenerationMixin):
         model_specific_kwargs,
     ):
         """Generate sequences for each example with beam search."""
-        
         # generated hypotheses
         generated_hyps = [
-            BeamHypotheses(num_beams, max_length, length_penalty, early_stopping=early_stopping)
+            BeamHypotheses(num_beams, max_length, length_penalty, 
+                            early_stopping=early_stopping)
             for _ in range(batch_size)
         ]
 
         # scores for each sentence in the beam
-        beam_scores = torch.zeros((batch_size, num_beams), dtype=torch.float, device=input_ids.device)
+        beam_scores = torch.zeros((batch_size, num_beams), dtype=torch.float, 
+                                    device=input_ids.device)
 
         # for greedy decoding it is made sure that only tokens of the first beam are considered to avoid sampling the exact same tokens three times
         if do_sample is False:
@@ -713,7 +714,8 @@ class GenerationMixinV2(GenerationMixin):
 
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(
-                input_ids, past=past, attention_mask=attention_mask, use_cache=use_cache, **model_specific_kwargs
+                input_ids, past=past, attention_mask=attention_mask, 
+                use_cache=use_cache, **model_specific_kwargs
             )
             outputs = self(**model_inputs)  # (batch_size * num_beams, cur_len, vocab_size)
             next_token_logits = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
@@ -742,31 +744,34 @@ class GenerationMixinV2(GenerationMixin):
                 num_beams=num_beams,
             )
 
-            assert scores.shape == (batch_size * num_beams, vocab_size), "Shapes of scores: {} != {}".format(
+            assert scores.shape == (batch_size * num_beams, vocab_size),\
+                 "Shapes of scores: {} != {}".format(
                 scores.shape, (batch_size * num_beams, vocab_size)
             )
 
             if do_sample:
-                _scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
+                curr_scores = scores + beam_scores[:, None].expand_as(scores)  # (batch_size * num_beams, vocab_size)
                 # Temperature
                 if temperature != 1.0:
-                    _scores = _scores / temperature
+                    curr_scores = curr_scores / temperature
                 # Top-p/top-k filtering
-                _scores = top_k_top_p_filtering(
-                    _scores, top_k=top_k, top_p=top_p, min_tokens_to_keep=2
+                curr_scores = top_k_top_p_filtering(
+                    curr_scores, top_k=top_k, top_p=top_p, min_tokens_to_keep=2
                 )  # (batch_size * num_beams, vocab_size)
                 # re-organize to group the beam together to sample from all beam_idxs
-                _scores = _scores.contiguous().view(
+                curr_scores = curr_scores.contiguous().view(
                     batch_size, num_beams * vocab_size
                 )  # (batch_size, num_beams * vocab_size)
 
                 # Sample 2 next tokens for each beam (so we have some spare tokens and match output of greedy beam search)
-                probs = F.softmax(_scores, dim=-1)
-                next_tokens = torch.multinomial(probs, num_samples=2 * num_beams)  # (batch_size, num_beams * 2)
+                probs = F.softmax(curr_scores, dim=-1)
+                next_tokens = torch.multinomial(probs, 
+                            num_samples=2 * num_beams)  # (batch_size, num_beams * 2)
                 # Compute next scores
-                next_scores = torch.gather(_scores, -1, next_tokens)  # (batch_size, num_beams * 2)
+                next_scores = torch.gather(curr_scores, -1, next_tokens)  # (batch_size, num_beams * 2)
                 # sort the sampled vector to make sure that the first num_beams samples are the best
-                next_scores, next_scores_indices = torch.sort(next_scores, descending=True, dim=1)
+                next_scores, next_scores_indices = torch.sort(
+                                    next_scores, descending=True, dim=1)
                 next_tokens = torch.gather(next_tokens, -1, next_scores_indices)  # (batch_size, num_beams * 2)
             
             else:
@@ -777,14 +782,17 @@ class GenerationMixinV2(GenerationMixin):
                     batch_size, num_beams * vocab_size
                 )  # (batch_size, num_beams * vocab_size)
 
-                next_scores, next_tokens = torch.topk(next_scores, 2 * num_beams, dim=1, largest=True, sorted=True)
+                next_scores, next_tokens = torch.topk(next_scores, 
+                                2 * num_beams, dim=1, largest=True, sorted=True)
 
-            assert next_scores.size() == next_tokens.size() == (batch_size, 2 * num_beams)
+            assert next_scores.size() == next_tokens.size() \
+                == (batch_size, 2 * num_beams)
             # next batch beam content
             next_batch_beam = []
             next_tokens_id = next_tokens % vocab_size  
             next_beams_id = next_tokens // vocab_size 
-            beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(1).type_as(next_beams_id)
+            beams_offset = (torch.arange(0, batch_size) * num_beams)\
+                .unsqueeze(1).type_as(next_beams_id)
             effective_beam_id =  next_beams_id + beams_offset 
             if eos_token_id is not None : 
                 eos_mask = next_tokens_id.eq(eos_token_id)
@@ -806,10 +814,12 @@ class GenerationMixinV2(GenerationMixin):
                                 input_ids_cpu[eos_effective_idx_cpu[i]].clone(),
                                 eos_effective_scores_cpu[i],
                             )
-                done[batch_idx] = done[batch_idx] or generated_hyps[batch_idx].is_done(
+                done[batch_idx] = (done[batch_idx] or 
+                    generated_hyps[batch_idx].is_done(
                     next_scores[batch_idx].max().item(), cur_len
-                        )
-            cand_offsets = torch.arange(0, 2 * num_beams).type_as(input_ids).cuda()
+                        ))
+            cand_offsets = (torch.arange(0, 2 * num_beams)
+                            .type_as(input_ids).cuda())
             active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * (2*num_beams),
                 cand_offsets[: eos_mask.size(1)],
@@ -817,9 +827,12 @@ class GenerationMixinV2(GenerationMixin):
             _, active_hypos = torch.topk(
                 active_mask, k=num_beams, dim=1, largest=False
             )
-            active_effective_beam_id  = torch.gather(effective_beam_id, dim=1, index=active_hypos)
-            active_scores  = torch.gather(next_scores, dim=1, index=active_hypos)
-            active_tokens  = torch.gather(next_tokens_id, dim=1, index=active_hypos)
+            active_effective_beam_id  = torch.gather(
+                effective_beam_id, dim=1, index=active_hypos)
+            active_scores  = torch.gather(next_scores, 
+                dim=1, index=active_hypos)
+            active_tokens  = torch.gather(next_tokens_id, 
+                dim=1, index=active_hypos)
             beam_idx = active_effective_beam_id.view(-1)
             beam_scores = active_scores.view(-1)
             beam_tokens = active_tokens.view(-1)
@@ -839,7 +852,8 @@ class GenerationMixinV2(GenerationMixin):
             # extend attention_mask for new generated input if only decoder
             if self.config.is_encoder_decoder is False:
                 attention_mask = torch.cat(
-                    [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
+                    [attention_mask, 
+                attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
                 )
         
         # finalize all open beam hypotheses and add to generated hypotheses
@@ -849,11 +863,14 @@ class GenerationMixinV2(GenerationMixin):
 
             # test that beam scores match previously calculated scores if not eos and batch_idx not done
             if eos_token_id is not None and all(
-                (token_id % vocab_size).item() != eos_token_id for token_id in next_tokens[batch_idx]
+                (token_id % vocab_size).item() != eos_token_id 
+                for token_id in next_tokens[batch_idx]
             ):
                 assert torch.all(
-                    next_scores[batch_idx, :num_beams] == beam_scores.view(batch_size, num_beams)[batch_idx]
-                ), "If batch_idx is not done, final next scores: {} have to equal to accumulated beam_scores: {}".format(
+                    next_scores[batch_idx, :num_beams] == 
+                    beam_scores.view(batch_size, num_beams)[batch_idx]
+                ), "If batch_idx is not done, final next scores: \
+                {} have to equal to accumulated beam_scores: {}".format(
                     next_scores[:, :num_beams][batch_idx],
                     beam_scores.view(batch_size, num_beams)[batch_idx],
                 )
@@ -866,8 +883,10 @@ class GenerationMixinV2(GenerationMixin):
                 generated_hyps[batch_idx].add(final_tokens, final_score)
 
         # depending on whether greedy generation is wanted or not define different output_batch_size and output_num_return_sequences_per_batch
-        output_batch_size = batch_size if do_sample else batch_size * num_return_sequences
-        output_num_return_sequences_per_batch = 1 if do_sample else num_return_sequences
+        output_batch_size = batch_size if do_sample \
+            else batch_size * num_return_sequences
+        output_num_return_sequences_per_batch = 1 \
+            if do_sample else num_return_sequences
         
         # select the best hypotheses
         sent_lengths = input_ids.new(output_batch_size)
@@ -877,16 +896,19 @@ class GenerationMixinV2(GenerationMixin):
         for i, hypotheses in enumerate(generated_hyps):
             sorted_hyps = sorted(hypotheses.beams, key=lambda x: x[0])
             for j in range(output_num_return_sequences_per_batch):
-                effective_batch_idx = output_num_return_sequences_per_batch * i + j
+                effective_batch_idx = \
+                output_num_return_sequences_per_batch * i + j
                 best_hyp = sorted_hyps.pop()[1]
                 sent_lengths[effective_batch_idx] = len(best_hyp)
                 best.append(best_hyp)
         
         # shorter batches are padded
         if sent_lengths.min().item() != sent_lengths.max().item():
-            assert pad_token_id is not None, "`Pad_token_id` has to be defined"
+            assert pad_token_id is not None, \
+                "`Pad_token_id` has to be defined"
             sent_max_len = min(sent_lengths.max().item() + 1, max_length)
-            decoded = input_ids.new(output_batch_size, sent_max_len).fill_(pad_token_id)
+            decoded = input_ids.new(output_batch_size, 
+                sent_max_len).fill_(pad_token_id)
 
             # fill with hypothesis and eos_token_id if necessary
             for i, hypo in enumerate(best):
@@ -896,7 +918,8 @@ class GenerationMixinV2(GenerationMixin):
         else:
             # none of the hypotheses have an eos_token
             assert (len(hypo) == max_length for hypo in best)
-            decoded = torch.stack(best).type(torch.long).to(next(self.parameters()).device)
+            decoded = torch.stack(best).type(torch.long)\
+                    .to(next(self.parameters()).device)
 
         return decoded
 
