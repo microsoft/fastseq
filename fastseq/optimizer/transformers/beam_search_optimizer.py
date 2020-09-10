@@ -807,7 +807,7 @@ class GenerationMixinV2(GenerationMixin):
                 done[batch_idx] = done[
                     batch_idx] or generated_hyps[batch_idx].is_done(
                         next_scores[batch_idx].max().item(), cur_len)
-            cand_offsets = torch.arange(0, 2 * num_beams).type_as(input_ids)
+            cand_offsets = torch.arange(0, 2 * num_beams).type_as(input_ids).cuda()
             active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * (2 * num_beams),
                 cand_offsets[:eos_mask.size(1)],
