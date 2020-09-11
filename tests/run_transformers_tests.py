@@ -70,12 +70,14 @@ class TransformersUnitTests(parameterized.TestCase):
                                           transformers_version)
         if not without_fastseq_opt:
             import fastseq  #pylint: disable=import-outside-toplevel
-
         self.prepare_env()
-        test_files_path = TRANSFORMERS_PATH + '/tests/test_*.py'
+        os.chdir(TRANSFORMERS_PATH) 
+        test_files_path = './tests/test_*.py'
         suites = self.get_test_suites(test_files_path, blocked_tests)
         test_suite = unittest.TestSuite(suites)
-        test_runner = unittest.TextTestRunner().run(test_suite)
+        test_runner = unittest.TextTestRunner()
+        test_result = test_runner.run(test_suite)
+        assert len(test_result.errors) == 0
 
 
 if __name__ == "__main__":

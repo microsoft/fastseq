@@ -72,8 +72,9 @@ class FairseqUnitTests(parameterized.TestCase):
         test_files_path = FAIRSEQ_PATH + '/tests/test_*.py'
         suites = self.get_test_suites(test_files_path, blocked_tests)
         test_suite = unittest.TestSuite(suites)
-        test_runner = unittest.TextTestRunner().run(test_suite)
-
+        test_runner = unittest.TextTestRunner()
+        test_result = test_runner.run(test_suite)
+        assert len(test_result.errors) == 0 
 
 if __name__ == "__main__":
     absltest.main()
