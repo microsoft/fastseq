@@ -2,9 +2,9 @@
 import argparse
 import json
 from pathlib import Path
-import torch
-from tqdm import tqdm
 from multiprocessing import Process, Queue, JoinableQueue, cpu_count
+from tqdm import tqdm
+import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
 
@@ -20,69 +20,71 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 class IOProcess (Process) :
-    """ Write detokenized output to file in order.""" 
-    def __init__ (self, msg_queue, fout): 
-        super(IOProcess, self).__init__() 
-        self.msg_queue = msg_queue 
+    """ Write detokenized output to file in order."""
+    def __init__ (self, msg_queue, fout):
+        super(IOProcess, self).__init__()
+        self.msg_queue = msg_queue
         self.fout = fout
         self.waiting_for=0
         self.dec_buf = {}
 
-    def process_dec (self, dec) : 
+    def process_dec (self, dec) :
         for hypothesis in dec:
             self.fout.write(hypothesis + "\n")
             self.fout.flush()
-    
+
     def process_buffer (self):
-        while self.waiting_for in self.dec_buf : 
+        while self.waiting_for in self.dec_buf :
             self.process_dec(self.dec_buf[self.waiting_for])
             del self.dec_buf[self.waiting_for]
             self.waiting_for+=1
 
     def run (self) :
-        while (True) : 
-            ind, dec = self.msg_queue.get() 
-            if dec == GENERATE_FINISHED : 
-                break 
-            elif ind != self.waiting_for: 
+        while True :
+            ind, dec = self.msg_queue.get()
+            if dec == GENERATE_FINISHED :
+                break
+            elif ind != self.waiting_for:
                 self.dec_buf[ind] = dec
-            else : 
+            else :
                 self.process_dec(dec)
                 self.waiting_for+=1
                 self.process_buffer()
-        self.process_buffer()  
-        assert not self.dec_buf, "IO Buffer not empty" 
-        self.msg_queue.close() 
-        self.msg_queue.join_thread() 
+        self.process_buffer()
+        assert not self.dec_buf, "IO Buffer not empty"
+        self.msg_queue.close()
+        self.msg_queue.join_thread()
 
 class PostProcess (Process) :
     """ Parallel detokenization """
-    def __init__ (self, tokenizer, data_queue, msg_queue, skip_special_tokens, clean_up_tokenization_spaces) : 
-        super(PostProcess, self).__init__() 
-        self.data_queue = data_queue 
-        self.msg_queue  = msg_queue 
+    def __init__ (self, tokenizer, data_queue, msg_queue,
+            skip_special_tokens, clean_up_tokenization_spaces) :
+        super(PostProcess, self).__init__()
+        self.data_queue = data_queue
+        self.msg_queue  = msg_queue
         self.tokenizer = tokenizer
         self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
         self.skip_special_tokens = skip_special_tokens
 
-    def run (self) : 
-        while True : 
-            ind, summaries = self.data_queue.get() 
-            if summaries == GENERATE_FINISHED : 
-                self.data_queue.put((-1,POSTPROCESS_FINISHED)) 
-                break 
-            elif summaries == POSTPROCESS_FINISHED : 
-                self.data_queue.put((-1,POSTPROCESS_FINISHED)) 
+    def run (self) :
+        while True :
+            ind, summaries = self.data_queue.get()
+            if summaries == GENERATE_FINISHED :
+                self.data_queue.put((-1,POSTPROCESS_FINISHED))
+                break
+            elif summaries == POSTPROCESS_FINISHED :
+                self.data_queue.put((-1,POSTPROCESS_FINISHED))
                 break
             else :
                 dec = self.tokenizer.batch_decode(summaries,
-                                 skip_special_tokens = self.skip_special_tokens,
-                                 clean_up_tokenization_spaces = self.clean_up_tokenization_spaces)
-                self.msg_queue.put((ind,dec)) 
+                        skip_special_tokens = self.skip_special_tokens,
+                        clean_up_tokenization_spaces =
+                        self.clean_up_tokenization_spaces)
+                self.msg_queue.put((ind,dec))
 
-        self.data_queue.close() 
+        self.data_queue.close()
         self.data_queue.join_thread()
-        self.msg_queue.close() 
+        self.msg_queue.close()
         self.msg_queue.join_thread()
 
 
@@ -111,24 +113,25 @@ def generate_summaries_or_translations(
         model = model.half()
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    
+
     # update config with summarization specific params
     use_task_specific_params(model, task)
-    data_queue = Queue() 
-    msg_queue =  Queue() 
+    data_queue = Queue()
+    msg_queue =  Queue()
     p_list = []
     threads = cpu_count()
-    
-    for i in range(threads) : 
-        p = PostProcess(tokenizer, data_queue, msg_queue, skip_special_tokens, clean_up_tokenization_spaces)
+
+    for i in range(threads) :
+        p = PostProcess(tokenizer, data_queue, msg_queue,
+            skip_special_tokens, clean_up_tokenization_spaces)
         p_list.append(p)
         p.start()
-    
+
     io_process = IOProcess( msg_queue, fout)
     io_process.start()
-    
+
     for ind, batch in tqdm(enumerate(list(chunks(examples, batch_size)))):
         if "t5" in model_name:
             batch = [model.config.prefix + text for text in batch]
@@ -147,12 +150,13 @@ def generate_summaries_or_translations(
         )
         summaries_cpu = summaries.cpu()
         data_queue.put((ind,summaries_cpu))
-    data_queue.put((-1,GENERATE_FINISHED)) 
+    data_queue.put((-1,GENERATE_FINISHED))
     for p in p_list :
-        p.join() 
+        p.join()
     msg_queue.put((-1,GENERATE_FINISHED))
     io_process.join()
-    
+    fout.close()
+
 def run_generate():
     """Entrance is here."""
     parser = argparse.ArgumentParser()
@@ -198,9 +202,9 @@ def run_generate():
                         help="How many observations. Defaults to all.")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--without_fastseq_opt", action="store_true")
-    parser.add_argument("--no_repeat_ngram_size", type=int, default=None,	
+    parser.add_argument("--no_repeat_ngram_size", type=int, default=None,
                          required=False, help="size of no repeat ngram")
-    
+
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
