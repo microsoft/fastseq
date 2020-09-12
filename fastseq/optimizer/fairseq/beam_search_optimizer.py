@@ -10,7 +10,6 @@ from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY
 from fairseq.sequence_generator import SequenceGenerator
 
 from fastseq.logging import get_logger
-import fastseq.models.prophetnet_fs
 from fastseq.utils.api_decorator import FAIRSEQ_OPTIMIZED_CLASSES
 
 logger = get_logger(__name__)

@@ -37,9 +37,9 @@ class ProphetNetModelTest(TestCaseBase):
 
         super(ProphetNetModelTest, self).setUp()
         prophetnet_dir = CACHED_PROPHETNET_MODEL_PATHS[
-            'prophetnet_large_160G_gigaword']
+            'prophetnet_large_160G_cnndm']
         prophetnet_url_base = PROPHETNET_MODEL_URLS[
-            'prophetnet_large_160G_gigaword']
+            'prophetnet_large_160G_cnndm']
         if not os.path.exists(prophetnet_dir):
             make_dirs(prophetnet_dir)
             for download_file in ['model.pt', 'dict.src.txt', 'dict.tgt.txt']:
@@ -51,10 +51,10 @@ class ProphetNetModelTest(TestCaseBase):
         self.prophetnet = NgramTransformerProphetModel.from_pretrained(
             prophetnet_dir, checkpoint_file='model.pt')
 
-        self.source_path = 'tests/optimizer/fairseq/data/cnndm_128.txt'
+        self.source_path = 'tests/models/data/cnn_dm_128_bert.txt'
 
         # read the expected output.
-        self.expected_output_path = 'tests/models/data/expected_prophetnet_output.hypo'  # pylint: disable=line-too-long
+        self.expected_output_path = 'tests/models/data/cnn_dm_128_bert_expected_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []
         with open(self.expected_output_path, 'rt',
                   encoding="utf-8") as expected_output_file:
@@ -63,12 +63,12 @@ class ProphetNetModelTest(TestCaseBase):
 
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
-        'beam_size': 4,
-        'batch_size': 16,
+        'beam_size': 5,
+        'batch_size': 128,
         'need_attn': False,
-        'lenpen': 2.0,
-        'max_len_b': 140,
-        'min_len': 55,
+        'lenpen': 1.2,
+        'max_len_b': 110,
+        'min_len': 45,
         'no_repeat_ngram_size': 3
     })
     def test_beam_search_optimizer(self, beam_size, batch_size, need_attn,
@@ -134,7 +134,6 @@ class ProphetNetModelTest(TestCaseBase):
 
         for i, output in enumerate(outputs):
             self.assertEqual(output, self.expected_outputs[i])
-
 
 if __name__ == "__main__":
     absltest.main()

@@ -143,6 +143,9 @@ class NgramTransformerProphetModel(FairseqEncoderDecoderModel):
     def build_model(cls, args, task):
         """Build a new model instance."""
 
+        # TODO: figure out why the inference outputs change after set ngram=1.
+        # args.ngram = 1
+
         # make sure all arguments are present in older models
         base_architecture(args)
 
@@ -680,6 +683,11 @@ class NgramTransformerDecoder(FairseqIncrementalDecoder):
 
         self.emb_layer_norm = LayerNorm(embed_dim)
         self.apply(init_bert_params)
+
+    def upgrade_state_dict_named(self, state_dict, name):
+        for k in state_dict.keys():
+            if k == 'decoder.ngram_input_embed.weight':
+                state_dict[k] = state_dict[k][:self.ngram,]
 
     def forward(self,
                 prev_output_tokens,

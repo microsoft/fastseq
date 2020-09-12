@@ -49,33 +49,23 @@ class ProphetNetHubInterface(nn.Module):
                *addl_sentences,
                no_separator=True) -> torch.LongTensor:
         """
-        BPE-encode a sentence (or multiple sentences).
-
-        Every sequence begins with a beginning-of-sentence (`<s>`) symbol.
-        Every sentence ends with an end-of-sentence (`</s>`).
-
-        Example (single sentence): `<s> a b c </s>`
-        Example (sentence pair): `<s> d e f </s> 1 2 3 </s>`
-
-        The BPE encoding follows GPT-2. One subtle detail is that the GPT-2 BPE
-        requires leading spaces. For example::
-
-            >>> bart.encode('Hello world').tolist()
-            [0, 31414, 232, 2]
-            >>> bart.encode(' world').tolist()
-            [0, 232, 2]
-            >>> bart.encode('world').tolist()
-            [0, 8331, 2]
+        Encode a sentence by following BERT.
+        For example::
+            >>> encode('hello world').tolist()
+            [7592, 2088, 102]
+            >>> encode(' world').tolist()
+            [2088, 102]
+            >>> encode('world').tolist()
+            [2088, 2]
         """
+        sentence = sentence.replace('``', '"').replace('\'\'', '"').replace(
+            '`', '\'').lower()
         tokens = self.bpe.encode(sentence)
-        if len(tokens.split(' ')) > self.max_positions - 2:
-            tokens = ' '.join(tokens.split(' ')[:self.max_positions - 2])
-        bpe_sentence = '[CLS] ' + tokens + ' [SEP]'
-        for s in addl_sentences:
-            bpe_sentence += (' [SEP]' if not no_separator else '')
-            bpe_sentence += ' ' + self.bpe.encode(s) + ' [SEP]'
+        if len(tokens.split(' ')) > self.max_positions:
+            tokens = ' '.join(tokens.split(' ')[:self.max_positions])
+        tokens += ' [SEP]'
         tokens = self.task.source_dictionary.encode_line(
-            bpe_sentence, append_eos=False)
+            tokens, append_eos=False)
         return tokens.long()
 
     def decode(self, tokens: torch.LongTensor):
@@ -142,8 +132,7 @@ class ProphetNetHubInterface(nn.Module):
             generator,
             [self.model],
             sample,
-            prefix_tokens=sample['net_input']['src_tokens'].new_zeros(
-                (len(tokens), 1)).fill_(self.task.source_dictionary.bos()),
+            prefix_tokens=None,
         )
 
         if verbose:

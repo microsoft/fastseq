@@ -87,9 +87,9 @@ CACHED_BART_MODEL_PATHS['bart.large.xsum'] = os.path.join(
 
 PROPHETNET_MODEL_URLS = {}
 PROPHETNET_MODEL_URLS[
-    'prophetnet_large_160G_gigaword'] = 'https://fastseq.blob.core.windows.net/data/models/prophetnet_large_160G_gigaword_model/'
+    'prophetnet_large_160G_cnndm'] = 'https://fastseq.blob.core.windows.net/data/models/prophetnet_large_160G_cnndm_model/'
 CACHED_PROPHETNET_DIR = os.path.join(FASTSEQ_CACHE_DIR, 'prophetnet')
 CACHED_PROPHETNET_MODEL_PATHS = {}
 CACHED_PROPHETNET_MODEL_PATHS[
-    'prophetnet_large_160G_gigaword'] = os.path.join(
-        CACHED_PROPHETNET_DIR, 'prophetnet_large_160G_gigaword')
+    'prophetnet_large_160G_cnndm'] = os.path.join(
+        CACHED_PROPHETNET_DIR, 'prophetnet_large_160G_cnndm')
