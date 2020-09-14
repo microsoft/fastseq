@@ -32,8 +32,8 @@ FastSeq provides efficient implementations of the popular sequence models with h
 
   |       BatchSize      |       32      |        64       |      128       |
   |:--------------------:|:-------------:|:---------------:|:--------------:|
-  |      prophetnet      | 3.1 samples/s |  3.6 samples/s  |      OOM       |
-  | prophetnet + fastseq | 6.4 samples/s |  9.3 samples/s  | 11.4 samples/s |
+  |      prophetnet      | 2.7 samples/s |  3.1 samples/s  |      OOM       |
+  | prophetnet + fastseq | 5.5 samples/s |  8.4 samples/s  | 10.3 samples/s |
 
 with setting:
 

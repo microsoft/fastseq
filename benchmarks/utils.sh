@@ -40,7 +40,7 @@ download_if_not_in_cache() {
 git_clone_if_not_in_cache() {
     git_url=$1
     local_path=$2
-    if [ ! -f "$local_path" ]; then
+    if [ ! -d "$local_path" ]; then
         echo "Git clone " $git_url " to " $local_path
         git clone $git_url $local_path
         if [ $? -ne 0 ]; then
