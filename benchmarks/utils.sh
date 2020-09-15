@@ -1,5 +1,5 @@
 export LOOP=${LOOP:-3}  # repeat every benchmark X times
-export CACHE_DIR=~/.cache/fastseq-cache
+export CACHE_DIR=${CACHE_DIR:-~/.cache/fastseq-cache}
 mkdir -p $CACHE_DIR
 export STDOUT_FILE=/tmp/fastseq.stdout
 export STDERR_FILE=/tmp/fastseq.stderr
@@ -13,7 +13,7 @@ failure() {
     local msg=$3
     local ret=$4
     if [[ $file == benchmark* ]]; then
-        cat $STDERR_FILE 
+        cat $STDERR_FILE
         echo
     fi
     echo "`date` - Failed at $file (line $lineno): $msg"
@@ -30,6 +30,21 @@ download_if_not_in_cache() {
         wget -c -O $local_path "$remote_path"
         if [ $? -ne 0 ]; then
             echo "Failed to download '$remote_path'"
+            exit -1
+        fi
+    else
+        echo "Reuse $local_path"
+    fi
+}
+
+git_clone_if_not_in_cache() {
+    git_url=$1
+    local_path=$2
+    if [ ! -d "$local_path" ]; then
+        echo "Git clone " $git_url " to " $local_path
+        git clone $git_url $local_path
+        if [ $? -ne 0 ]; then
+            echo "Failed to clone '$git_url'"
             exit -1
         fi
     else
