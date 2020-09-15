@@ -44,8 +44,10 @@ class TransformersUnitTests(parameterized.TestCase):
         'testcase_name': 'Normal',
         'without_fastseq_opt': False,
         'transformers_version': 'v3.0.2',
+        'blocked_tests': ['test_modeling_reformer.py']
     })
-    def test_suites(self, without_fastseq_opt, transformers_version):
+    def test_suites(self, without_fastseq_opt, transformers_version,
+                    blocked_tests):
         """run test suites"""
         self.clone_and_build_transformers(TRANSFORMERS_GIT_URL,
                                           transformers_version)
@@ -54,7 +56,9 @@ class TransformersUnitTests(parameterized.TestCase):
         import pytest #pylint: disable=import-outside-toplevel
         self.prepare_env()
         os.chdir(TRANSFORMERS_PATH)
-        exit_code =  pytest.main(["-sv", "./tests/"])
+        blocked_tests_string = (' not '+
+                    ' not '.join([test[5:-3] for test in blocked_tests]))
+        exit_code = pytest.main(['-sv', '-k'+blocked_tests_string,  './tests/'])
         assert str(exit_code).strip() == 'ExitCode.OK'
 
 if __name__ == "__main__":
