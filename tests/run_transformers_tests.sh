@@ -6,6 +6,9 @@ source ${ENV_PATH}/testing_env/bin/activate
 pip install gitpython
 pip install absl-py
 pip install packaging
+pip install pytest
+pip install timeout-decorator
+pip install torch torchvision
 cd ${FASTSEQ_TEST_PATH}/../
 pip install --editable .
 cd tests
