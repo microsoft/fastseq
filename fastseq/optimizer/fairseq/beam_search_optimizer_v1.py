@@ -13,7 +13,7 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.sequence_generator import SequenceGenerator
-
+from fastseq.clib.cuda.ngrb import NGRB
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
 @register_fairseq_optimized_class
@@ -644,24 +644,6 @@ class SequenceGeneratorV2(SequenceGenerator):
                 # minimum length constraint (does not apply if using prefix_tokens)
                 lprobs[:, self.eos] = -math.inf
 
-            if self.no_repeat_ngram_size > 0:
-                # for each beam and batch sentence, generate a list of previous ngrams
-                banned_list = [[] for bbsz_idx in range(bsz * beam_size)]
-                cpu_tokens = tokens.cpu()[:, :step + 1].numpy()
-                check_start_pos = step + 2 - self.no_repeat_ngram_size
-                for bbsz_idx in range(bsz * beam_size):
-                    for i in range(check_start_pos):
-                        is_banned = True
-                        for k in range(self.no_repeat_ngram_size - 1):
-                            if cpu_tokens[bbsz_idx, i + k] != cpu_tokens[
-                                bbsz_idx, check_start_pos + k]:
-                                is_banned = False
-                                break
-                        if is_banned:
-                            banned_list[bbsz_idx].append(
-                                cpu_tokens[bbsz_idx,
-                                           i + self.no_repeat_ngram_size - 1])
-
             # Record attention scores
             if avg_attn_scores is not None:
                 if attn is None:
@@ -678,24 +660,9 @@ class SequenceGeneratorV2(SequenceGenerator):
             self.search.set_src_lengths(src_lengths)
 
             if self.no_repeat_ngram_size > 0:
-
-                def calculate_banned_tokens(bbsz_idx):
-                    # before decoding the next token, prevent decoding of ngrams that have already appeared
-                    banned_tokens_per_sample = [
-                        (bbsz_idx, t) for t in banned_list[bbsz_idx]
-                    ]
-                    return banned_tokens_per_sample
-
-                banned_tokens = []
-                if step + 2 - self.no_repeat_ngram_size >= 0:
-                    for bbsz_idx in range(bsz * beam_size):
-                        banned_tokens.extend(calculate_banned_tokens(bbsz_idx))
-
-                if banned_tokens:
-                    banned_tokens = torch.LongTensor(banned_tokens)
-                    lprobs.index_put_(
-                        tuple(banned_tokens.t()),
-                        lprobs.new_tensor([-math.inf] * len(banned_tokens)))
+                #Applying Cuda Op for NGram repeat Blocking
+                no_repeat_ngram_op = NGRB()#.to('cuda', torch.float32)
+                lprobs = no_repeat_ngram_op(tokens,lprobs, bsz, step, beam_size, self.no_repeat_ngram_size)
 
             cand_scores, cand_indices, cand_beams = self.search.step(
                 step,
