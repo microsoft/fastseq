@@ -13,13 +13,16 @@ DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 GENERATE_FINISHED = 'done'
 POSTPROCESS_FINISHED = None
 
-class Dataset(torch.utils.data.Dataset):
+class TokenizeDataset(torch.utils.data.Dataset):
     """Characterizes a dataset for PyTorch"""
     def __init__(self, examples, tokenizer, model_name, prefix):
         self.examples = examples
         self.tokenizer= tokenizer
         self.model_name = model_name
         self.prefix = prefix
+        self.return_tensors="pt"
+        self.truncation=True
+        self.padding="max_length"
 
     def __len__(self):
         return len(self.examples)
@@ -29,9 +32,9 @@ class Dataset(torch.utils.data.Dataset):
             batch = [self.prefix + text for text in batch]
         batch = self.examples[index]
         batch = self.tokenizer(batch,
-                          return_tensors="pt",
-                          truncation=True,
-                          padding="max_length")
+                          return_tensors=self.return_tensors,
+                          truncation=self.truncation,
+                          padding=self.padding)
         return batch['input_ids'], batch['attention_mask']
 
 class IOProcess (Process):
@@ -115,8 +118,8 @@ def generate_summaries_or_translations(
     no_repeat_ngram_size=None,
     skip_special_tokens=True,
     clean_up_tokenization_spaces=False,
-    pre_process_threads=2,
-    post_process_threads=2,
+    preprocess_cpu_num=2,
+    postprocess_cpu_num=2,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -138,7 +141,7 @@ def generate_summaries_or_translations(
     msg_queue =  Queue()
     p_list = []
 
-    for i in range(post_process_threads):
+    for i in range(postprocess_cpu_num):
         p = PostProcess(tokenizer, data_queue, msg_queue,
             skip_special_tokens, clean_up_tokenization_spaces)
         p_list.append(p)
@@ -146,9 +149,10 @@ def generate_summaries_or_translations(
 
     io_process = IOProcess( msg_queue, fout)
     io_process.start()
-    dataset = Dataset(examples, tokenizer, model_name, model.config.prefix)
+    dataset = TokenizeDataset(examples, tokenizer, model_name,
+            model.config.prefix)
     training_generator = torch.utils.data.DataLoader(dataset,
-            batch_size=batch_size, num_workers = pre_process_threads)
+            batch_size=batch_size, num_workers = preprocess_cpu_num)
     for ind, batch in tqdm(enumerate(training_generator)):
         input_ids, attention_mask = batch
         input_ids = input_ids.view(batch_size, -1).to(device)
@@ -220,12 +224,12 @@ def run_generate():
                          required=False, help="size of no repeat ngram")
     parser.add_argument("--include_special_tokens", action="store_true")
     parser.add_argument("--clean_up_tokenization_spaces", action="store_true")
-    parser.add_argument("--pre_process_threads",
+    parser.add_argument("--preprocess_cpu_num",
                         type=int,
                         default=2,
                         required=False,
                         help="pre-processing worker threads")
-    parser.add_argument("--post_process_threads",
+    parser.add_argument("--postprocess_cpu_num",
                         type=int,
                         default=2,
                         required=False,
@@ -252,8 +256,8 @@ def run_generate():
         no_repeat_ngram_size=args.no_repeat_ngram_size,
         skip_special_tokens=not args.include_special_tokens,
         clean_up_tokenization_spaces=args.clean_up_tokenization_spaces,
-        pre_process_threads=args.pre_process_threads,
-        post_process_threads=args.post_process_threads,
+        preprocess_cpu_num=args.preprocess_cpu_num,
+        postprocess_cpu_num=args.postprocess_cpu_num,
         )
     if args.reference_path is None:
         return
