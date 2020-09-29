@@ -109,7 +109,7 @@ class T5AttentionV2(T5Attention):
         else:
             present_key_value_state = (None,)
 
-        if is_encoder_decoder_attn:
+        if is_encoder_decoder_attn and use_cache:
             new_q = q.view(bs // self.num_beams, self.num_beams, self.n_heads,
                            qlen, self.d_kv)
             scores = torch.einsum(
@@ -144,7 +144,7 @@ class T5AttentionV2(T5Attention):
         # Mask heads if we want to
         if head_mask is not None:
             weights = weights * head_mask
-        if is_encoder_decoder_attn:
+        if is_encoder_decoder_attn and use_cache:
             tmp_weights = weights.view(bs // self.num_beams, self.num_beams,
                                        self.n_heads, qlen, klen)
             context = torch.einsum(
