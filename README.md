@@ -5,8 +5,9 @@
 FastSeq provides efficient implementations of the popular sequence models (e.g. [ProphetNet](https://github.com/microsoft/ProphetNet)) with high performance for text generation, summarization, and translation tasks. Meanwhile, it can automatically optimize the inference speed of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss or code changes by simply `import fastseq`.
 
 ## Benchmarks
+All the following benchmarking experiments run on NVIDIA-V100-16GB with [the docker](docker/Dockerfile).
 
-### FastSeq v.s. FairSeq
+### Speedup for FairSeq
 
 - ProphetNet
   |       BatchSize      |       32      |        64       |      128       |
@@ -28,7 +29,7 @@ FastSeq provides efficient implementations of the popular sequence models (e.g. 
   | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
   | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
 
-### FastSeq v.s. Transformers
+### Speedup for Transformers
 
 - BART
   |      BatchSize      |       32      |       64       |       128      |
