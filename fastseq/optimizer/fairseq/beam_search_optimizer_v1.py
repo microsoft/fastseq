@@ -13,7 +13,7 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.sequence_generator import SequenceGenerator
-from fastseq.clib.cuda.ngrb import NGRB
+from fastseq.optimizer.ngram_repeat_block import NGramRepeatBlock
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
 @register_fairseq_optimized_class
@@ -433,6 +433,7 @@ class SequenceGeneratorV2(SequenceGenerator):
         bsz = input_size[0]
         src_len = input_size[1]
         beam_size = self.beam_size
+        self.no_repeat_ngram_op = NGramRepeatBlock()
 
         if self.match_source_len:
             max_len = src_lengths.max().item()
@@ -661,8 +662,8 @@ class SequenceGeneratorV2(SequenceGenerator):
 
             if self.no_repeat_ngram_size > 0:
                 #Applying Cuda Op for NGram repeat Blocking
-                no_repeat_ngram_op = NGRB()#.to('cuda', torch.float32)
-                lprobs = no_repeat_ngram_op(tokens,lprobs, bsz, step, beam_size, self.no_repeat_ngram_size)
+                lprobs = self.no_repeat_ngram_op(tokens,lprobs, bsz, step,
+                        beam_size, self.no_repeat_ngram_size)
 
             cand_scores, cand_indices, cand_beams = self.search.step(
                 step,

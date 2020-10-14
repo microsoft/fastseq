@@ -8,9 +8,9 @@ extras["fairseq"] = ["fairseq>=0.9.0"]
 extras["transformers"] = ["transformers>=3.0.2"]
 
 extensions = [
-       CUDAExtension('ngrb_cuda', [
-                   'fastseq/clib/cuda/ngrb_cuda.cpp',
-                   'fastseq/clib/cuda/ngrb_cuda_kernel.cu',
+       CUDAExtension('ngram_repeat_block_cuda', [
+                   'fastseq/clib/cuda/ngram_repeat_block_cuda.cpp',
+                   'fastseq/clib/cuda/ngram_repeat_block_cuda_kernel.cu',
                ]),
         ]
 
