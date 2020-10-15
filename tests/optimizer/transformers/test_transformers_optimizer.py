@@ -46,21 +46,21 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                   min_gen_length,
                   max_gen_length,
                   no_repeat_ngram_size,
-                  early_stopping):
+                  early_stopping,
+                  use_cache):
         """Generate the summaries.
 
         Args:
             slines (List(str)): a list of input sentences.
-            max_token_length (int, optional): max tokenized sentence length.
-                                              Defaults to 1024.
-            num_beams (int, optional): beam number. Defaults to 4.
-            min_gen_length (int, optional): min generation length. Defaults to
-                                            55.
-            max_gen_length (int, optional): maxium length for the generation
-                                            output. Defaults to 199.
-            no_repeat_ngram_size (int, optional): size of no repeat gram.
-            early_stopping (bool, optional): indicate if the beam search will be
-                                             early stopped.
+            max_token_length (int): max tokenized sentence length.
+            num_beams (int): beam number.
+            min_gen_length (int): min generation length.
+            max_gen_length (int): maxium length for the generation output.
+            no_repeat_ngram_size (int): size of no repeat gram.
+            early_stopping (bool): indicate if the beam search will be early
+                stopped.
+            use_cache (bool): If `use_cache` is True, past key values are used
+                to speed up decoding if applicable to model.
 
         Returns:
             List(str): a list of generated summaries.
@@ -81,7 +81,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                 min_length=min_gen_length,
                 max_length=max_gen_length,
                 no_repeat_ngram_size=no_repeat_ngram_size,
-                early_stopping=early_stopping)
+                early_stopping=early_stopping,
+                use_cache=use_cache)
             outputs = [self.tokenizer.decode(g) for g in summary_ids]
             self.batch_count += 1
         end = time.time()
@@ -90,7 +91,7 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         return outputs
 
     @parameterized.named_parameters({
-        'testcase_name': 'FP32',
+        'testcase_name': 'FP32_With_Cache',
         'batch_size': 16,
         'max_token_length': 1024,
         'num_beams': 4,
@@ -98,6 +99,17 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
         'max_gen_length': 199,
         'no_repeat_ngram_size': 3,
         'early_stopping': True,
+        'use_cache': True,
+    }, {
+        'testcase_name': 'FP32_Without_Cache',
+        'batch_size': 16,
+        'max_token_length': 1024,
+        'num_beams': 4,
+        'min_gen_length': 55,
+        'max_gen_length': 199,
+        'no_repeat_ngram_size': 3,
+        'early_stopping': True,
+        'use_cache': False,
     })
     def test_beam_search_optimizer(self,
                                    batch_size,
@@ -106,7 +118,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                                    min_gen_length,
                                    max_gen_length,
                                    no_repeat_ngram_size,
-                                   early_stopping):
+                                   early_stopping,
+                                   use_cache):
         """Make sure the changes do not affect the model accuracy.
 
         Args:
@@ -140,7 +153,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                     min_gen_length,
                     max_gen_length,
                     no_repeat_ngram_size,
-                    early_stopping))
+                    early_stopping,
+                    use_cache))
                 processed_sample_count += len(slines)
                 slines = []
 
@@ -152,7 +166,8 @@ class TransformersBeamSearchOptimizerTest(TestCaseBase):
                     min_gen_length,
                     max_gen_length,
                     no_repeat_ngram_size,
-                    early_stopping))
+                    early_stopping,
+                    use_cache))
                 processed_sample_count += len(slines)
 
             end = time.time()

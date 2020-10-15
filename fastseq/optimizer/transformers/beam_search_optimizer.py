@@ -818,8 +818,11 @@ class GenerationMixinV2(GenerationMixin):
                     generated_hyps[batch_idx].is_done(
                     next_scores[batch_idx].max().item(), cur_len
                         ))
-            cand_offsets = (torch.arange(0, 2 * num_beams)
-                            .type_as(input_ids).cuda())
+            cand_offsets = torch.arange(
+                start=0,
+                end=2*num_beams,
+                dtype=input_ids.dtype,
+                device=eos_mask.device)
             active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * (2*num_beams),
                 cand_offsets[: eos_mask.size(1)],
@@ -1123,28 +1126,31 @@ class BartForConditionalGenerationV2(BartForConditionalGeneration):
     """
     @staticmethod
     def _reorder_cache(past, beam_idx):
-        ((enc_out, enc_mask), decoder_past_key_values) = past
-        reordered_past = []
-        for layer_past in decoder_past_key_values:
-            # Get the correct batch idx from decoder layer's batch dim for
-            # self-attn; Note that there is no need to reorder the cached key
-            # and value for the encoder-decoder-attn, because the key and value
-            # for the beams of each sample is the same and we can cache just one
-            # copy to save GPU memory.
-            layer_past_new = {}
-            for attn_key, attn_cache in layer_past.items():
-                if attn_key == 'self':
-                    layer_past_new[attn_key] = _reorder_buffer(
-                        attn_cache, beam_idx)
-                    continue
-                layer_past_new[attn_key] = attn_cache
+        (encoder_outputs, decoder_past_key_values) = past
+        enc_out, enc_mask = encoder_outputs[:2]
+        reordered_past = decoder_past_key_values
+        if decoder_past_key_values is not None:
+            reordered_past = []
+            for layer_past in decoder_past_key_values:
+                # Get the correct batch idx from decoder layer's batch dim for
+                # self-attn; Note that there is no need to reorder the cached
+                # key and value for the encoder-decoder-attn, because the key
+                # and value for the beams of each sample is the same and we can
+                # cache just one copy to save GPU memory.
+                layer_past_new = {}
+                for attn_key, attn_cache in layer_past.items():
+                    if attn_key == 'self':
+                        layer_past_new[attn_key] = _reorder_buffer(
+                            attn_cache, beam_idx)
+                        continue
+                    layer_past_new[attn_key] = attn_cache
 
-            reordered_past.append(layer_past_new)
+                reordered_past.append(layer_past_new)
 
-        new_enc_mask = enc_mask if enc_mask is None else enc_mask.index_select(
-            0, beam_idx)
+        new_enc_mask = (enc_mask if (enc_mask is None or enc_mask == [])
+            else enc_mask.index_select(0, beam_idx))
 
-        past = ((enc_out, new_enc_mask), reordered_past)
+        past = ((enc_out, new_enc_mask, *encoder_outputs[2:]), reordered_past)
         return past
 
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[BartConfig] = BartForConditionalGenerationV2 # pylint: disable=line-too-long
