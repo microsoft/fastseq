@@ -7,6 +7,8 @@ are detected.
 """
 
 from packaging import version
+
+from fastseq.config import MIN_TRANSFORMERS_VERSION, MAX_TRANSFORMER_VERSION
 from fastseq.logging import get_logger
 
 logger = get_logger(__name__)
@@ -27,22 +29,22 @@ def apply_transformers_optimization():
     """
 
     v = version.parse(get_transformers_version())
+    is_supported_version = version.parse(
+        MIN_TRANSFORMERS_VERSION) <= v <= version.parse(MAX_TRANSFORMER_VERSION)
 
-    if v >= version.parse('3.0.2'):
-        import fastseq.optimizer.transformers.beam_search_optimizer # pylint: disable=import-outside-toplevel
-        import fastseq.optimizer.transformers.modeling_t5_optimizer # pylint: disable=import-outside-toplevel
-
-        logger.debug("transformers == {} has been optimized.".format(v))
+    if not is_supported_version:
+        logger.warning(
+            f"transformers == {v} is not supported yet, please change it to "
+            f"v{MIN_TRANSFORMERS_VERSION} to v{MAX_TRANSFORMER_VERSION}, or try"
+            f" other versions of fastseq.")
         return
 
-    if v == version.parse('2.11.0'):
-        import fastseq.optimizer.transformers.modeling_bart_optimizer_2_11_0 # pylint: disable=import-outside-toplevel
-        logger.debug("transformers == {} has been optimized.".format(v))
-        return
+    import fastseq.optimizer.transformers.modeling_bart_optimizer # pylint: disable=import-outside-toplevel
+    import fastseq.optimizer.transformers.modeling_t5_optimizer # pylint: disable=import-outside-toplevel
+    import fastseq.optimizer.transformers.beam_search_optimizer # pylint: disable=import-outside-toplevel
 
-    logger.warning(
-        "transformers == {} is not supported yet, please upgrade it to 3.0.2 or above" # pylint: disable=line-too-long
-        .format(v))
+    logger.debug(f"transformers == {v} has been optimized.")
+
 
 try:
     import transformers
