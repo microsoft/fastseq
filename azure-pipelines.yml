@@ -1,19 +1,79 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+# Python package
+# Create and test a Python package on multiple Python versions.
+# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 trigger:
-- master
+  branches:
+    include:
+    - master
 
-pool:
-  vmImage: 'ubuntu-latest'
+jobs:
+  - job: DeepSpeed_Tests
+    timeoutInMinutes: 360
+    pool:
+      vmImage: 'ubuntu-18.04'
+    #container: pytorch/pytorch:latest
+    container:
+      image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
+      endpoint: acr-westus2
+    
+    #container: adsbrainwestus2.azurecr.io/fastseq:dev-py3
+      
+    # strategy:
+    #   matrix:
+    #     PyTorch12-CUDA100:
+    #       python.version: '3.6'
+    #       cuda.version: '10.0'
+    #       pytorch.version: '0.9.0'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+    steps:
+        # Unfortunately nvidia's nvcc_linux-64=<version> seems to install 10.1 regardless?
+        # Most of this complexity is a workaround to get the compiler toolchain to match the
+        # cudatoolkit runtime
+    - script: |
+        #conda create --force --yes -n $(conda_env) python=$(python.version) cudatoolkit=$(cuda.version)
+        #conda init bash
+        #conda activate $(conda_env)
+        #conda install -q --yes conda
+        #conda install -q --yes pip
+        #conda install -q --yes gxx_linux-64
+        #if [[ $(cuda.version) != "10.2" ]]; then conda install --yes -c conda-forge cudatoolkit-dev=$(cuda.version) ; fi
+        #echo "PATH=$PATH, LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+        python --version
+        which nvcc
+        nvcc --version
+        which fastseq
+        python test.py
+      displayName: 'Setup environment python=$(python.version) pytorch=$(pytorch.version) cuda=$(cuda.version)'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+    # - script: |
+    #     source activate $(conda_env)
+    #     pip install --progress-bar=off torch==$(pytorch.version)
+    #     #-f https://download.pytorch.org/whl/torch_stable.html
+    #     a=$(python --version)
+    #     echo $a
+    #     pip install fastseq
+    #     #python -I basic_install_test.py
+    #   displayName: 'Install Fastseq'
+    # - script: |
+    #     sudo docker run --gpus all  --network=host --privileged -w '/root'  --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864  adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
+    #     python --version
+    #     which nvcc
+    #     nvcc --version
+    #     which fastseq
+    #     ls
+    #   displayName: 'docker'
+  
+    # - script: |
+    #     source activate $(conda_env)
+    #     which python
+    #     python --version
+    #     which nvcc
+    #     nvcc --version
+    #     which fastseq
+    #     python -c "import torch; print('torch:', torch.__version__, torch)"
+    #     python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+    #     #python -c "import deepspeed; print('fastseq:', fastseq.__version__)"
+    #   displayName: 'Show environment'
+  
