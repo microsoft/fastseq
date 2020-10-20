@@ -44,7 +44,7 @@ jobs:
         which nvcc
         nvcc --version
         which fastseq
-        python test.py
+        bash tests/run_fairseq_tests.sh
       displayName: 'Setup environment python=$(python.version) pytorch=$(pytorch.version) cuda=$(cuda.version)'
 
     # - script: |
