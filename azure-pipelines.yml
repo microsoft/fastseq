@@ -50,6 +50,8 @@ jobs:
         #nvcc --version
         #which fastseq
         #bash tests/run_fairseq_tests.sh
+        sudo docker run --gpus all  --network=host --privileged -w '/root'  --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864  adsbrainwestus2.azurecr.io/fastseq:dev
+        python --version
       displayName: 'Setup environment python=$(python.version) pytorch=$(pytorch.version) cuda=$(cuda.version)'
 
     # - script: |
