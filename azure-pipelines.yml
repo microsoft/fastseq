@@ -11,8 +11,9 @@ trigger:
 jobs:
   - job: DeepSpeed_Tests
     timeoutInMinutes: 360
-    pool:
-      vmImage: 'ubuntu-18.04'
+    #pool:
+    #  vmImage: 'ubuntu-18.04'
+    pool: gpu4
     #container: pytorch/pytorch:latest
     container:
       image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
