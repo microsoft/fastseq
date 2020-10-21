@@ -14,7 +14,13 @@ jobs:
     #pool:
     #  vmImage: 'ubuntu-18.04'
     #haha
-    pool:'gpu4'
+    pool: 
+      name: default
+      demands:
+        - agent.name -equals gpu4 
+
+
+    #pool:'gpu4'
     #container: pytorch/pytorch:latest
     container:
       image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
