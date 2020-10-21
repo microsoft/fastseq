@@ -13,6 +13,7 @@ jobs:
     timeoutInMinutes: 360
     #pool:
     #  vmImage: 'ubuntu-18.04'
+    #haha
     pool:'gpu4'
     #container: pytorch/pytorch:latest
     container:
