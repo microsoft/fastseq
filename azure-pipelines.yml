@@ -13,7 +13,6 @@ jobs:
     timeoutInMinutes: 360
     #pool:
     #  vmImage: 'ubuntu-18.04'
-    #haha
     pool: 
       name: default
       demands:
