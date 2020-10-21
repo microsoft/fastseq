@@ -53,7 +53,7 @@ class MultiheadAttentionV2(MultiheadAttention):
     """
 
     def __init__(self,
-                 embed_dim____,
+                 embed_dim,
                  num_heads,
                  kdim=None,
                  vdim=None,
