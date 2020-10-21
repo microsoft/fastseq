@@ -8,7 +8,7 @@ trigger:
     exclude:
       - docs      
 jobs:
-  - job: DeepSpeed_Tests
+  - job: Fastseq_Tests
     timeoutInMinutes: 360
     #pool:
     #  vmImage: 'ubuntu-18.04'
