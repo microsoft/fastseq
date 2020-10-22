@@ -2,9 +2,7 @@
 # Create and test a Python package on multiple Python versions.
 
 trigger:
-  paths:
-    exclude:
-      - docs      
+- main
 jobs:
   - job: Fastseq_Tests
     timeoutInMinutes: 360
