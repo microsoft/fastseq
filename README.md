@@ -1,4 +1,7 @@
-[![Build Status](https://dev.azure.com/adsbrain/t1mp2/_apis/build/status/NickNickGo.fastseq%20(1)?branchName=main)](https://dev.azure.com/adsbrain/t1mp2/_build/latest?definitionId=11&branchName=main)
+[![Build Status](https://dev.azure.com/adsbrain/t1mp2/_apis/build/status/NickNickGo.fastseq%20(1)?branchName=main)](https://dev.azure.com/adsbrain/t1mp2/_apis/build/status/NickNickGo.fastseq%20(1)?branchName=main)
+
+
+
 <h1 align="Center"> <p> FastSeq </p> </h1>
 
 ## Introduction
