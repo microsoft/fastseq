@@ -1,10 +1,10 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-
+#
 trigger:
-- main
+  paths:
+    exclude:
+      - docs      
 jobs:
-  - job: Fastseq_Tests
+  - job: Fairseq_unittests
     timeoutInMinutes: 360
     #pool:
     #  vmImage: 'ubuntu-18.04'
@@ -12,31 +12,28 @@ jobs:
       name: default
       demands:
         - agent.name -equals gpu4 
-
     steps:
-        # Unfortunately nvidia's nvcc_linux-64=<version> seems to install 10.1 regardless?
-        # Most of this complexity is a workaround to get the compiler toolchain to match the
-        # cudatoolkit runtime
     - script: |
-        #conda create --force --yes -n $(conda_env) python=$(python.version) cudatoolkit=$(cuda.version)
-        #conda init bash
-        #conda activate $(conda_env)
-        #conda install -q --yes conda
-        #conda install -q --yes pip
-        #conda install -q --yes gxx_linux-64
-        #if [[ $(cuda.version) != "10.2" ]]; then conda install --yes -c conda-forge cudatoolkit-dev=$(cuda.version) ; fi
-        #echo "PATH=$PATH, LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
-        python --version
-        #which nvcc
-        #nvcc --version
-        #which fastseq
-        #bash tests/run_fairseq_tests.sh
+        #set up docker
         sudo docker run --gpus all  --network=host --privileged -w '/root'  --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864  adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
-        ls
+        #install fastseq
         pip install --editable .
-        bash tests/run_fairseq_tests.sh
+      
+        #show environment
+        which python
         python --version
-      displayName: 'Setup environment python=$(python.version) pytorch=$(pytorch.version) cuda=$(cuda.version)'
-
-
-  
+        which nvcc
+        nvcc --version
+        which fastseq
+        python -c "import torch; print('torch:', torch.__version__, torch)"
+        python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+        python -c "import fastseq; print('fastseq:', fastseq.__version__)"
+        
+        #run unit tests
+        CUDA_VISIBLE_DEVICES=3 bash tests/run_fairseq_tests.sh
+        CUDA_VISIBLE_DEVICES=3 bash tests/run_transformers_tests.sh
+        
+        #run benchmarks 
+        #cd benchmarks/
+        #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
+      displayName: 'setup environment and run fairseq unit tests'  
