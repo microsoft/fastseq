@@ -1,4 +1,8 @@
-#
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+"""Azure pipeline for continuous integration"""
+
 trigger:
   paths:
     exclude:
@@ -28,12 +32,8 @@ jobs:
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
         
-        #run unit tests
         #files chnaged in current PR
-        files_changed=$(git diff HEAD HEAD~ --name-only)
-        echo "Chnaged Files POPO"
-        echo $files_changed
-        
+        files_changed=$(git diff HEAD HEAD~ --name-only)        
         echo "Files Edited in Current PR"
         echo $files_changed
         
@@ -44,14 +44,7 @@ jobs:
         is_transformers=$(echo $files_changed|grep transformers)
         is_py_change=$(echo $files_changed|grep .py)
         is_cpp_change=$(echo $files_changed|grep -e .cu -e .cpp)
-        
-        echo "is fairseq"
-        echo $is_fairseq
-        
-        echo "is transformers"
-        echo $is_transformers
-        
-        
+              
         #purely fairseq change
         if [ -n "$is_fairseq" -a -z "$is_transformers" ]
         then
