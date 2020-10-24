@@ -38,6 +38,8 @@ jobs:
         #run PR specific unittests.
         is_fairseq= $(echo $files_changed|grep fairseq)
         is_transformers=$(echo $files_changed|grep transformers)
+        is_functional=$(echo $files_changed|grep -e .py -e .cu -e .cpp)
+        
         #purely fairseq change
         if [ -n "$is_fairseq" -a -z "$is_transformers" ]
         then
@@ -46,18 +48,25 @@ jobs:
         else if [ -z "$is_fairseq" -a -n "$is_transformers" ]
         then
           bash tests/run_transformers_tests.sh
-        else
+        else if [-n "$is_functional"]
+        then
           bash tests/run_fairseq_tests.sh
           bash tests/run_transformers_tests.sh
+        else
+          #bash tests/run_fairseq_tests.sh
+          #bash tests/run_transformers_tests.sh
+          :
+        fi
         fi
         fi
 
         #install pylint, wrapt update is essential.
+        conda update --name base conda
         conda update --yes wrapt
-        pip install --yes pylint
+        pip install pylint
         
         #install pylint
-        pip install --yes cpplint
+        pip install cpplint
         
         #Linting checks for python files
         echo $files_changed|grep .py|while read file; do
