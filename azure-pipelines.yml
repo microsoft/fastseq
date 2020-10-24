@@ -27,18 +27,21 @@ jobs:
         which fastseq
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
-        python -c "import fastseq; print('fastseq:', fastseq.__version__)"
         
         #run unit tests
         #files chnaged in current PR
         files_changed=$(git --no-pager diff --name-only HEAD $(git merge-base HEAD main))
+        
+        echo "Files Edited in Current PR"
+        echo $files_changed
         
         export CUDA_VISIBLE_DEVICES=2,3
         #check whether this PR is specific to fairseq/transformers/both.
         #run PR specific unittests.
         is_fairseq= $(echo $files_changed|grep fairseq)
         is_transformers=$(echo $files_changed|grep transformers)
-        is_functional=$(echo $files_changed|grep -e .py -e .cu -e .cpp)
+        is_py_change=$(echo $files_changed|grep .py)
+        is_cpp_change=$(echo $files_changed|grep -e .cu -e .cpp)
         
         #purely fairseq change
         if [ -n "$is_fairseq" -a -z "$is_transformers" ]
@@ -48,7 +51,7 @@ jobs:
         else if [ -z "$is_fairseq" -a -n "$is_transformers" ]
         then
           bash tests/run_transformers_tests.sh
-        else if [ -n "$is_functional" ]
+        else if [ -n "$is_py_change" -o -n "$is_cpp_change" ]
         then
           bash tests/run_fairseq_tests.sh
           bash tests/run_transformers_tests.sh
@@ -60,29 +63,35 @@ jobs:
         fi
         fi
 
-        #install pylint, wrapt update is essential.
-        conda update --name --yes base conda
-        conda update --yes wrapt
-        pip install pylint
-        
-        #install pylint
-        pip install cpplint
-        
         #Linting checks for python files
-        echo $files_changed|grep .py|while read file; do
-          pylint --rcfile=.pylintrc $file
-        done
-
-        #Linting checks for c++ files
-        echo $files_changed| grep .cpp|while read file; do
-          cpplint $file
-        done
+        if [ -n "$is_py_change" ]
+        then
+          #install pylint, wrapt update is essential.
+          conda update --name --yes base conda
+          conda update --yes wrapt
+          pip install pylint
+          echo $files_changed|grep .py|while read file; do
+            pylint --rcfile=.pylintrc $file
+          done
+        else 
+          :
+        fi
         
-        #Linting checks for cu files
-        echo $files_changed| grep .cu|while read file; do
-          cpplint $file
-        done
-      
+        #Linting checks for c++/cuda files
+        if [ -n "$is_cpp_change" ]
+        then
+          #install cpplint
+          pip install cpplint
+          echo $files_changed| grep .cpp|while read file; do
+            cpplint $file
+          done
+          echo $files_changed| grep .cu|while read file; do
+            cpplint $file
+          done
+        else 
+          :
+        fi
+        
         #run benchmarks 
         #cd benchmarks/
         #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
