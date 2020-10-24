@@ -48,7 +48,7 @@ jobs:
         else if [ -z "$is_fairseq" -a -n "$is_transformers" ]
         then
           bash tests/run_transformers_tests.sh
-        else if [-n "$is_functional"]
+        else if [ -n "$is_functional" ]
         then
           bash tests/run_fairseq_tests.sh
           bash tests/run_transformers_tests.sh
@@ -61,7 +61,7 @@ jobs:
         fi
 
         #install pylint, wrapt update is essential.
-        conda update --name base conda
+        conda update --name --yes base conda
         conda update --yes wrapt
         pip install pylint
         
