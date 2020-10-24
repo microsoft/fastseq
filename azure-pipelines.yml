@@ -40,7 +40,7 @@ jobs:
         export CUDA_VISIBLE_DEVICES=2,3
         #check whether this PR is specific to fairseq/transformers/both.
         #run PR specific unittests.
-        is_fairseq= $(echo $files_changed|grep fairseq)
+        is_fairseq=$(echo $files_changed|grep fairseq)
         is_transformers=$(echo $files_changed|grep transformers)
         is_py_change=$(echo $files_changed|grep .py)
         is_cpp_change=$(echo $files_changed|grep -e .cu -e .cpp)
