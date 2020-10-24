@@ -45,6 +45,13 @@ jobs:
         is_py_change=$(echo $files_changed|grep .py)
         is_cpp_change=$(echo $files_changed|grep -e .cu -e .cpp)
         
+        echo "is fairseq"
+        echo $is_fairseq
+        
+        echo "is transformers"
+        echo $is_transformers
+        
+        
         #purely fairseq change
         if [ -n "$is_fairseq" -a -z "$is_transformers" ]
         then
