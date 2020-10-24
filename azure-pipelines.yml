@@ -55,22 +55,22 @@ jobs:
         #purely fairseq change
         if [ -n "$is_fairseq" -a -z "$is_transformers" ]
         then
-          echo "Only fairseq"
-          #bash tests/run_fairseq_tests.sh
+          echo "Running Only fairseq unittests"
+          bash tests/run_fairseq_tests.sh
         #purely transformers change
         else if [ -z "$is_fairseq" -a -n "$is_transformers" ]
         then
-          #bash tests/run_transformers_tests.sh
-          echo "only transformers"
+          echo "Running Only transformers unittests"
+          bash tests/run_transformers_tests.sh
         else if [ -n "$is_py_change" -o -n "$is_cpp_change" ]
         then
-          echo "Both"
-          #bash tests/run_fairseq_tests.sh
-          #bash tests/run_transformers_tests.sh
+          echo "Running fairseq and transformers unittests"
+          bash tests/run_fairseq_tests.sh
+          bash tests/run_transformers_tests.sh
         else
           #bash tests/run_fairseq_tests.sh
           #bash tests/run_transformers_tests.sh
-          echo "None"
+          echo " *** Skipping all unittests *** "
           :
         fi
         fi
