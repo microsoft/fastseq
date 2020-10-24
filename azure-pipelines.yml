@@ -30,7 +30,9 @@ jobs:
         
         #run unit tests
         #files chnaged in current PR
-        files_changed=$(git --no-pager diff --name-only HEAD $(git merge-base HEAD main))
+        files_changed=$(git diff HEAD HEAD~ --name-only)
+        echo "Chnaged Files POPO"
+        echo $files_changed
         
         echo "Files Edited in Current PR"
         echo $files_changed
