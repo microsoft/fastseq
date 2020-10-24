@@ -15,7 +15,7 @@ jobs:
     steps:
     - script: |
         #set up docker
-        sudo docker run --gpus all  --network=host --privileged -w '/root'  --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864  adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
+        sudo docker run --gpus all --privileged   -v '/datadrive/:/datadrive'  -it adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
         #install fastseq
         pip install --editable .
       
@@ -30,9 +30,50 @@ jobs:
         python -c "import fastseq; print('fastseq:', fastseq.__version__)"
         
         #run unit tests
-        CUDA_VISIBLE_DEVICES=3 bash tests/run_fairseq_tests.sh
-        CUDA_VISIBLE_DEVICES=3 bash tests/run_transformers_tests.sh
+        #files chnaged in current PR
+        files_changed=$(git --no-pager diff --name-only HEAD $(git merge-base HEAD main))
         
+        export CUDA_VISIBLE_DEVICES=2,3
+        #check whether this PR is specific to fairseq/transformers/both.
+        #run PR specific unittests.
+        is_fairseq= $(echo $files_changed|grep fairseq)
+        is_transformers=$(echo $files_changed|grep transformers)
+        #purely fairseq change
+        if [ -n "$is_fairseq" -a -z "$is_transformers" ]
+        then
+          bash tests/run_fairseq_tests.sh
+        #purely transformers change
+        else if [ -z "$is_fairseq" -a -n "$is_transformers" ]
+        then
+          bash tests/run_transformers_tests.sh
+        else
+          bash tests/run_fairseq_tests.sh
+          bash tests/run_transformers_tests.sh
+        fi
+        fi
+
+        #install pylint, wrapt update is essential.
+        conda update --yes wrapt
+        pip install --yes pylint
+        
+        #install pylint
+        pip install --yes cpplint
+        
+        #Linting checks for python files
+        echo $files_changed|grep .py|while read file; do
+          pylint --rcfile=.pylintrc $file
+        done
+
+        #Linting checks for c++ files
+        echo $files_changed| grep .cpp|while read file; do
+          cpplint $file
+        done
+        
+        #Linting checks for cu files
+        echo $files_changed| grep .cu|while read file; do
+          cpplint $file
+        done
+      
         #run benchmarks 
         #cd benchmarks/
         #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
