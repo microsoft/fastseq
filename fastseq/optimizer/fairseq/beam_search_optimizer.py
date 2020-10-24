@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-#
+##
 """Import the optimization for beam search related parts in FairSeq."""
 
 from packaging import version
