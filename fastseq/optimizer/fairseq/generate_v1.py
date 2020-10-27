@@ -15,8 +15,8 @@ from fairseq import bleu, checkpoint_utils, options, progress_bar, tasks, utils
 from fairseq.options import add_generation_args
 from fairseq.utils import apply_to_sample
 from fairseq.meters import StopwatchMeter, TimeMeter
-
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
+from fairseq.data import encoders
 
 GENERATE_FINISHED = "done"
 POSTPROCESS_FINISHED = None
@@ -124,6 +124,16 @@ class PostProcess(Process):
         self.data_queue = data_queue
         self.message_queue = message_queue
         self.has_target = True
+        if args.decode_hypothesis:
+            self.tokenizer = encoders.build_tokenizer(args)
+            self.bpe = encoders.build_bpe(args)
+
+    def _decode(self, x):
+        if self.bpe is not None:
+            x = self.bpe.decode(x)
+        if self.tokenizer is not None:
+            x = self.tokenizer.decode(x)
+        return x
 
     def _detokenize(self, sample, hypos):
         """ detokenize and compute BELU """
@@ -157,10 +167,19 @@ class PostProcess(Process):
 
             if not self.args.quiet:
                 if self.src_dict is not None:
-                    message_list.append('S-{}\t{}'.format(sample_id, src_str))
+                    if self.args.decode_hypothesis:
+                        message_list.append('S-{}\t{}'.format(
+                            sample_id, self._decode(src_str)))
+                    else:
+                        message_list.append('S-{}\t{}'.format(
+                            sample_id, src_str))
                 if has_target:
-                    message_list.append('T-{}\t{}'.format(
-                        sample_id, target_str))
+                    if self.args.decode_hypothesis:
+                        message_list.append('T-{}\t{}'.format(
+                            sample_id, self._decode(target_str)))
+                    else:
+                        message_list.append('T-{}\t{}'.format(
+                            sample_id, target_str))
 
             # Process top predictions
             for j, hypo in enumerate(hypos[i][:self.args.nbest]):
@@ -175,8 +194,13 @@ class PostProcess(Process):
                     )
 
                 if not self.args.quiet:
-                    message_list.append('H-{}\t{}\t{}'.format(
-                        sample_id, hypo['score'], hypo_str))
+                    if self.args.decode_hypothesis:
+                        detok_hypo_str = self._decode(hypo_str)
+                        message_list.append('D-{}\t{}\t{}'.format(
+                            sample_id, hypo['score'], detok_hypo_str))
+                    else:
+                        message_list.append('H-{}\t{}\t{}'.format(
+                            sample_id, hypo['score'], hypo_str))
                     message_list.append('P-{}\t{}'.format(
                         sample_id, ' '.join(
                             map(
@@ -253,6 +277,9 @@ def add_generation_args_v1(parser):
         choices=range(1, 128, 1),
         metavar='N',
         help='number of worker for post process')
+    group.add_argument(
+        '--decode-hypothesis',
+        action="store_true")
     # fmt: on
 
 
