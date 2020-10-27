@@ -12,11 +12,11 @@ import torch
 
 from fairseq_cli.generate import main
 from fairseq import bleu, checkpoint_utils, options, progress_bar, tasks, utils
+from fairseq.data import encoders
+from fairseq.meters import StopwatchMeter, TimeMeter
 from fairseq.options import add_generation_args
 from fairseq.utils import apply_to_sample
-from fairseq.meters import StopwatchMeter, TimeMeter
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
-from fairseq.data import encoders
 
 GENERATE_FINISHED = "done"
 POSTPROCESS_FINISHED = None
