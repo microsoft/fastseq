@@ -8,18 +8,16 @@ trigger:
     exclude:
       - docs      
 jobs:
-  - job: Fairseq_unittests
+  - job: Fastseq_unittests
     timeoutInMinutes: 360
-    #pool:
-    #  vmImage: 'ubuntu-18.04'
     pool: 
       name: default
       demands:
-        - agent.name -equals gpu4 
+        - agent.name -equals gpu0 
     steps:
     - script: |
         #set up docker
-        sudo docker run --gpus all --privileged   -v '/datadrive/:/datadrive'  -it adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
+        sudo docker run --gpus all --privileged -it adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
         #install fastseq
         pip install --editable .
       
@@ -28,16 +26,15 @@ jobs:
         python --version
         which nvcc
         nvcc --version
-        which fastseq
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
         
-        #files chnaged in current PR
-        files_changed=$(git diff HEAD HEAD~ --name-only)        
+        #files changed in current PR
+        files_changed=$(git diff --name-only main)
         echo "Files Edited in Current PR"
         echo $files_changed
         
-        export CUDA_VISIBLE_DEVICES=2,3
+        export CUDA_VISIBLE_DEVICES=3
         #check whether this PR is specific to fairseq/transformers/both.
         #run PR specific unittests.
         is_fairseq=$(echo $files_changed|grep fairseq)
