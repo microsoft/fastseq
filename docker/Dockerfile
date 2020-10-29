@@ -38,22 +38,6 @@ RUN cd ${STAGE_DIR} && \
     dpkg-buildpackage -us -uc && \
     dpkg -i ${STAGE_DIR}/nvidia-peer-memory_1.1-0_all.deb
 
-##############################################################################
-# Installation/Basic Utilities
-##############################################################################
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    iproute2 iputils-ping
-
-##############################################################################
-# Installation/AzCopy Utilities
-##############################################################################
-RUN cd ${STAGE_DIR} && \
-    wget https://aka.ms/downloadazcopy-v10-linux && \
-    tar -xvf downloadazcopy-v10-linux && \
-    rm -f /usr/bin/azcopy && \
-    cp ./azcopy_linux_amd64_*/azcopy /usr/bin/ && \
-    chmod 777 /usr/bin/azcopy
 
 ##############################################################################
 # Installation/NLP Utilities
