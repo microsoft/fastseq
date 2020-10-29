@@ -33,6 +33,8 @@ jobs:
         bash tests/run_fairseq_tests.sh
         echo "******* Running transformers unittests *******"
         bash tests/run_transformers_tests.sh
+        echo "******* Running fastseq unittests *******"
+        python -m unittest discover -s tests/ -p 'test_*.py'
         #cd benchmarks/
         #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
       displayName: 'setup environment and run fastseq unit tests'  
