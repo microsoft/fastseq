@@ -8,30 +8,13 @@ are detected.
 
 from packaging import version
 
-from fastseq.config import MAX_FAIRSEQ_VERSION, MIN_FAIRSEQ_VERSION
+from fastseq.config import FASTSEQ_VERSION, MAX_FAIRSEQ_VERSION, MIN_FAIRSEQ_VERSION
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import FAIRSEQ_OPTIMIZED_CLASSES
 
 logger = get_logger(__name__)
 
 LATEST_VERSION = 'latest'
-
-
-def get_fairseq_version():
-    """Return the version of fairseq as a string.
-
-    If it is installed from the github master branch, return 'latest'.
-
-    Returns:
-        A string of fairseq version.
-    """
-
-    v = fairseq.__version__
-    # TODO: find a better way to identify the latest release and the master
-    # branch.
-    if hasattr(SequenceGenerator, 'finalize_hypos'):
-        return LATEST_VERSION
-    return v
 
 def is_supported_fairseq():
     """Check if the installed fairseq is supported.
@@ -40,31 +23,29 @@ def is_supported_fairseq():
         a bool value: True indicates the installed fairseq is supported.
     """
 
-    v = get_fairseq_version()
-    if v == LATEST_VERSION:
-        return False
-
-    v = version.parse(v)
+    v = version.parse(fairseq.__version__)
     return version.parse(
         MIN_FAIRSEQ_VERSION) <= v <= version.parse(MAX_FAIRSEQ_VERSION)
 
 def apply_fairseq_optimization():
     """Automaticall apply the optimization to the installed fairseq.
 
-    The optimized classes and functions are replaced in runtime. Currently, only
-    `0.9.0` and `latest` versions of fairseq are supported.
+    The optimized classes and functions are replaced in runtime.
     """
-    v = get_fairseq_version()
+
     if not is_supported_fairseq():
         logger.warning(
-            f"fairseq == {v} is not supported yet, please change it to "
-            f"v{MIN_FAIRSEQ_VERSION} ~ v{MAX_FAIRSEQ_VERSION}")
+            f"fairseq(v{fairseq.__version__}) is not supported by fastseq(v"
+            f"{FASTSEQ_VERSION}) yet, please change fairseq to "
+            f"v{MIN_FAIRSEQ_VERSION} ~ v{MAX_FAIRSEQ_VERSION}, or check other "
+            "versions of fastseq.")
         return
 
     import fastseq.optimizer.fairseq.beam_search_optimizer  # pylint: disable=import-outside-toplevel
     import fastseq.optimizer.fairseq.generate  # pylint: disable=import-outside-toplevel
     _update_fairseq_model_registration()
-    logger.debug(f"fairseq == {v} has been optimized.")
+    logger.info(f"fairseq(v{fairseq.__version__}) has been optimized by "
+                f"fastseq(v{FASTSEQ_VERSION}).")
 
 
 def _update_fairseq_model_registration():

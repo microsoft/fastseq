@@ -13,6 +13,8 @@ FASTSEQ_CACHE_DIR = os.getenv('FASTSEQ_CACHE_DIR', os.path.join(os.sep, 'tmp'))
 FASTSEQ_LOG_FORMAT = (
     '%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s')
 
+FASTSEQ_VERSION = '0.0.4'
+
 # supported versions of transformers
 MIN_TRANSFORMERS_VERSION = '3.0.2'
 MAX_TRANSFORMER_VERSION = '3.0.2'
