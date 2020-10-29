@@ -17,85 +17,22 @@ jobs:
     steps:
     - script: |
         #set up docker
-        sudo docker run --gpus all --privileged -it adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
+        sudo docker run --gpus all --privileged  -it adsbrainwestus2.azurecr.io/fastseq:dev-py3 /bin/bash
         #install fastseq
         pip install --editable .
-      
+        
         #show environment
         which python
         python --version
-        which nvcc
         nvcc --version
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
-        
-        #files changed in current PR
-        files_changed=$(git diff --name-only main)
-        echo "Files Edited in Current PR"
-        echo $files_changed
-        
+         
         export CUDA_VISIBLE_DEVICES=3
-        #check whether this PR is specific to fairseq/transformers/both.
-        #run PR specific unittests.
-        is_fairseq=$(echo $files_changed|grep fairseq)
-        is_transformers=$(echo $files_changed|grep transformers)
-        is_py_change=$(echo $files_changed|grep .py)
-        is_cpp_change=$(echo $files_changed|grep -e .cu -e .cpp)
-              
-        #purely fairseq change
-        if [ -n "$is_fairseq" -a -z "$is_transformers" ]
-        then
-          echo "Running Only fairseq unittests"
-          bash tests/run_fairseq_tests.sh
-        #purely transformers change
-        else if [ -z "$is_fairseq" -a -n "$is_transformers" ]
-        then
-          echo "Running Only transformers unittests"
-          bash tests/run_transformers_tests.sh
-        else if [ -n "$is_py_change" -o -n "$is_cpp_change" ]
-        then
-          echo "Running fairseq and transformers unittests"
-          bash tests/run_fairseq_tests.sh
-          bash tests/run_transformers_tests.sh
-        else
-          #bash tests/run_fairseq_tests.sh
-          #bash tests/run_transformers_tests.sh
-          echo " *** Skipping all unittests *** "
-          :
-        fi
-        fi
-        fi
-
-        #Linting checks for python files
-        if [ -n "$is_py_change" ]
-        then
-          #install pylint, wrapt update is essential.
-          conda update --name --yes base conda
-          conda update --yes wrapt
-          pip install pylint
-          echo $files_changed|grep .py|while read file; do
-            pylint --rcfile=.pylintrc $file
-          done
-        else 
-          :
-        fi
-        
-        #Linting checks for c++/cuda files
-        if [ -n "$is_cpp_change" ]
-        then
-          #install cpplint
-          pip install cpplint
-          echo $files_changed| grep .cpp|while read file; do
-            cpplint $file
-          done
-          echo $files_changed| grep .cu|while read file; do
-            cpplint $file
-          done
-        else 
-          :
-        fi
-        
-        #run benchmarks 
+        echo "******* Running fairseq unittests *******"
+        bash tests/run_fairseq_tests.sh
+        echo "******* Running transformers unittests *******"
+        bash tests/run_transformers_tests.sh
         #cd benchmarks/
         #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
-      displayName: 'setup environment and run fairseq unit tests'  
+      displayName: 'setup environment and run fastseq unit tests'  
