@@ -34,7 +34,7 @@ jobs:
         echo "******* Running transformers unittests *******"
         bash tests/run_transformers_tests.sh
         echo "******* Running fastseq unittests *******"
-        python -m unittest discover -s tests/ -p 'test_*.py'
+        python -m unittest discover -s tests/ -p 'test_*.py' -v
         #cd benchmarks/
         #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
       displayName: 'setup environment and run fastseq unit tests'  
