@@ -13,7 +13,7 @@ jobs:
     pool: 
       name: default
       demands:
-        - agent.name -equals gpu4 
+        - agent.name -equals gpu0 
     steps:
     - script: |
         #set up docker
