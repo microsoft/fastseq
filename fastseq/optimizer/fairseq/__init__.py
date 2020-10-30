@@ -5,6 +5,7 @@
 Automatically apply the optimizations if the supported versions of FairSeq
 are detected.
 """
+import sys
 
 from packaging import version
 
@@ -90,3 +91,6 @@ try:
 except ImportError as error:
     logger.warning('fairseq can not be imported. Please ignore this warning if '
                    'you are not using fairseq')
+except:
+    logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
+    raise

@@ -52,3 +52,6 @@ try:
 except ImportError as error:
     logger.warning('transformers can not be imported. Please ignore this '
                    'warning if you are not using transformers')
+except:
+    logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
+    raise
