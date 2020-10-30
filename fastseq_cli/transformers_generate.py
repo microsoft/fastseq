@@ -16,6 +16,13 @@ POSTPROCESS_FINISHED = None
 class TokenizeDataset(torch.utils.data.Dataset):
     """Characterizes a dataset for PyTorch"""
     def __init__(self, examples, tokenizer, model_name, prefix):
+        """Multiprocess Dataloader.
+        Args:
+            examples (List(str)): a list of input sentences.
+            tokenizer (AutoTokenizer): instance of AutoTokenizer.
+            model_name (string): model name.
+            prefix (string): input example prefix if any. 
+        """ 
         self.examples = examples
         self.tokenizer= tokenizer
         self.model_name = model_name
