@@ -16,7 +16,7 @@ from transformers.generation_utils import calc_banned_ngram_tokens, calc_banned_
 from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 from transformers.modeling_bart import BartForConditionalGeneration, SelfAttention, _reorder_buffer
 from transformers.modeling_t5 import T5ForConditionalGeneration
-from fastseq.optimizer.ngram_repeat_block import NGramRepeatBlock
+from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 
 logger = logging.getLogger(__name__)
 

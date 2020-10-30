@@ -13,7 +13,7 @@ from fairseq import utils
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.sequence_generator import SequenceGenerator
-from fastseq.optimizer.ngram_repeat_block import NGramRepeatBlock
+from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
 
 @register_fairseq_optimized_class
