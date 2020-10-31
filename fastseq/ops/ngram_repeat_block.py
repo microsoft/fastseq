@@ -14,6 +14,16 @@ class NGramRepeatBlockFunction(Function):
     """
     def forward(self, tokens, lprobs, bsz,
         step, beam_size, no_repeat_ngram_size):
+        """
+        Args:
+        tokens(Tensor): Input tokens(Bsz*beam, seq_len)
+        lprobs(Tensor): likelihood probability
+        Expected to be updated in place.(Bsz*beam, vocab_size)
+        bsz(int): batch size
+        step(int): current step
+        beam_size(int): beam size
+        no_repeat_ngram_size(int): Ngram size
+        """
         outputs = ngram_repeat_block_cuda.forward(tokens,
         lprobs, bsz, step, beam_size, no_repeat_ngram_size)
         return outputs
@@ -31,5 +41,18 @@ class NGramRepeatBlock(nn.Module):
 
     def forward(self, tokens, lprobs, bsz,
         step, beam_size, no_repeat_ngram_size):
+        """
+        Args:
+        tokens(Tensor): Input tokens(Bsz*beam, seq_len)
+        lprobs(Tensor): likelihood probability,
+        Expected to be updated in place.(Bsz*beam, vocab_size)
+        bsz(int): batch size
+        step(int): current step
+        beam_size(int): beam size
+        no_repeat_ngram_size(int): Ngram size
+        """
+        assert tokens.size(0)== bsz*beam_size
+        assert lprobs.size(0)== bsz*beam_size
+
         return NGramRepeatBlockFunction.apply(tokens, lprobs,
                bsz, step, beam_size, no_repeat_ngram_size)

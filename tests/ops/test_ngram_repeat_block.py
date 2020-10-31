@@ -15,14 +15,11 @@ class NgramRepeatBlockTest(TestCaseBase):
         implememntation.
     """
 
-    def setUp(self):
-        super(NgramRepeatBlockTest, self).setUp()
-
-    def apply_no_repeat_ngram(self, tokens,lprobs, bsz,step, beam_size):
+    def apply_no_repeat_ngram(self, tokens,lprobs, bsz,step,
+            beam_size, no_repeat_ngram_size):
         """ Fairseq implementation of blocking
             repeated ngrams
         """
-        no_repeat_ngram_size = 3
         banned_list = [[] for bbsz_idx in range(bsz * beam_size)]
         cpu_tokens = tokens.cpu()[:, :step + 1].numpy()
         check_start_pos = step + 2 - no_repeat_ngram_size
@@ -70,7 +67,58 @@ class NgramRepeatBlockTest(TestCaseBase):
     'ngram_repeat_block_size': 3,
     'sequence_length':2048,
     'pos1':0,
-    })
+    },
+    {
+    'testcase_name': 'overlapping_ngrams',
+    'vocab_size': 10,
+    'bsz': 256,
+    'beam_size': 1,
+    'step': 4,
+    'ngram_repeat_block_size': 3,
+    'sequence_length':2048,
+    'pos1':0,
+    },
+    {
+    'testcase_name': 'min_step',
+    'vocab_size': 10,
+    'bsz': 256,
+    'beam_size': 1,
+    'step': 3,
+    'ngram_repeat_block_size': 3,
+    'sequence_length':2048,
+    'pos1':0,
+    },
+    {
+    'testcase_name': 'higher_beam_size',
+    'vocab_size': 10,
+    'bsz': 256,
+    'beam_size': 2,
+    'step': 6,
+    'ngram_repeat_block_size': 3,
+    'sequence_length':2048,
+    'pos1':0,
+    },
+    {
+    'testcase_name': 'higher_ngram_size',
+    'vocab_size': 10,
+    'bsz': 256,
+    'beam_size': 1,
+    'step': 12,
+    'ngram_repeat_block_size': 5,
+    'sequence_length':2048,
+    'pos1':0,
+    },
+    {
+    'testcase_name': 'higher_vocab_size',
+    'vocab_size': 1000,
+    'bsz': 256,
+    'beam_size': 1,
+    'step': 6,
+    'ngram_repeat_block_size': 3,
+    'sequence_length':2048,
+    'pos1':0,
+    }
+    )
     def test_ngram_repeat_block_kernel(self, bsz, beam_size, vocab_size,
                     step, ngram_repeat_block_size, sequence_length, pos1):
 
@@ -88,7 +136,10 @@ class NgramRepeatBlockTest(TestCaseBase):
                     within a sentence.
         """
 
-        lprobs = torch.zeros(bsz*beam_size, 10).type(torch.FloatTensor)
+        lprobs_fairseq = torch.zeros(bsz*beam_size,
+                        vocab_size).type(torch.FloatTensor)
+        lprobs_fastseq = torch.zeros(bsz*beam_size,
+                        vocab_size).type(torch.FloatTensor)
         repeated_ngram = torch.randint(0,10, (1,2))
         #second place where ngram is repeated
         pos2 = step-ngram_repeat_block_size+2
@@ -99,26 +150,24 @@ class NgramRepeatBlockTest(TestCaseBase):
                         repeated_ngram, torch.randint(0,10,
                         (1, sequence_length -
                         pos2-ngram_repeat_block_size+1))), 1)
-        #inp = torch.Tensor([
-        #                [1,2,3,7,5,1,2,0,0,0,0,0,0,0,0,0],
-        #                [4,9,8,2,3,9,8,0,0,0,0,0,0,0,0,0],
-        #                ]).type(torch.LongTensor)
-        tokens=inp.repeat( (bsz,1))
+        tokens=inp.repeat( (bsz*beam_size,1))
         #CUDA kernel initialization
         rnn = NGramRepeatBlock()
-        lprobs = lprobs.cuda()
+        lprobs_fastseq = lprobs_fastseq.cuda()
+        lprobs_fairseq = lprobs_fairseq.cuda()
         tokens = tokens.cuda()
         #Cuda opt implementation
-        lprobs = rnn( tokens,lprobs, bsz, step, beam_size,
+        lprobs_fastseq = rnn( tokens,lprobs_fastseq, bsz, step, beam_size,
                     ngram_repeat_block_size)
         #Original implementation
-        lprobs_ref = self.apply_no_repeat_ngram(tokens, lprobs, bsz,
-                                step, beam_size)
+        lprobs_fairseq = self.apply_no_repeat_ngram(tokens, lprobs_fairseq, bsz,
+                                step, beam_size, ngram_repeat_block_size)
         err_msg = '''
         ngram repeat block kernel implementation output
         doesn't match with output of original implementation
         '''
-        assert torch.all(torch.eq(lprobs,lprobs_ref)).cpu().numpy(), err_msg
+        assert torch.all(torch.eq(lprobs_fairseq,
+                lprobs_fastseq)).cpu().numpy(), err_msg
 
 if __name__ == "__main__":
     absltest.main()
