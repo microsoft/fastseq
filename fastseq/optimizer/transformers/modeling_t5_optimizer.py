@@ -1,5 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+
 """Optimization for T5 model"""
 
 import logging
@@ -7,13 +8,14 @@ import logging
 import torch
 import torch.nn.functional as F
 
-from fastseq.utils.api_decorator import replace
 from transformers.configuration_t5 import T5Config
 from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 from transformers.modeling_t5 import T5Attention, T5ForConditionalGeneration
 
-logger = logging.getLogger(__name__)
+from fastseq.logging import get_logger
+from fastseq.utils.api_decorator import replace
 
+logger = get_logger(__name__, logging.INFO)
 
 @replace(T5Attention)
 class T5AttentionV2(T5Attention):

@@ -18,7 +18,7 @@ from transformers import (T5ForConditionalGeneration, T5Tokenizer)
 
 logger = get_logger(__name__)
 
-class TransformersBeamSearchOptimizerTest(TestCaseBase):
+class T5OptimizerTest(TestCaseBase):
     """Test the optimizations on HuggingFace-transformers-T5.
     """
     def setUp(self):

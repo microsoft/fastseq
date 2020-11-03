@@ -15,20 +15,7 @@ from fastseq.logging import get_logger
 
 logger = get_logger(__name__)
 
-FAIRSEQ_OPTIMIZED_CLASSES = []
-
-def register_fairseq_optimized_class(optimized_class):
-    """ A decorator used to register all the optimized classes
-
-    Args:
-        optimized_class (class): the optimized class.
-
-    Returns:
-        return the input optimized class.
-    """
-    FAIRSEQ_OPTIMIZED_CLASSES.append(optimized_class)
-    return optimized_class
-
+OPTIMIZED_CLASSES = {}
 
 def get_class(method):
     """Get the class of the input unbound method.
@@ -199,6 +186,10 @@ def replace(target_obj):
         A decorator function to replace the input object.
     """
     def decorator(new_obj):
+        if target_obj in OPTIMIZED_CLASSES:
+            logger.warning("{} has been optimized again.".format(target_obj))
+        setattr(new_obj, '__replaced_class__', target_obj)
+        OPTIMIZED_CLASSES[target_obj] = new_obj
         for k, v in list(sys.modules.items()):
             if (target_obj.__name__ in v.__dict__
                 and v.__dict__[target_obj.__name__] is target_obj):

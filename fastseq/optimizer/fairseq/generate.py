@@ -16,7 +16,8 @@ from fairseq.data import encoders
 from fairseq.meters import StopwatchMeter, TimeMeter
 from fairseq.options import add_generation_args
 from fairseq.utils import apply_to_sample
-from fastseq.utils.api_decorator import register_fairseq_optimized_class, replace
+
+from fastseq.utils.api_decorator import replace
 
 GENERATE_FINISHED = "done"
 POSTPROCESS_FINISHED = None

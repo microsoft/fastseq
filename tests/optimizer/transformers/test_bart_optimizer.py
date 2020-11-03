@@ -7,16 +7,17 @@ model accuracy.
 """
 import time
 
+import fastseq
+
 import torch
 from absl import logging
 from absl.testing import absltest, parameterized
+from transformers import BartForConditionalGeneration, BartTokenizer
 
-import fastseq
 from fastseq.utils.test_utils import TestCaseBase
-from transformers import (BartForConditionalGeneration, BartTokenizer)
 
 
-class TransformersBeamSearchOptimizerTest(TestCaseBase):
+class BARTOptimizerTest(TestCaseBase):
     """Test the optimizations on HuggingFace-transformers.
     """
     def setUp(self):
