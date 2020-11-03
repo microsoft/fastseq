@@ -187,7 +187,7 @@ def replace(target_obj):
     """
     def decorator(new_obj):
         if target_obj in OPTIMIZED_CLASSES:
-            logger.error("{} has been optimized".format(target_obj))
+            logger.warning("{} has been optimized again.".format(target_obj))
         setattr(new_obj, '__replaced_class__', target_obj)
         OPTIMIZED_CLASSES[target_obj] = new_obj
         for k, v in list(sys.modules.items()):
