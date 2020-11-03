@@ -15,10 +15,8 @@ from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.sequence_generator import SequenceGenerator
 
-from fastseq.utils.api_decorator import (register_fairseq_optimized_class,
-                                         replace)
+from fastseq.utils.api_decorator import replace
 
-@register_fairseq_optimized_class
 @replace(TransformerEncoder)
 class TransformerEncoderV2(TransformerEncoder):
     """
@@ -33,7 +31,7 @@ class TransformerEncoderV2(TransformerEncoder):
     def _reorder_encoder_out(self, encoder_out, new_order):
         return encoder_out
 
-@register_fairseq_optimized_class
+
 @replace(TransformerModel)
 class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
@@ -46,7 +44,6 @@ class TransformerModelV2(TransformerModel):
             self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 
-@register_fairseq_optimized_class
 @replace(MultiheadAttention)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
@@ -399,7 +396,6 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
-@register_fairseq_optimized_class
 @replace(SequenceGenerator)
 class SequenceGeneratorV2(SequenceGenerator):
     """

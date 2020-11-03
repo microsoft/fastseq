@@ -5,15 +5,16 @@
 Automatically apply the optimizations if the supported versions of FairSeq
 are detected.
 """
+import logging
 import sys
 
 from packaging import version
 
 from fastseq.config import FASTSEQ_VERSION, MAX_FAIRSEQ_VERSION, MIN_FAIRSEQ_VERSION
 from fastseq.logging import get_logger
-from fastseq.utils.api_decorator import FAIRSEQ_OPTIMIZED_CLASSES
+from fastseq.utils.api_decorator import OPTIMIZED_CLASSES
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, logging.INFO)
 
 LATEST_VERSION = 'latest'
 
@@ -52,35 +53,20 @@ def apply_fairseq_optimization():
 def _update_fairseq_model_registration():
     """Use the optimized classes to update the registered fairseq models and
     arches.
-
-    Args:
-        optimized_classes (list): a list of optimized fairseq classes.
     """
     for model_name, model_class in MODEL_REGISTRY.items():
-        for optimized_cls in FAIRSEQ_OPTIMIZED_CLASSES:
-            if model_class == optimized_cls.__base__:
-                MODEL_REGISTRY[model_name] = optimized_cls
-                logger.debug(
-                    "Update the register model {} from {} to {}".format(
-                        model_name, model_class, optimized_cls))
-            elif model_class.__base__ == optimized_cls.__base__:
-                logger.debug(
-                    "Update the base class of {} from {} to {}".format(
-                        model_class, model_class.__base__, optimized_cls))
-                MODEL_REGISTRY[model_name].__bases__ = (optimized_cls,)
+        if model_class in OPTIMIZED_CLASSES:
+            MODEL_REGISTRY[model_name] = OPTIMIZED_CLASSES[model_class]
+            logger.debug(
+                "Update the register model {} from {} to {}".format(
+                    model_name, model_class, OPTIMIZED_CLASSES[model_class]))
 
     for arch_name, model_class in ARCH_MODEL_REGISTRY.items():
-        for optimized_cls in FAIRSEQ_OPTIMIZED_CLASSES:
-            if model_class in optimized_cls.__bases__:
-                ARCH_MODEL_REGISTRY[arch_name] = optimized_cls
-                logger.debug(
-                    "Update the register model arch {} from {} to {}".format(
-                        arch_name, model_class, optimized_cls))
-            elif model_class.__base__ == optimized_cls.__base__:
-                logger.debug(
-                    "Update the base class of {} from {} to {}".format(
-                        model_class, model_class.__base__, optimized_cls))
-                ARCH_MODEL_REGISTRY[arch_name].__bases__ = (optimized_cls,)
+        if model_class in OPTIMIZED_CLASSES:
+            ARCH_MODEL_REGISTRY[arch_name] = OPTIMIZED_CLASSES[model_class]
+            logger.debug(
+                "Update the register model arch {} from {} to {}".format(
+                    arch_name, model_class, OPTIMIZED_CLASSES[model_class]))
 
 
 try:
