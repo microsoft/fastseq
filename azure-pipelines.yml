@@ -6,14 +6,14 @@
 trigger:
   paths:
     exclude:
-      - docs      
+      - docs
 jobs:
   - job: Fastseq_unittests
     timeoutInMinutes: 360
-    pool: 
+    pool:
       name: default
       demands:
-        - agent.name -equals gpu0 
+        - agent.name -equals gpu0
     container:
       image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
       endpoint: fastseq-acr
@@ -22,14 +22,14 @@ jobs:
     - script: |
         #install fastseq
         pip install --editable .
-        
+
         #show environment
         which python
         python --version
         nvcc --version
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
- 
+
         export CUDA_VISIBLE_DEVICES=3
         echo "******* Running fairseq unittests *******"
         bash tests/run_fairseq_tests.sh
