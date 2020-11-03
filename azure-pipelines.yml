@@ -17,6 +17,7 @@ jobs:
     container:
       image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
       endpoint: fastseq-acr
+      options: --gpus all
     steps:
     - script: |
         #install fastseq
