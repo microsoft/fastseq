@@ -20,14 +20,14 @@ All the following benchmarking experiments run on NVIDIA-V100-16GB with [the doc
   |     BatchSize    |       32      |        64       |      128       |
   |:----------------:|:-------------:|:---------------:|:--------------:|
   | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
-  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 14.5 samples/s |
+  | above + fastseq  | 8.0 samples/s | 10.9 samples/s  | 12.7 samples/s |
 
 - [WMT16 En-De](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt)
 
   |     BatchSize    |      256       |      512       |      1024      |
   |:----------------:|:--------------:|:--------------:|:--------------:|
   | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
-  | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
+  | above + fastseq  | 121 samples/s  |  125 samples/s |  127 samples/s |
 
 ### Speedup for Transformers
 
@@ -35,7 +35,7 @@ All the following benchmarking experiments run on NVIDIA-V100-16GB with [the doc
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
   | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
+  |  above + fastseq    | 6.4 samples/s | 7.9 samples/s  | 8.2 samples/s  |
   | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
   |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
 
