@@ -1,5 +1,13 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+
+from fastseq.config import FASTSEQ_VERSION
+
+def get_fastseq_version():
+    return FASTSEQ_VERSION
 
 extras = {}
 
@@ -16,7 +24,7 @@ extensions = [
 
 setup(
     name="fastseq",
-    version="0.0.3",
+    version=get_fastseq_version(),
     author="Microsft AdsBrain Team",
     author_email="fastseq@microsoft.com",
     description="Efficient implementations of sequence models with fast performance",

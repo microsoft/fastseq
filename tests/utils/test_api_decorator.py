@@ -22,6 +22,9 @@ class Base:
 class Child(Base):
     pass
 
+class Grandchild(Child):
+    pass
+
 class APIDecoratorTest(TestCaseBase):
     """ Test the API decorators."""
 
@@ -101,13 +104,51 @@ class APIDecoratorTest(TestCaseBase):
 
     def test_replace_baseclass(self):
         """Test replace() decorator for the base class."""
+        preloaded_classes = {}
+        preloaded_classes['grandchild'] = Grandchild
+
+        child = Child()
+        grandchild = Grandchild()
+        preloaded_grandchild = preloaded_classes['grandchild']()
+
+        self.assertEqual(child.name(), 'Base')
+        self.assertEqual(grandchild.name(), 'Base')
+        self.assertEqual(preloaded_grandchild.name(), 'Base')
+
+        CachedBase = Base
         @replace(Base)
         class BaseV2(Base):
             def name(self):
                 return 'BaseV2'
+        self.assertEqual(BaseV2.__replaced_class__, CachedBase)
+        self.assertEqual(Base.__replaced_class__, CachedBase)
 
         child = Child()
+        grandchild = Grandchild()
+        preloaded_grandchild = preloaded_classes['grandchild']()
+
         self.assertEqual(child.name(), 'BaseV2')
+        self.assertEqual(grandchild.name(), 'BaseV2')
+        self.assertEqual(preloaded_grandchild.name(), 'BaseV2')
+
+        CachedGrandchild = Grandchild
+        @replace(Grandchild)
+        class GrandchildV2(Grandchild):
+            def name(self):
+                return 'GrandChildV2'
+        self.assertEqual(GrandchildV2.__replaced_class__, CachedGrandchild)
+        self.assertEqual(Grandchild.__replaced_class__, CachedGrandchild)
+
+        child = Child()
+        grandchild = Grandchild()
+        preloaded_grandchild = preloaded_classes['grandchild']()
+
+        self.assertEqual(child.name(), 'BaseV2')
+        self.assertEqual(grandchild.name(), 'GrandChildV2')
+        self.assertEqual(preloaded_grandchild.name(), 'BaseV2')
+
+        self.assertEqual(
+            preloaded_classes['grandchild'], Grandchild.__replaced_class__)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+
 """Optimization for T5 model"""
 
 import logging
@@ -7,13 +8,14 @@ import logging
 import torch
 import torch.nn.functional as F
 
-from fastseq.utils.api_decorator import replace
 from transformers.configuration_t5 import T5Config
 from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
 from transformers.modeling_t5 import T5Attention, T5ForConditionalGeneration
 
-logger = logging.getLogger(__name__)
+from fastseq.logging import get_logger
+from fastseq.utils.api_decorator import replace
 
+logger = get_logger(__name__, logging.INFO)
 
 @replace(T5Attention)
 class T5AttentionV2(T5Attention):
@@ -109,7 +111,7 @@ class T5AttentionV2(T5Attention):
         else:
             present_key_value_state = (None,)
 
-        if is_encoder_decoder_attn:
+        if is_encoder_decoder_attn and use_cache:
             new_q = q.view(bs // self.num_beams, self.num_beams, self.n_heads,
                            qlen, self.d_kv)
             scores = torch.einsum(
@@ -144,7 +146,7 @@ class T5AttentionV2(T5Attention):
         # Mask heads if we want to
         if head_mask is not None:
             weights = weights * head_mask
-        if is_encoder_decoder_attn:
+        if is_encoder_decoder_attn and use_cache:
             tmp_weights = weights.view(bs // self.num_beams, self.num_beams,
                                        self.n_heads, qlen, klen)
             context = torch.einsum(

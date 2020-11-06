@@ -1,0 +1,43 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+#Azure pipeline for continuous integration
+
+trigger:
+  paths:
+    exclude:
+      - docs
+jobs:
+  - job: Fastseq_unittests
+    timeoutInMinutes: 360
+    pool:
+      name: default
+      demands:
+        - agent.name -equals gpu0
+    container:
+      image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
+      endpoint: fastseq-acr
+      options: --gpus all
+    steps:
+    - script: |
+        #install fastseq
+        pip install --editable .
+
+        #show environment
+        which python
+        python --version
+        nvcc --version
+        python -c "import torch; print('torch:', torch.__version__, torch)"
+        python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+
+        export CUDA_VISIBLE_DEVICES=3
+        echo "******* Running fairseq unittests *******"
+        bash tests/run_fairseq_tests.sh
+        echo "******* Running transformers unittests *******"
+        bash tests/run_transformers_tests.sh
+        echo "******* Running fastseq unittests *******"
+        pip install pytorch-transformers==1.0.0
+        python -m unittest discover -s tests/ -p 'test_*.py' -v
+        #cd benchmarks/
+        #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
+      displayName: 'run fastseq unit tests'
