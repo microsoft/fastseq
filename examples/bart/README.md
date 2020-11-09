@@ -75,9 +75,9 @@ $ fastseq-generate-for-transformers \
     facebook/bart-large-cnn \
     cnn_dm.1k/val.source \
     out.summary \
-    --reference_path cnn_dm/val.target \
+    --reference_path cnn_dm.1k/val.target \
     --device cuda \
-    --bs 128 \
+    --bs BATCH_SIZE \
     --fp16 \
     --score_path out.score \
     --task summarization
