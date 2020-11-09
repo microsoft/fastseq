@@ -24,7 +24,7 @@ ProphetNet-large-160GB (fine-tuned on Gigawords with 7 epochs) [[link]](https://
 
 ```bash
 $ fastseq-generate-for-fairseq \
-      cnn_dm_bert.1k/len-1024.bin \
+      cnn_dm_bert.1k/len-512.bin \
       --path prophetnet/model.pt \
       --fp16 \
       --task translation_prophetnet \
@@ -38,4 +38,4 @@ $ fastseq-generate-for-fairseq \
       --remove-bpe \
       --gen-subset valid \
 ```
-To get the baseline speed number, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
+To get baseline speed number which doesn't use FastSeq optimizations, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.

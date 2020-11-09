@@ -2,7 +2,7 @@
 
 ## Introduction
 
-FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be done easily (no need to change any code/model/data if using our command line tool, or as simple as one-line code change `import fastseq` if using source code).
+FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be easily done (no need to change any code/model/data if using our command line tool, or simply add one-line code `import fastseq` if using source code).
 
 ## Speed Gain
 Below shows the generation speed gain by using FastSeq.
@@ -19,7 +19,10 @@ Below shows the generation speed gain by using FastSeq.
 - All the following benchmarking experiments run on NVIDIA-V100-16GB with [the docker](docker/Dockerfile). Fastest speed recorded for each model.
 - fs stands for [Fairseq](https://github.com/pytorch/fairseq) version, hf stands for [Huggingface Transformers](https://github.com/huggingface/transformers) version.
 - For more detail on parameter settings, click corresponding model link.
-- FastSeq optimizations are automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
+- Optimizations are automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
+
+## How it works?
+Our optimizations include improve beam search efficiency, reduce memory footprint, speedup calculation for key operations etc. To seaminglessly connect with community, we applied our works to existing models from Fairseq and Huggingface Transformers.
 
 ## Installation
 
@@ -97,6 +100,7 @@ $ fastseq-generate-for-fairseq \
     --no-repeat-ngram-size 3 \
     --lenpen 2.0
 ```
+Both model file and task data file are the same as original Fairseq version.
 
 ### Use command line tool to speedup transformers models
 Example usage for bart model on cnn daily mail task.
@@ -113,15 +117,13 @@ $ fastseq-generate-for-transformers \
     --score_path out.score \
     --task summarization
 ```
+Both model file and task data file are the same as original Transformers version.
 
 ### Run tests
 
 ```bash
 # run a single test.
 $ python tests/optimizer/fairseq/test_fairseq_optimizer.py
-
-# run benchmark.
-$ python tests/optimizer/fairseq/benchmark_fairseq_optimizer.py
 
 # run all the tests.
 $ python -m unittest discover -s tests/ -p '*.py'
