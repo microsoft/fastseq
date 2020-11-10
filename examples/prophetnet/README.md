@@ -39,3 +39,6 @@ $ fastseq-generate-for-fairseq \
       --gen-subset valid \
 ```
 To get baseline speed number which doesn't use FastSeq optimizations, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
+
+### Code Example
+Refer to [file](../../tests/models/test_prophetnet_fs.py).

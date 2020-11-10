@@ -42,3 +42,6 @@ $ fastseq-generate-for-transformers \
     --no_repeat_ngram_size 3
 ```
 To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
+
+### Code Example
+Refer to [file](../../tests/optimizer/transformers/test_t5_optimizer.py).

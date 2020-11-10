@@ -52,6 +52,9 @@ $ fastseq-generate-for-fairseq \
 
 To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
 
+### Code Example
+Refer to [file](../../tests/optimizer/fairseq/test_fairseq_optimizer.py).
+
 ## Speedup BART (Huggingface Transformers version) by using FastSeq
 
 - CNN daily mail validation data, NVIDIA-V100-16GB
@@ -85,3 +88,5 @@ $ fastseq-generate-for-transformers \
 
 To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
 
+### Code Example
+Refer to [file](../../tests/optimizer/transformers/test_bart_optimizer.py).
