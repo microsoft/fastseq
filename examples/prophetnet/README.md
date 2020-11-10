@@ -15,7 +15,7 @@ A pre-trained language model for sequence-to-sequence learning with a novel self
 
 
 ### Model
-ProphetNet-large-160GB (fine-tuned on Gigawords with 7 epochs) [[link]](https://drive.google.com/file/d/1NFVOn89pML6--0MvIb-TzhFFvtdEA0gc/view?usp=sharing)
+ProphetNet-large-160GB (fine-tuned on CNN/Daily Mail with 9 epochs) [link](https://drive.google.com/file/d/14v0HMc7obh_5aPFSFWzcr_nZCrK49Sey/view)
 
 ### Task
 [CNN/DM](https://github.com/harvardnlp/sent-summary) validation data

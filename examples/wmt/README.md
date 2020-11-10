@@ -50,7 +50,7 @@ fairseq-preprocess \
     --workers 20
 ```
 
-##### 3. Train a model
+##### 3. Train a model (optional)
 ```bash
 fairseq-train \
     bin/ \
@@ -71,8 +71,14 @@ fairseq-train \
     --fp16
 ```
 
+Or you can download model directly
+```bash
+wget -O checkpoints/checkpoint_last.pt https://fastseq.blob.core.windows.net/data/models/wmt16.en.de.32k/model.pt
+```
+Note this is a test model for speed evaluation, not good enough for real translation.
+
+
 ### Setting
-For simplicity, speed is evaluated on training data.
 
 ```bash
 $ fastseq-generate-for-fairseq \
