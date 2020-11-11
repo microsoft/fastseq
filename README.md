@@ -20,7 +20,7 @@ All the following benchmarking experiments run on NVIDIA-V100-16GB with [the doc
   |     BatchSize    |       32      |        64       |      128       |
   |:----------------:|:-------------:|:---------------:|:--------------:|
   | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
-  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 14.5 samples/s |
+  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 13.0 samples/s |
 
 - [WMT16 En-De](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt)
 

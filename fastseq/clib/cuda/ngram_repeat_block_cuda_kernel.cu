@@ -30,8 +30,9 @@ __global__ void banRepeatedTokens(long* __restrict__ tokens,
   extern __shared__ long tokens_shm[];
   tokens_shm[col] = tokens[start];
   if (col == blockDim.x - 1) {
-    tokens_shm[col + 1] = tokens[start + 1];
-    tokens_shm[col + 2] = tokens[start + 2];
+     for (int i=1; i<no_repeat_ngram_size-1; i++){
+        tokens_shm[col + 1] = tokens[start + 1];
+    }
   }
   __syncthreads();
 

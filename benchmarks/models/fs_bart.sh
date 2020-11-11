@@ -20,9 +20,9 @@ source utils.sh
 grep "bart.large.cnn cnn_dm.1k/len-1024.bin valid " perf | awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' | bash range.sh 10.4 10.6
 # Speed on V100 16GB 250W
 grep -E "fairseq_v0.9.0 bart.large.cnn cnn_dm.1k/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 2.3 2.8
-grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm.1k/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 8.5 100
-grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm.1k/len-1024.bin valid 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 11.5 100
-grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm.1k/len-1024.bin valid 128 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 13.8 100
+grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm.1k/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 8.3 100
+grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm.1k/len-1024.bin valid 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 11.4 100
+grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm.1k/len-1024.bin valid 128 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 13.3 100
 
 ## Accuracy
 #grep "bart.large.cnn cnn_dm/len-1024.bin valid " perf | awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' | bash range.sh 17.9 18
