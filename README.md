@@ -16,13 +16,13 @@ Below shows the generation speed gain by using FastSeq.
 | [T5 (`hf`)](examples/t5/README.md)                  | 4.8                        | 7.5                       | 1.6x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 84.0                       | 122.0                     | 1.5x  |
 
-- All the following benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
+- All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
 - `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.9.0 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 3.0.2 version.
 - Optimizations were automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
 
 ## How it works?
-- We developped a wide range of speedup techniques, including improving beam search efficiency, reducing memory footprint, speeding up calculation for key operations etc, IO speedup etc. To seamlessly connect with community, they were applied to existing models from Fairseq and Huggingface Transformers in the backend, while keeping model interface and usage same as before.
-- 
+We developped a wide range of speedup techniques, including improving beam search efficiency, reducing memory footprint, speeding up calculation for key operations etc, IO speedup etc. To seamlessly connect with community, they were applied to existing models from Fairseq and Huggingface Transformers in the backend, while keeping model interface and usage same as before.
+ 
 ## Installation
 
 ### Requirements
