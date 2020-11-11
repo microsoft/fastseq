@@ -4,21 +4,24 @@
 """Optimization for beam search related parts in Transformers."""
 
 import logging
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Iterable, Optional
 
 import torch
 from torch import Tensor
 from torch.nn import functional as F
 
-from fastseq.utils.api_decorator import replace
-from transformers.configuration_auto import BartConfig
-from transformers.generation_utils import calc_banned_ngram_tokens, calc_banned_bad_words_ids, GenerationMixin
-from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
-from transformers.modeling_bart import BartForConditionalGeneration, SelfAttention, _reorder_buffer
+from transformers.generation_utils import (BeamHypotheses, GenerationMixin,
+                                           calc_banned_bad_words_ids,
+                                           calc_banned_ngram_tokens,
+                                           top_k_top_p_filtering)
+
+from transformers.modeling_bart import BartForConditionalGeneration
 from transformers.modeling_t5 import T5ForConditionalGeneration
 
-logger = logging.getLogger(__name__)
+from fastseq.logging import get_logger
+from fastseq.utils.api_decorator import replace
 
+logger = get_logger(__name__, logging.INFO)
 
 @replace(calc_banned_ngram_tokens)
 def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
@@ -27,6 +30,7 @@ def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
                                 cur_len: int,
                                 pad_token_id: int) -> None:
     """Copied from fairseq for no_repeat_ngram in beam_search"""
+
     if cur_len + 1 < no_repeat_ngram_size:
         # return no banned tokens if we haven't generated no_repeat_ngram_size
         # tokens yet
@@ -53,6 +57,8 @@ def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
                      for hypo_idx in range(num_hypos)]
     return banned_tokens
 
+
+
 @replace(GenerationMixin)
 class GenerationMixinV2(GenerationMixin):
     """
@@ -72,7 +78,7 @@ class GenerationMixinV2(GenerationMixin):
         function need to handle different cases without breaking the program.
         """
 
-        # Update num_beams for BART decoder attention layer
+         # Update num_beams for BART decoder attention layer
         if isinstance(self, BartForConditionalGeneration):
             for layer in self.model.decoder.layers:
                 layer.encoder_attn.num_beams = num_beams
@@ -93,6 +99,7 @@ class GenerationMixinV2(GenerationMixin):
         logger.debug(
             "The num_beams optimization in self_attn and encoder_decoder_attn "
             "does not support {} yet.".format(self.__class__))
+
 
     @torch.no_grad()
     def generate(self,
@@ -491,7 +498,6 @@ class GenerationMixinV2(GenerationMixin):
 
             # get encoder and store encoder outputs
             encoder = self.get_encoder()
-
             encoder_outputs: tuple = encoder(input_ids,
                                              attention_mask=attention_mask)
 
@@ -646,9 +652,12 @@ class GenerationMixinV2(GenerationMixin):
             # generating the same ngrams
             num_batch_hypotheses = batch_size * num_beams
             # from fairseq: https://github.com/pytorch/fairseq/blob/a07cb6f40480928c9e0548b737aadd36ee66ac76/fairseq/sequence_generator.py#L345
-            banned_ngram_tokens = calc_banned_ngram_tokens( # pylint: disable=too-many-function-args
-                cpu_input_ids, num_batch_hypotheses, no_repeat_ngram_size,
-                cur_len, self.config.pad_token_id)
+            banned_ngram_tokens = calc_banned_ngram_tokens_v2(
+                cpu_input_ids,
+                num_batch_hypotheses,
+                no_repeat_ngram_size,
+                cur_len,
+                self.config.pad_token_id)
             _update_scores(banned_ngram_tokens)
 
         if bad_words_ids is not None:
@@ -661,228 +670,278 @@ class GenerationMixinV2(GenerationMixin):
         return scores
 
 
-@replace(SelfAttention)
-class SelfAttentionV2(SelfAttention):
-    """"
-    The BART Model with a language modeling head. Can be used for summarization.
-    """
-
-    def __init__(
+    def _generate_beam_search(
         self,
-        embed_dim,
-        num_heads,
-        dropout=0.0,
-        bias=True,
-        encoder_decoder_attention=False,  # otherwise self_attention
-        num_beams=1,
+        input_ids,
+        cur_len,
+        max_length,
+        min_length,
+        do_sample,
+        early_stopping,
+        temperature,
+        top_k,
+        top_p,
+        repetition_penalty,
+        no_repeat_ngram_size,
+        bad_words_ids,
+        pad_token_id,
+        eos_token_id,
+        batch_size,
+        num_return_sequences,
+        length_penalty,
+        num_beams,
+        vocab_size,
+        encoder_outputs,
+        attention_mask,
+        use_cache,
+        model_specific_kwargs,
     ):
-        super().__init__(
-            embed_dim, num_heads, dropout, bias, encoder_decoder_attention)
-        self.num_beams = num_beams
+        """Generate sequences for each example with beam search."""
+        # generated hypotheses
+        generated_hyps = [
+            BeamHypotheses(num_beams, max_length, length_penalty,
+                            early_stopping=early_stopping)
+            for _ in range(batch_size)
+        ]
 
-    def forward(
-        self,
-        query,
-        key: Optional[Tensor],
-        key_padding_mask: Optional[Tensor] = None,
-        layer_state: Optional[Dict[str, Optional[Tensor]]] = None,
-        attn_mask: Optional[Tensor] = None,
-        output_attentions=False,
-    ) -> Tuple[Tensor, Optional[Tensor]]:
-        """Input shape: Time(SeqLen) x Batch x Channel"""
-        static_kv: bool = self.encoder_decoder_attention
-        tgt_len, bsz, embed_dim = query.size()
-        assert embed_dim == self.embed_dim
-        assert list(query.size()) == [tgt_len, bsz, embed_dim]
-        # get here for encoder decoder cause of static_kv
-        if layer_state is not None:  # reuse k,v and encoder_padding_mask
-            saved_state = layer_state.get(self.cache_key, {})
-            if "prev_key" in saved_state and static_kv:
-                # previous time steps are cached - no need to recompute key and
-                # value if they are static
-                key = None
-        else:
-            saved_state = None
-            layer_state = {}
-        q = self.q_proj(query) * self.scaling
-        if static_kv:
-            if key is None:
-                k = v = None
+        # scores for each sentence in the beam
+        beam_scores = torch.zeros((batch_size, num_beams), dtype=torch.float,
+                                    device=input_ids.device)
+
+        # for greedy decoding it is made sure that only tokens of the first
+        # beam are considered to avoid sampling the exact same tokens three
+        # times
+        if do_sample is False:
+            beam_scores[:, 1:] = -1e9
+        beam_scores = beam_scores.view(-1)  # shape (batch_size * num_beams,)
+
+        # cache compute states
+        past = (encoder_outputs, None) if encoder_outputs is not None else None
+
+        # done sentences
+        done = [False for _ in range(batch_size)]
+
+        while cur_len < max_length:
+            model_inputs = self.prepare_inputs_for_generation(
+                input_ids, past=past, attention_mask=attention_mask,
+                use_cache=use_cache, **model_specific_kwargs
+            )
+            # (batch_size * num_beams, cur_len, vocab_size)
+            outputs = self(**model_inputs)
+            # (batch_size * num_beams, vocab_size)
+            next_token_logits = outputs[0][:, -1, :]
+
+            # if model has past, then set the past variable to speed up decoding
+            if self._use_cache(outputs, use_cache):
+                past = outputs[1]
+            if self.config.is_encoder_decoder and do_sample is False:
+                # TODO (PVP) still a bit hacky here - there might be a better
+                # solution
+                next_token_logits = self.adjust_logits_during_generation(
+                    next_token_logits, cur_len=cur_len, max_length=max_length
+                )
+            # (batch_size * num_beams, vocab_size)
+            scores = F.log_softmax(next_token_logits, dim=-1)
+            scores = self.postprocess_next_token_scores(
+                scores=scores,
+                input_ids=input_ids,
+                no_repeat_ngram_size=no_repeat_ngram_size,
+                bad_words_ids=bad_words_ids,
+                cur_len=cur_len,
+                min_length=min_length,
+                max_length=max_length,
+                eos_token_id=eos_token_id,
+                repetition_penalty=repetition_penalty,
+                batch_size=batch_size,
+                num_beams=num_beams,
+            )
+
+            assert scores.shape == (batch_size * num_beams, vocab_size),\
+                 "Shapes of scores: {} != {}".format(
+                scores.shape, (batch_size * num_beams, vocab_size)
+            )
+
+            if do_sample:
+                # (batch_size * num_beams, vocab_size)
+                curr_scores = scores + beam_scores[:, None].expand_as(scores)
+                # Temperature
+                if temperature != 1.0:
+                    curr_scores = curr_scores / temperature
+                # Top-p/top-k filtering
+                curr_scores = top_k_top_p_filtering(
+                    curr_scores, top_k=top_k, top_p=top_p, min_tokens_to_keep=2
+                )  # (batch_size * num_beams, vocab_size)
+                # re-organize to group the beam together to sample from all
+                # beam_idxs
+                curr_scores = curr_scores.contiguous().view(
+                    batch_size, num_beams * vocab_size
+                )  # (batch_size, num_beams * vocab_size)
+
+                # Sample 2 next tokens for each beam (so we have some spare
+                # tokens and match output of greedy beam search)
+                probs = F.softmax(curr_scores, dim=-1)
+
+                # (batch_size, num_beams * 2)
+                next_tokens = torch.multinomial(
+                    probs, num_samples=2 * num_beams)
+
+                # Compute next scores
+                # (batch_size, num_beams * 2)
+                next_scores = torch.gather(curr_scores, -1, next_tokens)
+                # sort the sampled vector to make sure that the first num_beams
+                # samples are the best
+                next_scores, next_scores_indices = torch.sort(
+                                    next_scores, descending=True, dim=1)
+                 # (batch_size, num_beams * 2)
+                next_tokens = torch.gather(next_tokens, -1, next_scores_indices)
+
             else:
-                k = self.k_proj(key)
-                v = self.v_proj(key)
+                # (batch_size * num_beams, vocab_size)
+                next_scores = scores + beam_scores[:, None].expand_as(scores)
+
+                # re-organize to group the beam together (we are keeping top
+                # hypothesis accross beams)
+                next_scores = next_scores.view(
+                    batch_size, num_beams * vocab_size
+                )  # (batch_size, num_beams * vocab_size)
+
+                next_scores, next_tokens = torch.topk(next_scores,
+                                2 * num_beams, dim=1, largest=True, sorted=True)
+
+            assert next_scores.size() == next_tokens.size() == (
+                batch_size, 2 * num_beams)
+            # next batch beam content
+            next_tokens_id = next_tokens % vocab_size
+            next_beams_id = next_tokens // vocab_size
+            beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(
+                1).type_as(next_beams_id)
+            effective_beam_id =  next_beams_id + beams_offset
+            if eos_token_id is not None :
+                eos_mask = next_tokens_id.eq(eos_token_id)
+            else :
+                eos_mask = torch.zeros_like(next_tokens_id).bool()
+            eos_effective_idx = torch.masked_select(
+                effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
+            )
+            eos_effective_scores = torch.masked_select(
+                    next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
+                )
+            input_ids_cpu = input_ids.cpu()
+            eos_effective_idx_cpu= eos_effective_idx.cpu()
+            eos_effective_scores_cpu = eos_effective_scores.cpu()
+            for i in range (0, eos_effective_idx_cpu.size()[-1]):
+                batch_idx = eos_effective_idx_cpu[i] // num_beams
+                if not done[batch_idx] :
+                    generated_hyps[batch_idx.item()].add(
+                        input_ids_cpu[eos_effective_idx_cpu[i]].clone(),
+                        eos_effective_scores_cpu[i])
+                done[batch_idx] = (
+                    done[batch_idx] or
+                    generated_hyps[batch_idx].is_done(
+                    next_scores[batch_idx].max().item(), cur_len))
+            cand_offsets = torch.arange(
+                start=0,
+                end=2*num_beams,
+                dtype=input_ids.dtype,
+                device=eos_mask.device)
+            active_mask = torch.add(
+                eos_mask.type_as(cand_offsets) * (2*num_beams),
+                cand_offsets[: eos_mask.size(1)],)
+            _, active_hypos = torch.topk(
+                active_mask, k=num_beams, dim=1, largest=False)
+            active_effective_beam_id  = torch.gather(
+                effective_beam_id, dim=1, index=active_hypos)
+            active_scores  = torch.gather(next_scores,
+                dim=1, index=active_hypos)
+            active_tokens  = torch.gather(next_tokens_id,
+                dim=1, index=active_hypos)
+            beam_idx = active_effective_beam_id.view(-1)
+            beam_scores = active_scores.view(-1)
+            beam_tokens = active_tokens.view(-1)
+
+            #stop when we are done with each sentence
+            if all(done):
+                break
+            # re-order batch and update current length
+            input_ids = input_ids[beam_idx, :]
+            input_ids = torch.cat([input_ids, beam_tokens.unsqueeze(1)], dim=-1)
+            cur_len = cur_len + 1
+
+            # re-order internal states
+            if past is not None:
+                past = self._reorder_cache(past, beam_idx)
+
+            # extend attention_mask for new generated input if only decoder
+            if self.config.is_encoder_decoder is False:
+                attention_mask = torch.cat(
+                    [attention_mask,
+                     attention_mask.new_ones((attention_mask.shape[0], 1))],
+                    dim=-1)
+
+        # finalize all open beam hypotheses and add to generated hypotheses
+        for batch_idx in range(batch_size):
+            if done[batch_idx]:
+                continue
+
+            # test that beam scores match previously calculated scores if not
+            # eos and batch_idx not done
+            if eos_token_id is not None and all(
+                (token_id % vocab_size).item() != eos_token_id
+                 for token_id in next_tokens[batch_idx]):
+                assert torch.all(
+                    next_scores[batch_idx, :num_beams] ==
+                    beam_scores.view(batch_size, num_beams)[batch_idx]
+                ), "If batch_idx is not done, final next scores: \
+                {} have to equal to accumulated beam_scores: {}".format(
+                    next_scores[:, :num_beams][batch_idx],
+                    beam_scores.view(batch_size, num_beams)[batch_idx],
+                )
+
+            # need to add best num_beams hypotheses to generated hyps
+            for beam_id in range(num_beams):
+                effective_beam_id = batch_idx * num_beams + beam_id
+                final_score = beam_scores[effective_beam_id].item()
+                final_tokens = input_ids[effective_beam_id]
+                generated_hyps[batch_idx].add(final_tokens, final_score)
+
+        # depending on whether greedy generation is wanted or not define
+        # different output_batch_size and output_num_return_sequences_per_batch
+        output_batch_size = batch_size if do_sample \
+            else batch_size * num_return_sequences
+        output_num_return_sequences_per_batch = 1 \
+            if do_sample else num_return_sequences
+
+        # select the best hypotheses
+        sent_lengths = input_ids.new(output_batch_size)
+        best = []
+
+        # retrieve best hypotheses
+        for i, hypotheses in enumerate(generated_hyps):
+            sorted_hyps = sorted(hypotheses.beams, key=lambda x: x[0])
+            for j in range(output_num_return_sequences_per_batch):
+                effective_batch_idx = \
+                    output_num_return_sequences_per_batch * i + j
+                best_hyp = sorted_hyps.pop()[1]
+                sent_lengths[effective_batch_idx] = len(best_hyp)
+                best.append(best_hyp)
+
+        # shorter batches are padded
+        if sent_lengths.min().item() != sent_lengths.max().item():
+            assert pad_token_id is not None, \
+                "`Pad_token_id` has to be defined"
+            sent_max_len = min(sent_lengths.max().item() + 1, max_length)
+            decoded = input_ids.new(output_batch_size,
+                sent_max_len).fill_(pad_token_id)
+
+            # fill with hypothesis and eos_token_id if necessary
+            for i, hypo in enumerate(best):
+                decoded[i, : sent_lengths[i]] = hypo
+                if sent_lengths[i] < max_length:
+                    decoded[i, sent_lengths[i]] = eos_token_id
         else:
-            k = self.k_proj(query)
-            v = self.v_proj(query)
+            # none of the hypotheses have an eos_token
+            assert (len(hypo) == max_length for hypo in best)
+            decoded = torch.stack(best).type(torch.long)\
+                    .to(next(self.parameters()).device)
 
-        q = self._shape(q, tgt_len, bsz)
-        if k is not None:
-            k = self._shape(k, -1, bsz)
-        if v is not None:
-            v = self._shape(v, -1, bsz)
-
-        if saved_state is not None:
-            k, v, key_padding_mask = self._use_saved_state(
-                k, v, saved_state, key_padding_mask, static_kv, bsz)
-
-        # Update cache
-        cache_bsz = (bsz // self.num_beams
-                     if self.encoder_decoder_attention else bsz)
-
-        if self.encoder_decoder_attention and ("prev_key" not in saved_state):
-            cache_shape = (
-                cache_bsz, self.num_beams, self.num_heads, -1, self.head_dim)
-            k = k.view(cache_shape)[:, 0 : 1, :, :, :].contiguous()
-            v = v.view(cache_shape)[:, 0 : 1, :, :, :].contiguous()
-            layer_state[self.cache_key] = {
-                "prev_key": k,
-                "prev_value": v,
-                "prev_key_padding_mask":
-                key_padding_mask if not static_kv else None,
-            }
-        if not self.encoder_decoder_attention:
-            cache_shape = (bsz, self.num_heads, -1, self.head_dim)
-            layer_state[self.cache_key] = {
-                "prev_key": k.view(cache_shape),
-                "prev_value": v.view(cache_shape),
-                "prev_key_padding_mask":
-                key_padding_mask if not static_kv else None,
-            }
-
-        assert k is not None
-        if self.encoder_decoder_attention:
-            q = q.view(cache_bsz, self.num_beams, self.num_heads, tgt_len,
-                       self.head_dim)
-            src_len = k.size(3)
-            attn_weights = torch.einsum("bmhtd,bnhsd->bmhts", q,
-                                        k).reshape(-1, tgt_len, src_len)
-            assert attn_weights.size() == (bsz * self.num_heads, tgt_len,
-                                           src_len)
-        else:
-            src_len = k.size(1)
-            attn_weights = torch.bmm(q, k.transpose(1, 2))
-            assert attn_weights.size() == (bsz * self.num_heads, tgt_len,
-                                           src_len)
-
-        if attn_mask is not None:
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len,
-                                             src_len) + attn_mask
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len,
-                                             src_len)
-
-        # This is part of a workaround to get around fork/join parallelism not
-        # supporting Optional types.
-        if key_padding_mask is not None and key_padding_mask.dim() == 0:
-            key_padding_mask = None
-        assert key_padding_mask is None or key_padding_mask.size()[:2] == (
-            bsz, src_len)
-
-        if key_padding_mask is not None:  # don't attend to padding symbols
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len,
-                                             src_len)
-            reshaped = key_padding_mask.unsqueeze(1).unsqueeze(2)
-            attn_weights = attn_weights.masked_fill(reshaped, float("-inf"))
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len,
-                                             src_len)
-        attn_weights = F.softmax(attn_weights, dim=-1)
-        attn_probs = F.dropout(
-            attn_weights,
-            p=self.dropout,
-            training=self.training,
-        )
-
-        assert v is not None
-        if self.encoder_decoder_attention:
-            attn_probs = attn_probs.view(
-                cache_bsz, self.num_beams, self.num_heads, tgt_len, src_len)
-            attn_output = torch.einsum("bmhts,bnhsd->bmhtd", attn_probs,
-                                       v).reshape(-1, tgt_len, self.head_dim)
-        else:
-            attn_output = torch.bmm(attn_probs, v)
-
-        assert attn_output.size() == (bsz * self.num_heads, tgt_len,
-                                      self.head_dim)
-        attn_output = attn_output.transpose(0, 1).contiguous().view(
-            tgt_len, bsz, embed_dim)
-        attn_output = self.out_proj(attn_output)
-        if output_attentions:
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len,
-                                             src_len)
-        else:
-            attn_weights = None
-        return attn_output, attn_weights
-
-    def _use_saved_state(self, k, v, saved_state, key_padding_mask, static_kv,
-                         bsz):
-        # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
-        # note that for self-attn, bsz=input_bsz * beam_size; for
-        # encoder-decoder-attn, bsz=input_bsz.
-        if "prev_key" in saved_state:
-            prev_key_ = saved_state["prev_key"]
-            if static_kv:
-                k = prev_key_
-            else:
-                assert prev_key_ is not None
-                prev_key = prev_key_.view(bsz * self.num_heads, -1,
-                                          self.head_dim)
-                assert k is not None
-                k = torch.cat([prev_key, k], dim=1)
-
-        if "prev_value" in saved_state:
-            prev_value_ = saved_state["prev_value"]
-            assert prev_value_ is not None
-            if static_kv:
-                v = prev_value_
-            else:
-                prev_value = prev_value_.view(bsz * self.num_heads, -1,
-                                              self.head_dim)
-                assert v is not None
-                v = torch.cat([prev_value, v], dim=1)
-
-        assert k is not None and v is not None
-        prev_key_padding_mask: Optional[Tensor] = saved_state.get(
-            "prev_key_padding_mask", None)
-        if prev_key_padding_mask is not None:
-            if static_kv:
-                new_key_padding_mask = prev_key_padding_mask
-            else:
-                new_key_padding_mask = torch.cat(
-                    [prev_key_padding_mask, key_padding_mask], dim=1)
-        else:
-            new_key_padding_mask = key_padding_mask
-        return k, v, new_key_padding_mask
-
-
-@replace(BartForConditionalGeneration)
-class BartForConditionalGenerationV2(BartForConditionalGeneration):
-    """
-    The BART Model with a language modeling head. Can be used for
-    summarization.
-    """
-    @staticmethod
-    def _reorder_cache(past, beam_idx):
-        ((enc_out, enc_mask), decoder_past_key_values) = past
-        reordered_past = []
-        for layer_past in decoder_past_key_values:
-            # Get the correct batch idx from decoder layer's batch dim for
-            # self-attn; Note that there is no need to reorder the cached key
-            # and value for the encoder-decoder-attn, because the key and value
-            # for the beams of each sample is the same and we can cache just one
-            # copy to save GPU memory.
-            layer_past_new = {}
-            for attn_key, attn_cache in layer_past.items():
-                if attn_key == 'self':
-                    layer_past_new[attn_key] = _reorder_buffer(
-                        attn_cache, beam_idx)
-                    continue
-                layer_past_new[attn_key] = attn_cache
-
-            reordered_past.append(layer_past_new)
-
-        new_enc_mask = enc_mask if enc_mask is None else enc_mask.index_select(
-            0, beam_idx)
-
-        past = ((enc_out, new_enc_mask), reordered_past)
-        return past
-
-MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[BartConfig] = BartForConditionalGenerationV2 # pylint: disable=line-too-long
+        return decoded
