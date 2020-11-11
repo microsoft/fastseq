@@ -35,9 +35,9 @@ class TokenizeDataset(torch.utils.data.Dataset):
         return len(self.examples)
 
     def __getitem__(self, index):
-        if "t5" in self.model_name:
-            batch = [self.prefix + text for text in batch]
         batch = self.examples[index]
+        if "t5" in self.model_name:
+            batch = self.prefix + batch
         batch = self.tokenizer(batch,
                           return_tensors=self.return_tensors,
                           truncation=self.truncation,
@@ -159,7 +159,8 @@ def generate_summaries_or_translations(
     dataset = TokenizeDataset(examples, tokenizer, model_name,
             model.config.prefix)
     training_generator = torch.utils.data.DataLoader(dataset,
-            batch_size=batch_size, num_workers = preprocess_cpu_num)
+            batch_size=batch_size, num_workers = preprocess_cpu_num,
+            drop_last=True)
     for ind, batch in tqdm(enumerate(training_generator)):
         input_ids, attention_mask = batch
         input_ids = input_ids.view(batch_size, -1).to(device)
