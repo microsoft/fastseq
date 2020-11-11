@@ -1,129 +1,43 @@
 <h1 align="Center"> <p> FastSeq </p> </h1>
 
-# Introduction
+## Introduction
 
-FastSeq provides efficient implementations of the popular sequence models with high performance for text generation, summarization, and translation tasks. It can automatically optimize the performance of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq)) by simply `import fastseq`.
+FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be easily done (no need to change any code/model/data if using our command line tool, or simply add one-line code `import fastseq` if using source code).
 
-# Supported Models
+## Speed Gain
+Below shows the generation speed gain by using FastSeq.
 
-## Supported models in [fairseq](https://github.com/pytorch/fairseq)
+| Model            | W/O FastSeq (in samples/s) | W/ FastSeq (in samples/s) | Speedup |
+|------------------|:--------------------------:|:-------------------------:|:-----:|
+| [ProphetNet](examples/prophetnet/README.md)       | 2.7                        | 10.3                      | 3.8x  |
+| [Bart (`fs`)](examples/bart/README.md)              | 2.7                        | 14.5                      | 5.4x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq)              | 3.4                        | 6.4                       | 1.9x  |
+| [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.0                        | 6.5                       | 1.6x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 4.8                        | 7.5                       | 1.6x  |
+| [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 84.0                       | 135.0                     | 1.6x  |
 
-- [x] [BART](https://arxiv.org/pdf/1910.13461.pdf)
-- [x] [Scaling Neural Machine Translation (Ott et al., 2018)](https://github.com/pytorch/fairseq/blob/master/examples/scaling_nmt/README.md)
-- [x] [Mixture Models for Diverse Machine Translation: Tricks of the Trade (Shen et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/translation_moe/README.md)
-- [x] [Pay Less Attention with Lightweight and Dynamic Convolutions (Wu et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/pay_less_attention_paper/README.md)
+- All the following benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
+- `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.9.0 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 3.0.2 version.
+- Optimizations were automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
 
+## How it works?
+We developped a wide range of speedup techniques, including improving beam search efficiency, reducing memory footprint, speeding up calculation for key operations etc, IO speedup etc. To seamlessly connect with community, they were applied to existing models from Fairseq and Huggingface Transformers in the backend, while keeping model interface and usage same as before.
 
-## Supported models in [HuggingFace-Transformers](https://github.com/huggingface/transformers)
+## Installation
 
-- [x] [BART](https://huggingface.co/transformers/model_doc/bart.html)
-- [ ] [GPT-2](https://huggingface.co/transformers/model_doc/gpt2.html)
-- [ ] [UniLM-V1](https://github.com/microsoft/unilm)
-- [ ] [UniLM-V2](https://github.com/microsoft/unilm)
-- [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
-- [x] [T5](https://huggingface.co/transformers/model_doc/t5.html)
-
-# Benchmarks
-
-## BART from Fairseq
-
-- CNN daily mail val data, NVIDIA-V100-16GB
-
-  |     BatchSize    |       32      |        64       |      128       |
-  |:----------------:|:-------------:|:---------------:|:--------------:|
-  | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
-  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 14.5 samples/s |
-
-with setting:
-
-```bash
-$ fastseq-generate-for-fairseq \
-      cnn_dm.1k/len-1024.bin \
-      --path bart.large.cnn/model.pt \
-      --fp16 \
-      --task translation \
-      --batch-size BATCH_SIZE \
-      --gen-subset valid \
-      --truncate-source  \
-      --bpe gpt2 \
-      --beam 4 \
-      --num-workers 4 \
-      --min-len 55 \
-      --max-len-b 140 \
-      --no-repeat-ngram-size 3 \
-      --lenpen 2.0
-```
-
-To get the baseline fairseq's speed number, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
-
-## BART from Transformers
-
-- CNN daily mail val data, NVIDIA-V100-16GB
-
-  |      BatchSize      |       32      |       64       |       128      |
-  |:-------------------:|:-------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
-  | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
-
-(numbers for 2.11.0 needs to be updated based on docker env.)
-
-with setting:
-
-```bash
-$ fastseq-generate-for-transformers \
-    facebook/bart-large-cnn \
-    cnn_dm.1k/val.source \
-    out.summary \
-    --reference_path cnn_dm/val.target \
-    --device cuda \
-    --bs 128 \
-    --fp16 \
-    --score_path out.score \
-    --task summarization
-```
-
-To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
-
-## WMT from Fairseq
-- [WMT16 En-De](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt) model
-
-  |     BatchSize    |      256       |      512       |      1024      |
-  |:----------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
-  | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
-
-
-with setting:
-
-```bash
-$ fastseq-generate-for-fairseq \
-      wmt14.en-fr.joined-dict.newstest2014/ \
-      --path wmt14.en-fr.joined-dict.transformer/model.pt \
-      --beam 4 \
-      --lenpen 0.6 \
-      --remove-bpe \
-      --batch-size 32
-```
-
-To get the fairseq's speed number, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
-
-# Installation
-
-## Requirements
+### Requirements
 
 - Python version >= 3.6
 - [torch](http://pytorch.org/) >= 1.4.0
-- [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
-- [transformers](https://github.com/huggingface/transformers) >= 3.0.2
+- [fairseq](https://github.com/pytorch/fairseq) == 0.9.0
+- [transformers](https://github.com/huggingface/transformers) == 3.0.2
 - [requets](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
-- [rouge-score](https://pypi.org/project/rouge-score/)
+- [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4
 
 If you use fairseq or transformers, you only need to install one of them. If you use both, you need to install both.
 
-## Python package
+### Install from PIP package
 
 `fastseq` Python package can be directly installed with pip using
 
@@ -131,7 +45,7 @@ If you use fairseq or transformers, you only need to install one of them. If you
 $ pip install fastseq
 ```
 
-## Install from the source
+### Install from the source
 
 ```bash
 $ git clone https://github.com/microsoft/fastseq
@@ -139,9 +53,9 @@ $ cd fastseq
 $ pip install --editable ./
 ```
 
-# Usage
+## Usage
 
-## Example
+### Use source code for speedup
 
 Only one line of code change is needed to use the optimizations provided by `FastSeq`.
 
@@ -164,8 +78,9 @@ hypotheses = bart.sample(
 
 print(hypotheses)
 ```
-## Command line tool for fairseq models
-Example
+
+### Use command line tool to speedup fairseq models
+Example usage for bart model on cnn daily mail task.
 
 ```bash
 $ fastseq-generate-for-fairseq \
@@ -184,9 +99,10 @@ $ fastseq-generate-for-fairseq \
     --no-repeat-ngram-size 3 \
     --lenpen 2.0
 ```
+Both model file and task data file are the same as original Fairseq version.
 
-## Command line tool for transformers models
-Example
+### Use command line tool to speedup transformers models
+Example usage for bart model on cnn daily mail task.
 
 ```bash
 $ fastseq-generate-for-transformers \
@@ -200,15 +116,13 @@ $ fastseq-generate-for-transformers \
     --score_path out.score \
     --task summarization
 ```
+Both model file and task data file are the same as original Transformers version.
 
-## Run tests
+### Run tests
 
 ```bash
 # run a single test.
 $ python tests/optimizer/fairseq/test_fairseq_optimizer.py
-
-# run benchmark.
-$ python tests/optimizer/fairseq/benchmark_fairseq_optimizer.py
 
 # run all the tests.
 $ python -m unittest discover -s tests/ -p '*.py'
@@ -217,16 +131,9 @@ $ python -m unittest discover -s tests/ -p '*.py'
 $ cd benchmarks && bash run_all_benchmarks.sh
 ```
 
-## Build
+## Code Style
 
-```bash
-# build package
-$ python setup.py sdist bdist_wheel
-```
-
-# Code Style
-
-## Python coding style
+### Python coding style
 
 Changes to Python code should conform to [PEP 8](https://www.python.org/dev/peps/pep-0008/). `yapf` can be used to help format the python code, and use `pylint` to check your Python changes.
 
@@ -238,7 +145,7 @@ $ yapf --style pep8 -i -r PYTHON_FILE/PACKAGE
 $ pylint --rcfile=.pylintrc  PYTHON_FILE/PACKAGE
 ```
 
-# Contributing
+## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
