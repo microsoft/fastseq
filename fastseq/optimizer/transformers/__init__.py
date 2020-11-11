@@ -5,6 +5,7 @@
 Automatically apply the optimizations if the supported versions of transformers
 are detected.
 """
+import sys
 
 from packaging import version
 import sys
