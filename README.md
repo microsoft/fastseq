@@ -2,64 +2,23 @@
 
 ## Introduction
 
-FastSeq provides efficient implementations of the popular sequence models (e.g. [ProphetNet](https://github.com/microsoft/ProphetNet)) with high performance for text generation, summarization, and translation tasks. Meanwhile, it can automatically optimize the inference speed of the pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss or code changes by simply `import fastseq`.
+FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be easily done (no need to change any code/model/data if using our command line tool, or simply add one-line code `import fastseq` if using source code).
 
-## Benchmarks
-All the following benchmarking experiments run on NVIDIA-V100-16GB with [the docker](docker/Dockerfile).
+## Speed Gain
+Below shows the generation speed gain by using FastSeq.
 
-### Speedup for FairSeq
+| Model            | W/O FastSeq (in samples/s) | W/ FastSeq (in samples/s) | Speedup |
+|------------------|:--------------------------:|:-------------------------:|:-----:|
+| [ProphetNet](examples/prophetnet/README.md)       | 2.7                        | 10.3                      | 3.8x  |
+| [Bart (`fs`)](examples/bart/README.md)              | 2.7                        | 13.3                      | 5x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq)              | 3.4                        | 9.9                       | 2.9x  |
+| [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.0                        | 11.9                       | 3x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 4.8                        | 11.0                       | 2.3x  |
+| [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 84.0                       | 124.0                     | 1.5x  |
 
-- ProphetNet
-  |       BatchSize      |       32      |        64       |      128       |
-  |:--------------------:|:-------------:|:---------------:|:--------------:|
-  |      prophetnet      | 2.7 samples/s |  3.1 samples/s  |      OOM       |
-  | prophetnet + fastseq | 5.5 samples/s |  8.4 samples/s  | 10.3 samples/s |
-
-- BART
-
-  |     BatchSize    |       32      |        64       |      128       |
-  |:----------------:|:-------------:|:---------------:|:--------------:|
-  | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
-  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 13.0 samples/s |
-
-- [WMT16 En-De](https://github.com/pytorch/fairseq/tree/master/examples/scaling_nmt)
-
-  |     BatchSize    |      256       |      512       |      1024      |
-  |:----------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
-  | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
-
-### Speedup for Transformers
-
-- BART
-  |      BatchSize      |       32      |       64       |       128      |
-  |:-------------------:|:-------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
-  | transformers-2.11.0 | 2.5 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 4.4 samples/s | 5.3 samples/s  | >5.3 samples/s |
-
-More details about the benmarks can be found [here](docs/benchmarks.md).
-
-## Supported Models
-
-### Supported models in [FairSeq](https://github.com/pytorch/fairseq)
-
-- [x] [ProphetNet](https://github.com/microsoft/ProphetNet)
-- [x] [BART](https://arxiv.org/pdf/1910.13461.pdf)
-- [x] [Scaling Neural Machine Translation (Ott et al., 2018)](https://github.com/pytorch/fairseq/blob/master/examples/scaling_nmt/README.md)
-- [x] [Mixture Models for Diverse Machine Translation: Tricks of the Trade (Shen et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/translation_moe/README.md)
-- [x] [Pay Less Attention with Lightweight and Dynamic Convolutions (Wu et al., 2019)](https://github.com/pytorch/fairseq/blob/master/examples/pay_less_attention_paper/README.md)
-
-
-### Supported models in [HuggingFace-Transformers](https://github.com/huggingface/transformers)
-
-- [x] [BART](https://huggingface.co/transformers/model_doc/bart.html)
-- [x] [T5](https://huggingface.co/transformers/model_doc/t5.html)
-- [ ] [GPT-2](https://huggingface.co/transformers/model_doc/gpt2.html)
-- [ ] [UniLM-V1](https://github.com/microsoft/unilm)
-- [ ] [UniLM-V2](https://github.com/microsoft/unilm)
-- [ ] [ProphetNet](https://github.com/microsoft/ProphetNet)
+- All the following benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
+- `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.9.0 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 3.0.2 version.
+- Optimizations were automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
 
 ## Installation
 
@@ -67,15 +26,15 @@ More details about the benmarks can be found [here](docs/benchmarks.md).
 
 - Python version >= 3.6
 - [torch](http://pytorch.org/) >= 1.4.0
-- [fairseq](https://github.com/pytorch/fairseq) >= 0.9.0
-- [transformers](https://github.com/huggingface/transformers) >= 3.0.2
+- [fairseq](https://github.com/pytorch/fairseq) == 0.9.0
+- [transformers](https://github.com/huggingface/transformers) == 3.0.2
 - [requets](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
-- [rouge-score](https://pypi.org/project/rouge-score/)
+- [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4
 
 If you use fairseq or transformers, you only need to install one of them. If you use both, you need to install both.
 
-### Python package
+### Install from PIP package
 
 `fastseq` Python package can be directly installed with pip using
 
@@ -93,7 +52,7 @@ $ pip install --editable ./
 
 ## Usage
 
-### Example
+### Use source code for speedup
 
 Only one line of code change is needed to use the optimizations provided by `FastSeq`.
 
@@ -117,8 +76,8 @@ hypotheses = bart.sample(
 print(hypotheses)
 ```
 
-### Command line tool for fairseq models
-Example
+### Use command line tool to speedup fairseq models
+Example usage for bart model on cnn daily mail task.
 
 ```bash
 $ fastseq-generate-for-fairseq \
@@ -137,9 +96,10 @@ $ fastseq-generate-for-fairseq \
     --no-repeat-ngram-size 3 \
     --lenpen 2.0
 ```
+Both model file and task data file are the same as original Fairseq version.
 
-### Command line tool for transformers models
-Example
+### Use command line tool to speedup transformers models
+Example usage for bart model on cnn daily mail task.
 
 ```bash
 $ fastseq-generate-for-transformers \
@@ -153,15 +113,13 @@ $ fastseq-generate-for-transformers \
     --score_path out.score \
     --task summarization
 ```
+Both model file and task data file are the same as original Transformers version.
 
 ### Run tests
 
 ```bash
 # run a single test.
 $ python tests/optimizer/fairseq/test_fairseq_optimizer.py
-
-# run benchmark.
-$ python tests/optimizer/fairseq/benchmark_fairseq_optimizer.py
 
 # run all the tests.
 $ python -m unittest discover -s tests/ -p '*.py'
