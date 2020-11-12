@@ -651,7 +651,7 @@ class GenerationMixinV2(GenerationMixin):
         if no_repeat_ngram_size > 0:
             #custom op for Ngram repeat blocking
             scores = self.no_repeat_ngram_op(input_ids,scores.float(),
-                    batch_size, cur_len, num_beams, no_repeat_ngram_size)
+                    batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
 
         if bad_words_ids is not None:
             # calculate a list of banned tokens according to bad words
