@@ -2,21 +2,115 @@
 import argparse
 import json
 from pathlib import Path
-
-import torch
+from multiprocessing import Process, Queue
 from tqdm import tqdm
-
-from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
+import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+GENERATE_FINISHED = 'done'
+POSTPROCESS_FINISHED = None
 
-def chunks(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+class TokenizeDataset(torch.utils.data.Dataset):
+    """Characterizes a dataset for PyTorch"""
+    def __init__(self, examples, tokenizer, model_name, prefix):
+        """Multiprocess Dataloader.
+        Args:
+            examples (List(str)): a list of input sentences.
+            tokenizer (AutoTokenizer): instance of AutoTokenizer.
+            model_name (string): model name.
+            prefix (string): input example prefix if any. 
+        """ 
+        self.examples = examples
+        self.tokenizer= tokenizer
+        self.model_name = model_name
+        self.prefix = prefix
+        self.return_tensors="pt"
+        self.truncation=True
+        self.padding="max_length"
 
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, index):
+        batch = self.examples[index]
+        if "t5" in self.model_name:
+            batch = self.prefix + batch
+        batch = self.tokenizer(batch,
+                          return_tensors=self.return_tensors,
+                          truncation=self.truncation,
+                          padding=self.padding)
+        return batch['input_ids'], batch['attention_mask']
+
+class IOProcess (Process):
+    """ Write detokenized output to file in order."""
+    def __init__(self, msg_queue, fout):
+        super(IOProcess, self).__init__()
+        self.msg_queue = msg_queue
+        self.fout = fout
+        self.waiting_for=0
+        self.dec_buf = {}
+
+    def process_dec(self, dec):
+        for hypothesis in dec:
+            self.fout.write(hypothesis + "\n")
+            self.fout.flush()
+
+    def process_buffer(self):
+        while self.waiting_for in self.dec_buf:
+            self.process_dec(self.dec_buf[self.waiting_for])
+            del self.dec_buf[self.waiting_for]
+            self.waiting_for+=1
+
+    def run(self):
+        while True:
+            ind, dec = self.msg_queue.get()
+            if dec == GENERATE_FINISHED:
+                break
+            elif ind != self.waiting_for:
+                self.dec_buf[ind] = dec
+            else:
+                self.process_dec(dec)
+                self.waiting_for+=1
+                self.process_buffer()
+        self.process_buffer()
+        assert not self.dec_buf, "IO Buffer not empty"
+        self.msg_queue.close()
+        self.msg_queue.join_thread()
+
+class PostProcess(Process):
+    """ Parallel detokenization """
+    def __init__(self, tokenizer, data_queue, msg_queue,
+            skip_special_tokens, clean_up_tokenization_spaces):
+        super(PostProcess, self).__init__()
+        self.data_queue = data_queue
+        self.msg_queue  = msg_queue
+        self.tokenizer = tokenizer
+        self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
+        self.skip_special_tokens = skip_special_tokens
+
+    def run(self):
+        while True:
+            ind, summaries = self.data_queue.get()
+            if summaries == GENERATE_FINISHED:
+                self.data_queue.put((-1, POSTPROCESS_FINISHED))
+                break
+            elif summaries == POSTPROCESS_FINISHED:
+                self.data_queue.put((-1, POSTPROCESS_FINISHED))
+                break
+            else:
+                dec = self.tokenizer.batch_decode(summaries,
+                        skip_special_tokens = self.skip_special_tokens,
+                        clean_up_tokenization_spaces =
+                        self.clean_up_tokenization_spaces)
+                self.msg_queue.put((ind, dec))
+
+        self.data_queue.close()
+        self.data_queue.join_thread()
+        self.msg_queue.close()
+        self.msg_queue.join_thread()
 
 def generate_summaries_or_translations(
     examples: list,
@@ -29,6 +123,10 @@ def generate_summaries_or_translations(
     decoder_start_token_id=None,
     fastseq_opt=True,
     no_repeat_ngram_size=None,
+    skip_special_tokens=True,
+    clean_up_tokenization_spaces=False,
+    preprocess_cpu_num=2,
+    postprocess_cpu_num=2,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -46,16 +144,29 @@ def generate_summaries_or_translations(
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
+    data_queue = Queue()
+    msg_queue =  Queue()
+    p_list = []
 
-    for batch in tqdm(list(chunks(examples, batch_size))):
-        if "t5" in model_name:
-            batch = [model.config.prefix + text for text in batch]
-        batch = tokenizer(batch,
-                          return_tensors="pt",
-                          truncation=True,
-                          padding="max_length").to(device)
+    for i in range(postprocess_cpu_num):
+        p = PostProcess(tokenizer, data_queue, msg_queue,
+            skip_special_tokens, clean_up_tokenization_spaces)
+        p_list.append(p)
+        p.start()
+
+    io_process = IOProcess( msg_queue, fout)
+    io_process.start()
+    dataset = TokenizeDataset(examples, tokenizer, model_name,
+            model.config.prefix)
+    training_generator = torch.utils.data.DataLoader(dataset,
+            batch_size=batch_size, num_workers = preprocess_cpu_num,
+            drop_last=True)
+    for ind, batch in tqdm(enumerate(training_generator)):
+        input_ids, attention_mask = batch
+        input_ids = input_ids.view(batch_size, -1).to(device)
+        attention_mask = attention_mask.view(batch_size, -1).to(device)
         input_ids, attention_mask = trim_batch(
-            **batch, pad_token_id=tokenizer.pad_token_id)
+            input_ids, tokenizer.pad_token_id, attention_mask)
         summaries = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -63,13 +174,14 @@ def generate_summaries_or_translations(
             no_repeat_ngram_size=no_repeat_ngram_size,
             **gen_kwargs,
         )
-        dec = tokenizer.batch_decode(summaries,
-                                     skip_special_tokens=True,
-                                     clean_up_tokenization_spaces=False)
-        for hypothesis in dec:
-            fout.write(hypothesis + "\n")
-            fout.flush()
-
+        summaries_cpu = summaries.cpu()
+        data_queue.put((ind, summaries_cpu))
+    data_queue.put((-1, GENERATE_FINISHED))
+    for p in p_list:
+        p.join()
+    msg_queue.put((-1, GENERATE_FINISHED))
+    io_process.join()
+    fout.close()
 
 def run_generate():
     """Entrance is here."""
@@ -118,6 +230,19 @@ def run_generate():
     parser.add_argument("--without_fastseq_opt", action="store_true")
     parser.add_argument("--no_repeat_ngram_size", type=int, default=None,
                          required=False, help="size of no repeat ngram")
+    parser.add_argument("--include_special_tokens", action="store_true")
+    parser.add_argument("--clean_up_tokenization_spaces", action="store_true")
+    parser.add_argument("--preprocess_cpu_num",
+                        type=int,
+                        default=2,
+                        required=False,
+                        help="pre-processing worker threads")
+    parser.add_argument("--postprocess_cpu_num",
+                        type=int,
+                        default=2,
+                        required=False,
+                        help="post-processing worker threads")
+
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -137,7 +262,11 @@ def run_generate():
         decoder_start_token_id=args.decoder_start_token_id,
         fastseq_opt=not args.without_fastseq_opt,
         no_repeat_ngram_size=args.no_repeat_ngram_size,
-    )
+        skip_special_tokens=not args.include_special_tokens,
+        clean_up_tokenization_spaces=args.clean_up_tokenization_spaces,
+        preprocess_cpu_num=args.preprocess_cpu_num,
+        postprocess_cpu_num=args.postprocess_cpu_num,
+        )
     if args.reference_path is None:
         return
     # Compute scores
