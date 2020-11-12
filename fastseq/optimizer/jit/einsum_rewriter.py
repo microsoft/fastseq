@@ -20,27 +20,35 @@ def einsum_rewrite_pattern_0(equation: str, operands: List[Tensor]):
     if equation == "bmhtd,bnhsd->bmhts":
         t0 = operands[0]
         t1 = operands[1]
-        expand_shape = list(t1.shape)
-        expand_shape[1] = t0.size(1)
-        result_shape = list(t0.shape)
-        result_shape[4] = expand_shape[3]
-        t1 = t1.expand(expand_shape).transpose(3, 4).contiguous()
-        t1 = t1.view(-1, t1.size(3), t1.size(4))
-        t0 = t0.view(-1, t0.size(3), t0.size(4))
-        r = torch.bmm(t0, t1).view(result_shape)
+        b = t0.size(0)
+        m = t0.size(1)
+        h = t0.size(2)
+        t = t0.size(3)
+        d = t0.size(4)
+        n = t1.size(1)
+        s = t1.size(3)
+        t0 = t0.permute(0, 2, 1, 3, 4) # (b, h, m, t, d)
+        t1 = t1.permute(0, 2, 4, 1, 3) # (b, h, d, n, s)
+        t0 = t0.reshape(b*h, m*t, d)
+        t1 = t1.reshape(b*h, d, n*s) # TODO: add a check: assert n == 1
+        r = torch.bmm(t0, t1).view(b, h, m, t, n*s).permute(0, 2, 1, 3, 4)
         return r
 
     if equation == "bmhts,bnhsd->bmhtd":
         t0 = operands[0]
         t1 = operands[1]
-        expand_shape = list(t1.shape)
-        expand_shape[1] = t0.size(1)
-        result_shape = list(t0.shape)
-        result_shape[4] = expand_shape[4]
-        t0 = t0.view(-1, t0.size(3), t0.size(4))
-        t1 = t1.expand(expand_shape).contiguous()
-        t1 = t1.view(-1, t1.size(3), t1.size(4))
-        r = torch.bmm(t0, t1).view(result_shape)
+        b = t0.size(0)
+        m = t0.size(1)
+        h = t0.size(2)
+        t = t0.size(3)
+        s = t0.size(4)
+        n = t1.size(1)
+        d = t1.size(4)
+        t0 = t0.permute(0, 2, 1, 3, 4) # (b, h, m, t, s)
+        t1 = t1.permute(0, 2, 3, 1, 4) # (b, h, s, n, d)
+        t0 = t0.reshape(b*h, m*t, s)
+        t1 = t1.reshape(b*h, s, n*d) # TODO: add a check: assert n == 1
+        r = torch.bmm(t0, t1).view(b, h, m, t, n*d).permute(0, 2, 1, 3, 4)
         return r
 
     return torch.einsum(equation, operands)

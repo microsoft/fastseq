@@ -25,13 +25,10 @@ class EinsumRewriterTest(TestCaseBase):
         r0 = run_einsum(t0, t1)
 
         script_run_einsum = torch.jit.script(run_einsum)
+        rewrite_einsum(script_run_einsum.graph)
         r1 = script_run_einsum(t0, t1)
 
-        rewrite_einsum(script_run_einsum.graph)
-        r2 = script_run_einsum(t0, t1)
-
-        self.assertTrue(torch.allclose(r0, r1))
-        self.assertTrue(torch.allclose(r1, r2))
+        self.assertTrue(torch.equal(r0, r1))
 
 if __name__ == "__main__":
     absltest.main()
