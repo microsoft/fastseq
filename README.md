@@ -10,11 +10,11 @@ Below shows the generation speed gain by using FastSeq.
 | Model            | W/O FastSeq (in samples/s) | W/ FastSeq (in samples/s) | Speedup |
 |------------------|:--------------------------:|:-------------------------:|:-----:|
 | [ProphetNet](examples/prophetnet/README.md)       | 2.7                        | 10.3                      | 3.8x  |
-| [Bart (`fs`)](examples/bart/README.md)              | 2.7                        | 12.5                      | 4.6x  |
-| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq)              | 3.4                        | 8.1                       | 2.4x  |
-| [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.0                        | 8.5                       | 2.1x  |
-| [T5 (`hf`)](examples/t5/README.md)                  | 4.8                        | 7.5                       | 1.6x  |
-| [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 84.0                       | 122.0                     | 1.5x  |
+| [Bart (`fs`)](examples/bart/README.md)              | 2.7                        | 13.3                      | 5x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq)              | 3.4                        | 9.9                       | 2.9x  |
+| [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.0                        | 11.9                       | 3x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 4.8                        | 11.0                       | 2.3x  |
+| [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 84.0                       | 124.0                     | 1.5x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
 - `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.9.0 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 3.0.2 version.

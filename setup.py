@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from setuptools import find_packages, setup
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 from fastseq.config import FASTSEQ_VERSION
 
@@ -13,6 +14,13 @@ extras = {}
 extras["torch"] = ["torch>=1.4.0"]
 extras["fairseq"] = ["fairseq>=0.9.0"]
 extras["transformers"] = ["transformers>=3.0.2"]
+
+extensions = [
+       CUDAExtension('ngram_repeat_block_cuda', [
+                   'fastseq/clib/cuda/ngram_repeat_block_cuda.cpp',
+                   'fastseq/clib/cuda/ngram_repeat_block_cuda_kernel.cu',
+               ]),
+        ]
 
 setup(
     name="fastseq",
@@ -51,11 +59,15 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
+    ext_modules=extensions,
     entry_points={
         'console_scripts': [
             'fastseq-generate-for-fairseq = fastseq_cli.generate:cli_main',
             'fastseq-generate-for-transformers = fastseq_cli.transformers_generate:run_generate',
             'fastseq-eval-lm-for-fairseq = fastseq_cli.eval_lm:cli_main',
         ],
+    },
+    cmdclass={
+        'build_ext': BuildExtension
     },
 )

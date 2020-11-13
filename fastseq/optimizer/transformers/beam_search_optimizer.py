@@ -17,6 +17,7 @@ from transformers.generation_utils import (BeamHypotheses, GenerationMixin,
 
 from transformers.modeling_bart import BartForConditionalGeneration
 from transformers.modeling_t5 import T5ForConditionalGeneration
+from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import replace
@@ -648,17 +649,9 @@ class GenerationMixinV2(GenerationMixin):
 
         cpu_input_ids = input_ids.cpu()
         if no_repeat_ngram_size > 0:
-            # calculate a list of banned tokens to prevent repetitively
-            # generating the same ngrams
-            num_batch_hypotheses = batch_size * num_beams
-            # from fairseq: https://github.com/pytorch/fairseq/blob/a07cb6f40480928c9e0548b737aadd36ee66ac76/fairseq/sequence_generator.py#L345
-            banned_ngram_tokens = calc_banned_ngram_tokens_v2(
-                cpu_input_ids,
-                num_batch_hypotheses,
-                no_repeat_ngram_size,
-                cur_len,
-                self.config.pad_token_id)
-            _update_scores(banned_ngram_tokens)
+            #custom op for Ngram repeat blocking
+            scores = self.no_repeat_ngram_op(input_ids,scores.float(),
+                    batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
 
         if bad_words_ids is not None:
             # calculate a list of banned tokens according to bad words
@@ -720,6 +713,9 @@ class GenerationMixinV2(GenerationMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
+
+        #NGram Repeat block Op
+        self.no_repeat_ngram_op = NGramRepeatBlock()#.to('cuda', torch.float32)
 
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(
