@@ -7,7 +7,7 @@ split="$1"; shift
 bss="$1"; shift
 perff="$1"; shift
 
-data_dir=$CACHE_DIR/$task
+data_dir=$CACHE_DIR/tasks/$task
 mkdir -p $data_dir
 file_list=($split.source $split.target)
 for f in "${file_list[@]}"; do
@@ -25,13 +25,22 @@ elif [[ "$framework" == "transformers+fastseq" ]]; then
     ver2=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
     framework_versioned="transformers_v$ver1+fastseq_v$ver2"
 fi
+
+model_dir=$CACHE_DIR/models
+mkdir -p $model_dir
+model_id=$model
+if [[ $model == *.tar.gz ]]; then
+    local_path=$model_dir/$model
+    download_if_not_in_cache https://fastseq.blob.core.windows.net/data/models/$model $local_path uncompress
+    model_id=${local_path::-7}
+fi
 IFS='/' read -ra bs_list <<< "$bss"
 for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
     echo "Processing Loop=$i/$LOOP Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
     rm -rf $SUMMARY_FILE $SCORE_FILE
     start=`date +%s`
-    fastseq-generate-for-transformers $model $data_dir/$split.source $SUMMARY_FILE --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $SCORE_FILE $extra_param $* > $STDOUT_FILE 2> $STDERR_FILE
+    fastseq-generate-for-transformers $model_id $data_dir/$split.source $SUMMARY_FILE --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $SCORE_FILE $extra_param $* > $STDOUT_FILE 2> $STDERR_FILE
     ret=$?
     end=`date +%s`
     runtime=$(($end-$start))

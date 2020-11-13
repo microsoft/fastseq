@@ -32,6 +32,10 @@ download_if_not_in_cache() {
             echo "Failed to download '$remote_path'"
             exit -1
         fi
+        if [[ "$#" -eq 3 && $local_path == *.tar.gz ]]; then
+            cd `dirname $local_path`
+            tar xzvf $local_path
+        fi
     else
         echo "Reuse $local_path"
     fi
