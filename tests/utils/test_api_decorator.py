@@ -5,7 +5,7 @@
 
 from absl.testing import absltest, parameterized
 from fastseq.utils.api_decorator import get_class, override_method, add_method, export_api, replace
-from fastseq.utils.test_utils import TestCaseBase
+from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 
 
 class A:
@@ -152,4 +152,4 @@ class APIDecoratorTest(TestCaseBase):
 
 
 if __name__ == "__main__":
-    absltest.main()
+    fastseq_test_main()

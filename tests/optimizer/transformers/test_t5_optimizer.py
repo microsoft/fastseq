@@ -12,7 +12,7 @@ from absl.testing import absltest, parameterized
 
 import fastseq
 from fastseq.logging import get_logger
-from fastseq.utils.test_utils import TestCaseBase
+from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 from transformers import (T5ForConditionalGeneration, T5Tokenizer)
 
 
@@ -184,4 +184,4 @@ class T5OptimizerTest(TestCaseBase):
 
 
 if __name__ == "__main__":
-    absltest.main()
+    fastseq_test_main()

@@ -16,7 +16,8 @@ import fastseq
 from fastseq.logging import get_logger
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
-                                      CACHED_BART_MODEL_PATHS, TestCaseBase)
+                                      CACHED_BART_MODEL_PATHS,
+                                      fastseq_test_main, TestCaseBase)
 
 logger = get_logger(__name__)
 
@@ -117,4 +118,4 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
 
 
 if __name__ == "__main__":
-    absltest.main()
+    fastseq_test_main()
