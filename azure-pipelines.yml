@@ -17,7 +17,7 @@ jobs:
     container:
       image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
       endpoint: fastseq-acr
-      options: --gpus all
+      options: --gpus device=3
     steps:
     - script: |
         #install fastseq
@@ -30,7 +30,6 @@ jobs:
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 
-        export CUDA_VISIBLE_DEVICES=3
         echo "******* Running fairseq unittests *******"
         bash tests/run_fairseq_tests.sh
         echo "******* Running transformers unittests *******"
@@ -39,5 +38,5 @@ jobs:
         pip install pytorch-transformers==1.0.0
         python -m unittest discover -s tests/ -p 'test_*.py' -v
         #cd benchmarks/
-        #CUDA_VISIBLE_DEVICES=3 run_all_benchmarks.sh
+        #bash run_all_benchmarks.sh
       displayName: 'run fastseq unit tests'

@@ -18,6 +18,7 @@ else
     exit -1
 fi
 result_file=perf
+touch $result_file
 echo "Util Model Task Split BatchSize Samples Tokens Bleu Rouge Loss Perplexity Runtime(seconds) Throughput(samples/s) Throughput(tokens/s)" >> $result_file
 bash $shell $framework $model $task $split $bss $result_file $*
 ret=$?
