@@ -3,6 +3,7 @@
 # clean cache if you want to start from a clean environment
 #rm -rf ~/.cache/fastseq-cache
 
+touch perf.summary
 for f in `ls ./models/`; do
     echo "Run $f ..."
     bash ./models/$f
