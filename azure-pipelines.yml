@@ -36,7 +36,7 @@ jobs:
         bash tests/run_transformers_tests.sh
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
-        python -m unittest discover -s tests/ -p 'test_*.py' -v
+        bash tests/run_fastseq_tests.sh
         #cd benchmarks/
         #bash run_all_benchmarks.sh
       displayName: 'run fastseq unit tests'

@@ -21,7 +21,8 @@ FLAGS = flags.FLAGS
 
 def fastseq_test_main():
     caller = getframeinfo(stack()[1][0])
-    xml_log_file = caller.filename.replace(os.sep, '_').replace('.py', '.xml')
+    suffix = '_' + time.strftime("%Y%m%d%H%M%S") + '.xml'
+    xml_log_file = caller.filename.replace(os.sep, '_').replace('.py', suffix)
     xml_log_file = os.path.join(os.sep, 'tmp', 'fastseq_tests', xml_log_file)
     FLAGS.xml_output_file = xml_log_file
     logger.info(f"Fastseq unit test log output filepath: {xml_log_file}")
