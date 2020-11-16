@@ -145,7 +145,7 @@ class APIDecoratorTest(TestCaseBase):
 
         self.assertEqual(child.name(), 'BaseV2')
         self.assertEqual(grandchild.name(), 'GrandChildV2')
-        self.assertEqual(preloaded_grandchild.name(), 'BaseV3')
+        self.assertEqual(preloaded_grandchild.name(), 'BaseV2')
 
         self.assertEqual(
             preloaded_classes['grandchild'], Grandchild.__replaced_class__)
