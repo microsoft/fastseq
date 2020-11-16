@@ -11,7 +11,7 @@ import time
 from absl import flags
 from absl.testing import absltest, parameterized
 
-from fastseq.config import FASTSEQ_CACHE_DIR
+from fastseq.config import FASTSEQ_CACHE_DIR, FASTSEQ_UNITTEST_LOG_XML_DIR
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import get_class
 
@@ -23,7 +23,7 @@ def fastseq_test_main():
     caller = getframeinfo(stack()[1][0])
     suffix = '_' + time.strftime("%Y%m%d%H%M%S") + '.xml'
     xml_log_file = caller.filename.replace(os.sep, '_').replace('.py', suffix)
-    xml_log_file = os.path.join('tests', 'fastseq_tests', xml_log_file)
+    xml_log_file = os.path.join(FASTSEQ_UNITTEST_LOG_XML_DIR, xml_log_file)
     FLAGS.xml_output_file = xml_log_file
     logger.info(f"Fastseq unit test log output filepath: {xml_log_file}")
     absltest.main()
