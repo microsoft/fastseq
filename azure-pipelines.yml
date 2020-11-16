@@ -31,12 +31,18 @@ jobs:
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 
         echo "******* Running fairseq unittests *******"
-        bash tests/run_fairseq_tests.sh
+        # bash tests/run_fairseq_tests.sh
         echo "******* Running transformers unittests *******"
-        bash tests/run_transformers_tests.sh
+        # bash tests/run_transformers_tests.sh
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
         bash tests/run_fastseq_tests.sh
         #cd benchmarks/
         #bash run_all_benchmarks.sh
       displayName: 'run fastseq unit tests'
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testRunTitle: 'Publish test results for Python $(python.version)'
+        testResultsFiles: '/tmp/fastseq_tests/*.xml'
+        failTaskOnFailedTests: true
