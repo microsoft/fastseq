@@ -10,8 +10,8 @@ More info can be found [here](https://github.com/huggingface/transformers/blob/m
 
   |      BatchSize      |       64       |       128      |
   |:-------------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 4.0 samples/s  |      OOM       |
-  |  above + fastseq    | 6.5 samples/s  | 6.5 samples/s  |
+  | transformers-3.0.2  | 4.3 samples/s  |      OOM       |
+  |  above + fastseq    | 13.3 samples/s  | 13.8 samples/s  |
 
 
 ### Model

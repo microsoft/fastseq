@@ -25,6 +25,6 @@ grep "prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid" perf 
 grep -E "fairseq_v0.9.0 prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 2.5 3.0
 grep -E "fairseq_v0.9.0 prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 3 3.5
 
-grep -E "fairseq_v0.9.0\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 5.3 5.8
-grep -E "fairseq_v0.9.0\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 8.0 8.5
-grep -E "fairseq_v0.9.0\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 128 " perf | awk '{s+=$13}END{print s/NR}'| bash range.sh 10 10.5
+grep -E "fairseq_v0.9.0\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 32 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 5.7 6.5
+grep -E "fairseq_v0.9.0\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 64 " perf | awk '{s+=$13}END{print s/NR}' | bash range.sh 8.5 10
+grep -E "fairseq_v0.9.0\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert.1k/len-1024.bin valid 128 " perf | awk '{s+=$13}END{print s/NR}'| bash range.sh 10 15
