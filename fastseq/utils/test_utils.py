@@ -22,10 +22,10 @@ FLAGS = flags.FLAGS
 def fastseq_test_main():
     caller = getframeinfo(stack()[1][0])
     suffix = '_' + time.strftime("%Y%m%d%H%M%S") + '.xml'
-    xml_log_file = caller.filename.replace(os.sep, '_').replace('.py', suffix)
-    xml_log_file = os.path.join(FASTSEQ_UNITTEST_LOG_XML_DIR, xml_log_file)
-    FLAGS.xml_output_file = xml_log_file
-    logger.info(f"Fastseq unit test log output filepath: {xml_log_file}")
+    log_xml_file = caller.filename.replace(os.sep, '_').replace('.py', suffix)
+    log_xml_file = os.path.join(FASTSEQ_UNITTEST_LOG_XML_DIR, log_xml_file)
+    FLAGS.xml_output_file = log_xml_file
+    logger.info(f"Fastseq unit test log output filepath: {log_xml_file}")
     absltest.main()
 
 class TestCaseBase(parameterized.TestCase):
