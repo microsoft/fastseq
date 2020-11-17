@@ -37,11 +37,17 @@ class BertDictionary(Dictionary):
         d.count = []
         d.indices = {}
 
+        line_cnt = 0
         with open(
             filename, 'r', encoding='utf-8', errors='ignore') as input_file:
             for line in input_file:
-                k, v = line.split()
-                d.add_symbol(k)
+                line_cnt += 1
+                try:
+                    k, v = line.split(" ")
+                    d.add_symbol(k)
+                except ValueError as e:
+                    print("Bad line at line: %d (1-based), content: '%s'." % (line_cnt, line))
+                    raise e
 
         d.unk_word = '[UNK]'
         d.pad_word = '[PAD]'
