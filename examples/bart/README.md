@@ -13,7 +13,7 @@ BART is sequence-to-sequence model trained with denoising as pretraining objecti
   |     BatchSize    |       32      |        64       |      128       |
   |:----------------:|:-------------:|:---------------:|:--------------:|
   | fairseq-0.9.0    | 2.7 samples/s |       OOM       |      OOM       |
-  | above + fastseq  | 9.0 samples/s | 12.5 samples/s  | 14.5 samples/s |
+  | above + fastseq  | 9.0 samples/s | 13.0 samples/s  | 15.0 samples/s |
 
 ### Model
 
@@ -61,8 +61,8 @@ Refer to [file](../../tests/optimizer/fairseq/test_fairseq_optimizer.py).
 
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 3.4 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 5.2 samples/s | 6.2 samples/s  | 6.4 samples/s  |
+  | transformers-3.0.2  | 3.5 samples/s |      OOM       |      OOM       |
+  |  above + fastseq    | 7.9 samples/s | 10.7 samples/s  | 11.4 samples/s  |
 
 
 ### Model

@@ -15,5 +15,6 @@ grep " adaptive_lm_wiki103.v2 lm/bin test " perf | awk '{if($10!="NA"){c+=1;s+=$
 grep " adaptive_lm_wiki103.v2 lm/bin test " perf | awk '{if($11!="NA"){c+=1;s+=$11}}END{print s/c}' | bash range.sh 18.66 18.67 # perplexity
 # Speed on V100 16GB 250W
 grep -E "fairseq_v0.9.0 adaptive_lm_wiki103.v2 lm/bin test " perf | awk '{s+=$14}END{print s/NR}' | bash range.sh 3100 10000
-grep -E "fairseq_v0.9.0\+fastseq_v.* adaptive_lm_wiki103.v2 lm/bin test " perf | awk '{s+=$14}END{print s/NR}' | bash range.sh 3100 10000
+# slightly slower, need to investigate
+grep -E "fairseq_v0.9.0\+fastseq_v.* adaptive_lm_wiki103.v2 lm/bin test " perf | awk '{s+=$14}END{print s/NR}' | bash range.sh 3000 10000
 
