@@ -9,8 +9,9 @@ pip install packaging
 pip install pytest
 pip install timeout-decorator
 pip install torch torchvision
+pip install unittest-xml-reporting
+pip install lxml
 cd ${FASTSEQ_TEST_PATH}/../
 pip install --editable .
-cd tests
-python run_transformers_tests.py 
+python tests/run_transformers_tests.py
 deactivate

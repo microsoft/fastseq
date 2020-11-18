@@ -2,15 +2,18 @@
 # Licensed under the MIT License.
 """ script for importing transformers tests """
 
-import glob
-import sys
+import io
 import os
-import argparse
-import logging
 import shutil
+import sys
+import time
+import unittest
+
+import xmlrunner
+from absl.testing import parameterized
 from git import Repo
-from absl.testing import absltest, parameterized
 from pip._internal import main as pipmain
+from xmlrunner.extra.xunit_plugin import transform
 
 FASTSEQ_PATH = os.sep.join(os.path.realpath(__file__).split('/')[0:-2])
 TRANSFORMERS_PATH = '/tmp/transformers/'
@@ -61,8 +64,24 @@ class TransformersUnitTests(parameterized.TestCase):
         os.chdir(TRANSFORMERS_PATH)
         blocked_tests_string = (
                     ' and '.join([' not '+ test for test in blocked_tests]))
-        exit_code = pytest.main(['-sv', '-k'+blocked_tests_string,  './tests/'])
+        exit_code = pytest.main(
+            ['-sv', '-k' + blocked_tests_string,  './tests/'])
         assert str(exit_code).strip() == 'ExitCode.OK'
 
 if __name__ == "__main__":
-    absltest.main()
+    log_xml_dir = os.getenv(
+        'FASTSEQ_UNITTEST_LOG_XML_DIR',
+        os.path.join(os.getcwd(), 'tests', 'log_xml'))
+    os.makedirs(log_xml_dir, exist_ok=True)
+    suffix = '_' + time.strftime("%Y%m%d%H%M%S") + '.xml'
+    log_xml_file = __file__.replace(os.sep, '_').replace('.py', suffix)
+    log_xml_file = os.path.join(log_xml_dir, log_xml_file)
+
+    out = io.BytesIO()
+    unittest.main(
+        testRunner=xmlrunner.XMLTestRunner(output=out),
+        failfast=False, buffer=False, catchbreak=False, exit=False)
+    with open(log_xml_file, 'wb') as report:
+        report.write(transform(out.getvalue()))
+        print(
+            "Save the log of transformers unit tests into %s" % (log_xml_file))

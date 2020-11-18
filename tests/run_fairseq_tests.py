@@ -3,15 +3,19 @@
 """ script for importing fairseq tests """
 
 import glob
-import sys
-import os
-import argparse
+import io
 import logging
+import os
 import shutil
+import sys
+import time
 import unittest
+
+import xmlrunner
+from absl.testing import parameterized
 from git import Repo
-from absl.testing import absltest, parameterized
 from pip._internal import main as pipmain
+from xmlrunner.extra.xunit_plugin import transform
 
 FASTSEQ_PATH = os.sep.join(os.path.realpath(__file__).split('/')[0:-2])
 FAIRSEQ_PATH = '/tmp/fairseq/'
@@ -32,7 +36,7 @@ class FairseqUnitTests(parameterized.TestCase):
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
-        pipmain(['install', 'git+https://github.com/pytorch/fairseq.git@' + 
+        pipmain(['install', 'git+https://github.com/pytorch/fairseq.git@' +
                   version])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
@@ -54,12 +58,9 @@ class FairseqUnitTests(parameterized.TestCase):
         return suites
 
     @parameterized.named_parameters({
-        'testcase_name':
-        'Normal',
-        'without_fastseq_opt':
-        False,
-        'fairseq_version':
-        'v0.9.0',
+        'testcase_name': 'Normal',
+        'without_fastseq_opt': False,
+        'fairseq_version': 'v0.9.0',
         'blocked_tests': [
            'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py']
     })
@@ -67,14 +68,28 @@ class FairseqUnitTests(parameterized.TestCase):
         """"run test suites"""
         self.clone_and_build_fairseq(FAIRSEQ_GIT_URL, fairseq_version)
         if not without_fastseq_opt:
-            import fastseq  #pylint: disable=import-outside-toplevel
+            import fastseq  # pylint: disable=import-outside-toplevel
         self.prepare_env()
         test_files_path = FAIRSEQ_PATH + '/tests/test_*.py'
         suites = self.get_test_suites(test_files_path, blocked_tests)
         test_suite = unittest.TestSuite(suites)
         test_runner = unittest.TextTestRunner()
         test_result = test_runner.run(test_suite)
-        assert len(test_result.errors) == 0 
+        assert len(test_result.errors) == 0
 
 if __name__ == "__main__":
-    absltest.main()
+    log_xml_dir = os.getenv(
+        'FASTSEQ_UNITTEST_LOG_XML_DIR',
+        os.path.join(os.getcwd(), 'tests', 'log_xml'))
+    os.makedirs(log_xml_dir, exist_ok=True)
+    suffix = '_' + time.strftime("%Y%m%d%H%M%S") + '.xml'
+    log_xml_file = __file__.replace(os.sep, '_').replace('.py', suffix)
+    log_xml_file = os.path.join(log_xml_dir, log_xml_file)
+
+    out = io.BytesIO()
+    unittest.main(
+        testRunner=xmlrunner.XMLTestRunner(output=out),
+        failfast=False, buffer=False, catchbreak=False, exit=False)
+    with open(log_xml_file, 'wb') as report:
+        report.write(transform(out.getvalue()))
+        print("Save the log of fairseq unit tests into %s" % (log_xml_file))
