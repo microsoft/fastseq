@@ -63,7 +63,7 @@ class TransformersUnitTests(parameterized.TestCase):
         self.prepare_env()
         os.chdir(TRANSFORMERS_PATH)
         blocked_tests_string = (
-                    ' and '.join([' not '+ test for test in blocked_tests]))
+            ' and '.join([' not '+ test for test in blocked_tests]))
         exit_code = pytest.main(
             ['-sv', '-k' + blocked_tests_string,  './tests/'])
         assert str(exit_code).strip() == 'ExitCode.OK'
