@@ -7,14 +7,16 @@
 
 from collections import Counter
 from multiprocessing import Pool
+import logging
 import os
-
 import torch
 
 from fairseq.tokenizer import tokenize_line
 from fairseq.binarizer import safe_readline
 from fairseq.data import data_utils, Dictionary
+from fastseq.logging import get_logger
 
+logger = get_logger(__name__, logging.INFO)
 
 class BertDictionary(Dictionary):
     """A mapping from symbols to consecutive integers"""
@@ -37,11 +39,17 @@ class BertDictionary(Dictionary):
         d.count = []
         d.indices = {}
 
+        line_cnt = 0
         with open(
             filename, 'r', encoding='utf-8', errors='ignore') as input_file:
             for line in input_file:
-                k, v = line.split()
-                d.add_symbol(k)
+                line_cnt += 1
+                try:
+                    k, v = line.split(" ")
+                    d.add_symbol(k)
+                except:
+                    logger.error("Bad line at line: %d (1-based), content: '%s'." % (line_cnt, line))
+                    raise
 
         d.unk_word = '[UNK]'
         d.pad_word = '[PAD]'
