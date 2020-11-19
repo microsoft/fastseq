@@ -650,8 +650,18 @@ class GenerationMixinV2(GenerationMixin):
         cpu_input_ids = input_ids.cpu()
         if no_repeat_ngram_size > 0:
             #custom op for Ngram repeat blocking
-            scores = self.no_repeat_ngram_op(input_ids,scores.float(),
-                    batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
+            if (input_ids.is_cuda and scores.is_cuda):
+                scores = self.no_repeat_ngram_op(input_ids,scores.float(),
+                        batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
+            else:
+                num_batch_hypotheses = batch_size * num_beams
+                banned_ngram_tokens = calc_banned_ngram_tokens_v2(
+                    cpu_input_ids,
+                    num_batch_hypotheses,
+                    no_repeat_ngram_size,
+                    cur_len,
+                    self.config.pad_token_id)
+                _update_scores(banned_ngram_tokens)
 
         if bad_words_ids is not None:
             # calculate a list of banned tokens according to bad words
