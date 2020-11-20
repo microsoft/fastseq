@@ -68,15 +68,20 @@ def _update_fairseq_model_registration():
                 "Update the register model arch {} from {} to {}".format(
                     arch_name, model_class, OPTIMIZED_CLASSES[model_class]))
 
+is_fairseq_installed = True
 
 try:
     import fairseq # pylint: disable=ungrouped-imports
     from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY # pylint: disable=ungrouped-imports
     from fairseq.sequence_generator import SequenceGenerator # pylint: disable=ungrouped-imports
-    apply_fairseq_optimization()
 except ImportError as error:
+    is_fairseq_installed = False
     logger.warning('fairseq can not be imported. Please ignore this warning if '
                    'you are not using fairseq: {}'.format(error))
-except:
-    logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
-    raise
+
+if is_fairseq_installed:
+    try:
+        apply_fairseq_optimization()
+    except:
+        logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
+        raise

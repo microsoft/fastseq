@@ -7,6 +7,7 @@ are detected.
 """
 
 from packaging import version
+import sys
 
 from fastseq.config import MIN_TRANSFORMERS_VERSION, MAX_TRANSFORMER_VERSION
 from fastseq.logging import get_logger
@@ -45,13 +46,17 @@ def apply_transformers_optimization():
 
     logger.debug(f"transformers == {v} has been optimized.")
 
-
+is_transformers_installed = True
 try:
     import transformers
-    apply_transformers_optimization()
 except ImportError as error:
+    is_transformers_installed = False
     logger.warning('transformers can not be imported. Please ignore this '
                    'warning if you are not using transformers')
-except:
-    logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
-    raise
+
+if is_transformers_installed:
+    try:
+        apply_transformers_optimization()
+    except:
+        logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
+        raise
