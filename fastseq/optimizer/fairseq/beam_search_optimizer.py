@@ -43,7 +43,7 @@ class BeamSearchV2(BeamSearch):
             ),
             out=(self.scores_buf, self.indices_buf),
         )
-        torch.floor_divide(self.indices_buf, vocab_size, out=self.beams_buf)
+        self.beams_buf = torch.floor_divide(self.indices_buf, vocab_size)
         self.indices_buf.fmod_(vocab_size)
         return self.scores_buf, self.indices_buf, self.beams_buf
 
@@ -755,18 +755,16 @@ class SequenceGeneratorV2(SequenceGenerator):
             eos_mask[:, :beam_size][blacklist] = 0
 
             # only consider eos when it's among the top beam_size indices
-            torch.masked_select(
+            eos_bbsz_idx = torch.masked_select(
                 cand_bbsz_idx[:, :beam_size],
                 mask=eos_mask[:, :beam_size],
-                out=eos_bbsz_idx,
             )
 
             finalized_sents = set()
             if eos_bbsz_idx.numel() > 0:
-                torch.masked_select(
+                eos_scores = torch.masked_select(
                     cand_scores[:, :beam_size],
                     mask=eos_mask[:, :beam_size],
-                    out=eos_scores,
                 )
                 finalized_sents = finalize_hypos(step, eos_bbsz_idx,
                                                  eos_scores)
@@ -783,7 +781,7 @@ class SequenceGeneratorV2(SequenceGenerator):
                 # construct batch_idxs which holds indices of batches to keep for the next pass
                 batch_mask = cand_indices.new_ones(bsz)
                 batch_mask[cand_indices.new(finalized_sents)] = 0
-                batch_idxs = batch_mask.nonzero().squeeze(-1)
+                batch_idxs = torch.nonzero(batch_mask).squeeze(-1)
 
                 eos_mask = eos_mask[batch_idxs]
                 cand_beams = cand_beams[batch_idxs]
@@ -816,10 +814,9 @@ class SequenceGeneratorV2(SequenceGenerator):
             # candidate active hypos.
             active_mask = buffer('active_mask')
             eos_mask[:, :beam_size] |= blacklist
-            torch.add(
+            active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * cand_size,
                 cand_offsets[:eos_mask.size(1)],
-                out=active_mask,
             )
 
             # get the top beam_size active hypotheses, which are just the hypos

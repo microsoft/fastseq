@@ -76,7 +76,7 @@ try:
     apply_fairseq_optimization()
 except ImportError as error:
     logger.warning('fairseq can not be imported. Please ignore this warning if '
-                   'you are not using fairseq')
+                   'you are not using fairseq: {}'.format(error))
 except:
     logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
     raise
