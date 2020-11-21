@@ -12,6 +12,8 @@ pip install torch torchvision
 pip install unittest-xml-reporting
 pip install lxml
 cd ${FASTSEQ_TEST_PATH}/../
+rm -rf build/
+rm ngram_repeat_block_cuda*.so
 pip install --editable .
 python tests/run_transformers_tests.py
 deactivate
