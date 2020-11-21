@@ -4,23 +4,29 @@
 from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
-from fastseq.config import FASTSEQ_VERSION
+FASTSEQ_VERSION = '0.0.4'
+MIN_FAIRSEQ_VERSION = '0.9.0'
+MAX_FAIRSEQ_VERSION = '0.9.0'
+MIN_TRANSFORMERS_VERSION = '3.0.2'
+MAX_TRANSFORMER_VERSION = '3.0.2'
 
 def get_fastseq_version():
     return FASTSEQ_VERSION
 
 extras = {}
 
-extras["torch"] = ["torch>=1.4.0"]
-extras["fairseq"] = ["fairseq>=0.9.0"]
-extras["transformers"] = ["transformers>=3.0.2"]
+extras["transformers"] = ["transformers >= {}, <= {}".format(
+    MIN_TRANSFORMERS_VERSION, MAX_TRANSFORMER_VERSION)]
+extras["fairseq"] = ["fairseq >= {}, <= {}".format(
+    MIN_FAIRSEQ_VERSION, MAX_FAIRSEQ_VERSION)]
+extras["gitpython"] = ["gitpython>=3.1.7"]
+extras["editdistance"] = ["editdistance>=0.5.3"]
 
 extensions = [
-       CUDAExtension('ngram_repeat_block_cuda', [
-                   'fastseq/clib/cuda/ngram_repeat_block_cuda.cpp',
-                   'fastseq/clib/cuda/ngram_repeat_block_cuda_kernel.cu',
-               ]),
-        ]
+    CUDAExtension('ngram_repeat_block_cuda', [
+        'fastseq/clib/cuda/ngram_repeat_block_cuda.cpp',
+        'fastseq/clib/cuda/ngram_repeat_block_cuda_kernel.cu',]),
+]
 
 setup(
     name="fastseq",
@@ -41,9 +47,13 @@ setup(
     ],
     install_requires=[
         "absl-py",
+        "filelock",
         "numpy",
         "requests",
+        "rouge-score>=0.0.4",
         "packaging",
+        "torch>=1.4.0",
+        "pytorch-transformers==1.0.0",
     ],
     extras_require=extras,
     python_requires=">=3.6.0",

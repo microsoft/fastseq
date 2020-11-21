@@ -40,7 +40,9 @@ def apply_fairseq_optimization():
             f"fairseq(v{fairseq.__version__}) is not supported by fastseq(v"
             f"{FASTSEQ_VERSION}) yet, please change fairseq to "
             f"v{MIN_FAIRSEQ_VERSION} ~ v{MAX_FAIRSEQ_VERSION}, or check other "
-            "versions of fastseq.")
+            "versions of fastseq. Currently, no optimization in fastseq has "
+            "been applied. Please ignore this warning if you are not using "
+            "fairseq")
         return
 
     import fastseq.optimizer.fairseq.beam_search_optimizer  # pylint: disable=import-outside-toplevel
@@ -68,15 +70,20 @@ def _update_fairseq_model_registration():
                 "Update the register model arch {} from {} to {}".format(
                     arch_name, model_class, OPTIMIZED_CLASSES[model_class]))
 
+is_fairseq_installed = True
 
 try:
     import fairseq # pylint: disable=ungrouped-imports
     from fairseq.models import ARCH_MODEL_REGISTRY, MODEL_REGISTRY # pylint: disable=ungrouped-imports
     from fairseq.sequence_generator import SequenceGenerator # pylint: disable=ungrouped-imports
-    apply_fairseq_optimization()
 except ImportError as error:
+    is_fairseq_installed = False
     logger.warning('fairseq can not be imported. Please ignore this warning if '
-                   'you are not using fairseq')
-except:
-    logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
-    raise
+                   'you are not using fairseq: {}'.format(error))
+
+if is_fairseq_installed:
+    try:
+        apply_fairseq_optimization()
+    except:
+        logger.error("Unexpected error: {}".format(sys.exc_info()[0]))
+        raise
