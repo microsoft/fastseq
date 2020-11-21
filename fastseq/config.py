@@ -9,6 +9,8 @@ import os
 FASTSEQ_DEFAULT_LOG_LEVEL = 'INFO'
 FASTSEQ_LOG_LEVEL = os.getenv('FASTSEQ_LOG_LEVEL', FASTSEQ_DEFAULT_LOG_LEVEL)
 FASTSEQ_CACHE_DIR = os.getenv('FASTSEQ_CACHE_DIR', os.path.join(os.sep, 'tmp'))
+FASTSEQ_UNITTEST_LOG_XML_DIR = os.getenv(
+    'FASTSEQ_UNITTEST_LOG_XML_DIR', os.path.join('tests', 'log_xml'))
 
 FASTSEQ_LOG_FORMAT = (
     '%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s')

@@ -8,7 +8,7 @@ import os
 from absl.testing import absltest, parameterized
 
 from fastseq.utils.file_utils import decompress_file, get_temp_dir, make_dirs, wget
-from fastseq.utils.test_utils import TestCaseBase
+from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 
 
 class FileUtilsTest(TestCaseBase):
@@ -90,4 +90,4 @@ class FileUtilsTest(TestCaseBase):
 
 
 if __name__ == "__main__":
-    absltest.main()
+    fastseq_test_main()

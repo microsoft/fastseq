@@ -3,17 +3,30 @@
 
 """Utilities to make it easy to add unit tests"""
 
+from inspect import getframeinfo, stack
 import os
 from statistics import mean, stdev
 import time
 
-from absl.testing import parameterized
+from absl import flags
+from absl.testing import absltest, parameterized
 
-from fastseq.config import FASTSEQ_CACHE_DIR
+from fastseq.config import FASTSEQ_CACHE_DIR, FASTSEQ_UNITTEST_LOG_XML_DIR
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import get_class
 
 logger = get_logger(__name__)
+
+FLAGS = flags.FLAGS
+
+def fastseq_test_main():
+    caller = getframeinfo(stack()[1][0])
+    suffix = '_' + time.strftime("%Y%m%d%H%M%S") + '.xml'
+    log_xml_file = caller.filename.replace(os.sep, '_').replace('.py', suffix)
+    log_xml_file = os.path.join(FASTSEQ_UNITTEST_LOG_XML_DIR, log_xml_file)
+    FLAGS.xml_output_file = log_xml_file
+    logger.info(f"Fastseq unit test log output filepath: {log_xml_file}")
+    absltest.main()
 
 class TestCaseBase(parameterized.TestCase):
     """Base class used for unittest."""

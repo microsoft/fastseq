@@ -14,7 +14,7 @@ from absl import logging
 from absl.testing import absltest, parameterized
 from transformers import BartForConditionalGeneration, BartTokenizer
 
-from fastseq.utils.test_utils import TestCaseBase
+from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 
 
 class BARTOptimizerTest(TestCaseBase):
@@ -183,4 +183,4 @@ class BARTOptimizerTest(TestCaseBase):
 
 
 if __name__ == "__main__":
-    absltest.main()
+    fastseq_test_main()

@@ -32,11 +32,20 @@ jobs:
 
         echo "******* Running fairseq unittests *******"
         bash tests/run_fairseq_tests.sh
+
         echo "******* Running transformers unittests *******"
         bash tests/run_transformers_tests.sh
+
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
-        python -m unittest discover -s tests/ -p 'test_*.py' -v
+        bash tests/run_fastseq_tests.sh
+
         #cd benchmarks/
         #bash run_all_benchmarks.sh
       displayName: 'run fastseq unit tests'
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testRunTitle: 'Publish test results for Python $(python.version)'
+        testResultsFiles: 'tests/log_xml/*.xml'
+        failTaskOnFailedTests: true

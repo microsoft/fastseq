@@ -19,7 +19,7 @@ from fastseq.models.prophetnet_fs.ngram_s2s_model import NgramTransformerProphet
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (PROPHETNET_MODEL_URLS,
                                       CACHED_PROPHETNET_MODEL_PATHS,
-                                      TestCaseBase)
+                                      fastseq_test_main, TestCaseBase)
 
 logger = get_logger(__name__)
 
@@ -136,4 +136,4 @@ class ProphetNetModelTest(TestCaseBase):
             self.assertEqual(output, self.expected_outputs[i])
 
 if __name__ == "__main__":
-    absltest.main()
+    fastseq_test_main()
