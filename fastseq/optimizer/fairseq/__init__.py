@@ -40,7 +40,9 @@ def apply_fairseq_optimization():
             f"fairseq(v{fairseq.__version__}) is not supported by fastseq(v"
             f"{FASTSEQ_VERSION}) yet, please change fairseq to "
             f"v{MIN_FAIRSEQ_VERSION} ~ v{MAX_FAIRSEQ_VERSION}, or check other "
-            "versions of fastseq.")
+            "versions of fastseq. Currently, no optimization in fastseq has "
+            "been applied. Please ignore this warning if you are not using "
+            "fairseq")
         return
 
     import fastseq.optimizer.fairseq.beam_search_optimizer  # pylint: disable=import-outside-toplevel

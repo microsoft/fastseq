@@ -37,7 +37,9 @@ def apply_transformers_optimization():
         logger.warning(
             f"transformers == {v} is not supported yet, please change it to "
             f"v{MIN_TRANSFORMERS_VERSION} to v{MAX_TRANSFORMER_VERSION}, or try"
-            f" other versions of fastseq.")
+            f" other versions of fastseq. Currently, no optimization provided "
+            "by fastseq has been applied. Please ignore this warning if you are"
+            " not using transformers")
         return
 
     import fastseq.optimizer.transformers.modeling_bart_optimizer # pylint: disable=import-outside-toplevel

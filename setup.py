@@ -15,6 +15,10 @@ def get_fastseq_version():
 
 extras = {}
 
+extras["transformers"] = ["transformers >= {}, <= {}".format(
+    MIN_TRANSFORMERS_VERSION, MAX_TRANSFORMER_VERSION)]
+extras["fairseq"] = ["fairseq >= {}, <= {}".format(
+    MIN_FAIRSEQ_VERSION, MAX_FAIRSEQ_VERSION)]
 extras["gitpython"] = ["gitpython>=3.1.7"]
 extras["editdistance"] = ["editdistance>=0.5.3"]
 
@@ -49,9 +53,6 @@ setup(
         "rouge-score>=0.0.4",
         "packaging",
         "torch>=1.4.0",
-        "fairseq >= {}, <= {}".format(MIN_FAIRSEQ_VERSION, MAX_FAIRSEQ_VERSION),
-        "transformers >= {}, <= {}".format(
-            MIN_TRANSFORMERS_VERSION, MAX_TRANSFORMER_VERSION),
         "pytorch-transformers==1.0.0",
     ],
     extras_require=extras,

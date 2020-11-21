@@ -42,7 +42,17 @@ If you use fairseq or transformers, you only need to install one of them. If you
 `fastseq` Python package can be directly installed with pip using
 
 ```bash
+# when fairseq and/or transformers has been installed
 $ pip install fastseq
+
+# install fastseq + transformers
+$ pip install fastseq[transformers]
+
+# install fastseq + fairseq
+$ pip install fastseq[fairseq]
+
+# install fastseq + transformers + fairseq
+$ pip install fastseq[transformers,fairseq]
 ```
 
 ### Install from the source

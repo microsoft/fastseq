@@ -13,7 +13,7 @@ FASTSEQ_UNITTEST_LOG_XML_DIR = os.getenv(
     'FASTSEQ_UNITTEST_LOG_XML_DIR', os.path.join('tests', 'log_xml'))
 
 FASTSEQ_LOG_FORMAT = (
-    '%(levelname)s %(asctime)s %(filename)s:%(lineno)d] %(message)s')
+    '%(levelname)s %(asctime)s %(pathname)s:%(lineno)d] %(message)s')
 
 FASTSEQ_VERSION = '0.0.4'
 
