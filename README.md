@@ -37,30 +37,20 @@ We developped a wide range of speedup techniques, including improving beam searc
 
 If you use fairseq or transformers, you only need to install one of them. If you use both, you need to install both.
 
-### Install from PIP package
-
-`fastseq` Python package can be directly installed with pip using
-
-```bash
-# when fairseq and/or transformers has been installed
-$ pip install fastseq
-
-# install fastseq + transformers
-$ pip install fastseq[transformers]
-
-# install fastseq + fairseq
-$ pip install fastseq[fairseq]
-
-# install fastseq + transformers + fairseq
-$ pip install fastseq[transformers,fairseq]
-```
-
 ### Install from the source
 
 ```bash
-$ git clone https://github.com/microsoft/fastseq
-$ cd fastseq
-$ pip install --editable ./
+# when fairseq and/or transformers has been installed
+$ pip install git+https://github.com/microsoft/fastseq.git
+
+# install fastseq + transformers
+$ pip install git+https://github.com/microsoft/fastseq.git#egg=project[transformers]
+
+# install fastseq + fairseq
+$ pip install git+https://github.com/microsoft/fastseq.git#egg=project[fairseq]
+
+# install fastseq + transformers + fairseq
+$ pip install git+https://github.com/microsoft/fastseq.git#egg=project[transformers,fairseq]
 ```
 
 ## Usage
