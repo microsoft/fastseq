@@ -7,8 +7,10 @@ https://arxiv.org/abs/1806.00187
 
   |     BatchSize    |      256       |      512       |      1024      |
   |:----------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    |  84 samples/s  |      OOM       |      OOM       |
-  | above + fastseq  | 129 samples/s  |  131 samples/s |  135 samples/s |
+  | fairseq-0.9.0    |  96 samples/s  |      OOM       |      OOM       |
+  | above + fastseq  | 179 samples/s  |  172 samples/s |  178 samples/s |
+
+With fastseq, we can use bigger batch size, however, there seems no additional speedup.
 
 ### Training a new model on WMT'16 En-De
 

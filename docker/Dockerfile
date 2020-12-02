@@ -51,5 +51,15 @@ RUN pip install --upgrade pip && \
 	pip install rouge_score==v0.0.4 && \
 	pip install fairseq==v0.9.0 \
 	pip install transformers==v3.0.2 \
-	pip install fastseq \
 	pip install pytorch-transformers==1.0.0
+
+
+##############################################################################
+# FastSeq
+##############################################################################
+RUN cd / && \
+    git clone https://github.com/microsoft/fastseq.git fastseq && \
+    cd fastseq && \
+    pip install -e .
+
+WORKDIR "/fastseq"
