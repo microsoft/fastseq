@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run it at its parent folder, and check result at ../perf. 
-# USAGE -./benchmark.sh 
+# Run it at its parent folder, and check result at ../perf.
+# USAGE -./benchmark.sh
 #   [fairseq|fairseq+fastseq|transformers|transformers+fastseq]
 #   <model>
 #   <task>
