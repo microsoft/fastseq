@@ -8,9 +8,7 @@ https://arxiv.org/abs/1806.00187
   |     BatchSize    |      256       |      512       |      1024      |
   |:----------------:|:--------------:|:--------------:|:--------------:|
   | fairseq-0.9.0    |  96 samples/s  |      OOM       |      OOM       |
-  | above + fastseq  | 179 samples/s  |  172 samples/s |  178 samples/s |
-
-With fastseq, we can use bigger batch size, however, there seems no additional speedup.
+  | above + fastseq  | 350 samples/s  |  400 samples/s |  417 samples/s |
 
 ### Training a new model on WMT'16 En-De
 
@@ -90,6 +88,7 @@ $ fastseq-generate-for-fairseq \
     --beam 4 \
     --lenpen 0.6 \
     --remove-bpe \
-    --gen-subset test
+    --gen-subset test \
+    --post-process-workers 5
 ```
-To get baseline speed number which doesn't use FastSeq optimizations, replace `fastseq-generate-for-fairseq` by `fairseq-generate`.
+To get baseline speed number which doesn't use FastSeq optimizations, replace `fastseq-generate-for-fairseq` by `fairseq-generate` and remove argument `--post-process-workers 5` since it is only provided by fastseq.
