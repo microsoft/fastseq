@@ -2,6 +2,7 @@
 import argparse
 import json
 from pathlib import Path
+from typing import List
 
 import torch
 from tqdm import tqdm
@@ -17,6 +18,37 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+def sort_sentences(input_ids: List[str], reverse: bool=False):
+    """Sort the tokenized sentences by the number of tokens.
+
+    Args:
+        input_ids (List[List[int]]): tokenized sentences.
+        reverse (bool): indicate the order is ascending(False) or descending.
+
+    Returns:
+        tuple(List[List[int]], List[int]): the sorted tokenized sentences and
+            the indices in the original input list.
+    """
+    is_ascending = -1 if reverse else 1
+    sorted_idx = sorted(
+        range(len(input_ids)), key=lambda i: len(input_ids[i])*is_ascending)
+    sorted_input_ids = [input_ids[i] for i in sorted_idx]
+    return sorted_input_ids, sorted_idx
+
+def unsort_sentences(sents: List[str], sorted_idx: List[int]):
+    """Unsort the sents to be the order specified by sorted_idx.
+
+    Args:
+        sents (List[str]): a list of input strings.
+        sorted_idx (List[int]): the order that will be restored.
+
+    Returns:
+        List[str]: the unsorted list of strings.
+    """
+    result = [''] * len(sents)
+    for cur_idx, org_idx in enumerate(sorted_idx):
+        result[org_idx] = sents[cur_idx]
+    return result
 
 def generate_summaries_or_translations(
     examples: list,
@@ -34,6 +66,8 @@ def generate_summaries_or_translations(
     """Run generation"""
     if fastseq_opt:
         import fastseq  #pylint: disable=import-outside-toplevel
+        examples, sorted_idx = sort_sentences(examples, reverse=True)
+
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
@@ -47,6 +81,7 @@ def generate_summaries_or_translations(
     # update config with summarization specific params
     use_task_specific_params(model, task)
 
+    hypothesis = []
     for batch in tqdm(list(chunks(examples, batch_size))):
         if "t5" in model_name:
             batch = [model.config.prefix + text for text in batch]
@@ -66,9 +101,14 @@ def generate_summaries_or_translations(
         dec = tokenizer.batch_decode(summaries,
                                      skip_special_tokens=True,
                                      clean_up_tokenization_spaces=False)
-        for hypothesis in dec:
-            fout.write(hypothesis + "\n")
-            fout.flush()
+        hypothesis.extend(dec)
+
+    if fastseq_opt:
+        hypothesis = unsort_sentences(hypothesis, sorted_idx)
+
+    for hypo in hypothesis:
+        fout.write(hypo + "\n")
+        fout.flush()
 
 
 def run_generate():
