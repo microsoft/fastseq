@@ -26,6 +26,9 @@ class FastseqGenerateForTransformersTest(TestCaseBase):
 
             self.assertNotEqual(text, sorted_text)
             self.assertEqual(text, restored_text)
+            # check the memory address to make sure no extra copies.
+            for i, _ in enumerate(text):
+                self.assertEqual(id(text[i]), id(restored_text[i]))
             sorted_lens = [len(s) for s in sorted_text]
             expected_lens = sorted(sorted_lens, reverse=reverse)
             self.assertEqual(sorted_lens, expected_lens)
