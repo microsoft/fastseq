@@ -18,22 +18,22 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-def sort_sentences(input_ids: List[str], reverse: bool=False):
-    """Sort the tokenized sentences by the number of tokens.
+def sort_sentences(sents: List[str], reverse: bool=False):
+    """Sort the input sentences by their length.
 
     Args:
-        input_ids (List[List[int]]): tokenized sentences.
+        sents (List[str): input sentences.
         reverse (bool): indicate the order is ascending(False) or descending.
 
     Returns:
-        tuple(List[List[int]], List[int]): the sorted tokenized sentences and
+        tuple(List[str, List[int]): the sorted sentences and
             the indices in the original input list.
     """
     is_ascending = -1 if reverse else 1
     sorted_idx = sorted(
-        range(len(input_ids)), key=lambda i: len(input_ids[i])*is_ascending)
-    sorted_input_ids = [input_ids[i] for i in sorted_idx]
-    return sorted_input_ids, sorted_idx
+        range(len(sents)), key=lambda i: len(sents[i])*is_ascending)
+    sorted_sents = [sents[i] for i in sorted_idx]
+    return sorted_sents, sorted_idx
 
 def unsort_sentences(sents: List[str], sorted_idx: List[int]):
     """Unsort the sents to be the order specified by sorted_idx.
