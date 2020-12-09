@@ -12,10 +12,6 @@ source utils.sh
 #./benchmark.sh fairseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 32          # each loop 7 minutes
 #./benchmark.sh fairseq+fastseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 32/64/128  # each loop 5 minutes
 
-#./benchmark.sh fairseq+fastseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 128  # each loop 5 minutes
-#./benchmark.sh fairseq+fastseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 64 & # each loop 5 minutes
-#./benchmark.sh fairseq+fastseq bart.large.cnn cnn_dm.1k/len-1024.bin valid 64  # each loop 5 minutes
-
 ## TASK - cnn dm val full
 ./benchmark.sh fairseq bart.large.cnn cnn_dm/len-1024.bin valid 32          # each loop 2 hours
 ./benchmark.sh fairseq+fastseq bart.large.cnn cnn_dm/len-1024.bin valid 32/64/128/256 --max-tokens 131072 # each loop 1.5 hours
