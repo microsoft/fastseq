@@ -256,7 +256,7 @@ def run_generate():
                         help="pre-processing worker threads")
     parser.add_argument("--postprocess_workers",
                         type=int,
-                        default=2,
+                        default=1,
                         required=False,
                         help="post-processing worker threads")
     parser.add_argument("--no_truncation", action="store_true")
