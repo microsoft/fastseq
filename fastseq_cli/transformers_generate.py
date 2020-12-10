@@ -139,8 +139,8 @@ def generate_summaries_or_translations(
     no_repeat_ngram_size=None,
     skip_special_tokens=True,
     clean_up_tokenization_spaces=False,
-    preprocess_cpu_num=2,
-    postprocess_cpu_num=2,
+    preprocess_workers=2,
+    postprocess_workers=2,
     return_tensors="pt",
     truncation=True,
     padding="max_length",
@@ -165,7 +165,7 @@ def generate_summaries_or_translations(
     msg_queue =  Queue()
     p_list = []
 
-    for i in range(postprocess_cpu_num):
+    for i in range(postprocess_workers):
         p = PostProcess(tokenizer, data_queue, msg_queue,
             skip_special_tokens, clean_up_tokenization_spaces)
         p_list.append(p)
@@ -176,7 +176,7 @@ def generate_summaries_or_translations(
     dataset = TokenizeDataset(examples, tokenizer, model_name,
             model.config.prefix, return_tensors, truncation, padding)
     training_generator = torch.utils.data.DataLoader(dataset,
-            batch_size=batch_size, num_workers = preprocess_cpu_num,
+            batch_size=batch_size, num_workers = preprocess_workers,
             drop_last=True)
     for ind, batch in tqdm(enumerate(training_generator)):
         input_ids, attention_mask = batch
@@ -249,12 +249,12 @@ def run_generate():
                          required=False, help="size of no repeat ngram")
     parser.add_argument("--include_special_tokens", action="store_true")
     parser.add_argument("--clean_up_tokenization_spaces", action="store_true")
-    parser.add_argument("--preprocess_cpu_num",
+    parser.add_argument("--preprocess_workers",
                         type=int,
                         default=2,
                         required=False,
                         help="pre-processing worker threads")
-    parser.add_argument("--postprocess_cpu_num",
+    parser.add_argument("--postprocess_workers",
                         type=int,
                         default=2,
                         required=False,
@@ -286,8 +286,8 @@ def run_generate():
         no_repeat_ngram_size=args.no_repeat_ngram_size,
         skip_special_tokens=not args.include_special_tokens,
         clean_up_tokenization_spaces=args.clean_up_tokenization_spaces,
-        preprocess_cpu_num=args.preprocess_cpu_num,
-        postprocess_cpu_num=args.postprocess_cpu_num,
+        preprocess_workers=args.preprocess_workers,
+        postprocess_workers=args.postprocess_workers,
         return_tensors=args.return_tensors,
         truncation=not args.no_truncation,
         padding=args.padding

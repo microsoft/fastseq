@@ -272,7 +272,7 @@ def add_generation_args_v1(parser):
     group = original_add_generation_args(parser)
     # fmt: off
     group.add_argument(
-        '--post-process-workers',
+        '--postprocess_workers',
         default=1,
         type=int,
         choices=range(1, 128, 1),
