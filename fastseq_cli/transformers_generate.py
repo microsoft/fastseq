@@ -177,11 +177,11 @@ def generate_summaries_or_translations(
             model.config.prefix, return_tensors, truncation, padding)
     training_generator = torch.utils.data.DataLoader(dataset,
             batch_size=batch_size, num_workers = preprocess_workers,
-            drop_last=True)
+            drop_last=False)
     for ind, batch in tqdm(enumerate(training_generator)):
         input_ids, attention_mask = batch
-        input_ids = input_ids.view(batch_size, -1).to(device)
-        attention_mask = attention_mask.view(batch_size, -1).to(device)
+        input_ids = input_ids.view(input_ids.size(0), -1).to(device)
+        attention_mask = attention_mask.view(input_ids.size(0), -1).to(device)
         input_ids, attention_mask = trim_batch(
             input_ids, tokenizer.pad_token_id, attention_mask)
         summaries = model.generate(

@@ -11,9 +11,9 @@ Below shows the generation speed gain by using FastSeq.
 |------------------|:--------------------------:|:-------------------------:|:-----:|
 | [ProphetNet](examples/prophetnet/README.md)       | 2.8 | 11.3  | 4.0x  |
 | [Bart (`fs`)](examples/bart/README.md)              | 2.4  | 19.7 | 8.2x  |
-| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 3.5 | 12.6 | 3.6x  |
-| [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.3  | 15.9  | 3.7x  |
-| [T5 (`hf`)](examples/t5/README.md)                  | 5.0  | 17.1  | 3.4x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 3.5 | 12.4 | 3.5x  |
+| [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.3  | 18.3  | 4.3x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 5.0  | 23.4  | 4.7x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 96.0   | 417.0  | 4.3x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.

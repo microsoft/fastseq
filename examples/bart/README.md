@@ -63,7 +63,7 @@ Refer to [file](../../tests/optimizer/fairseq/test_fairseq_optimizer.py).
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
   | transformers-3.0.2  | 3.5 samples/s |      OOM       |      OOM       |
-  |  above + fastseq    | 7.9 samples/s | 10.7 samples/s  | 11.4 samples/s  |
+  |  above + fastseq    | 7.6 samples/s | 11.3 samples/s  | 12.4 samples/s  |
 
 
 ### Model

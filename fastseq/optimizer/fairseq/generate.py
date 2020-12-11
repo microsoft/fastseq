@@ -354,7 +354,7 @@ def main_v1(args):
     message_queue = JoinableQueue()
 
     p_list = []
-    for i in range(args.post_process_workers):
+    for i in range(args.postprocess_workers):
         p = PostProcess(args, task, data_queue, message_queue)
         p_list.append(p)
         p.start()
