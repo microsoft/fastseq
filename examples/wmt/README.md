@@ -89,6 +89,6 @@ $ fastseq-generate-for-fairseq \
     --lenpen 0.6 \
     --remove-bpe \
     --gen-subset test \
-    --post-process-workers 5
+    --postprocess-workers 5
 ```
-To get baseline speed number which doesn't use FastSeq optimizations, replace `fastseq-generate-for-fairseq` by `fairseq-generate` and remove argument `--post-process-workers 5` since it is only provided by fastseq.
+To get baseline speed number which doesn't use FastSeq optimizations, replace `fastseq-generate-for-fairseq` by `fairseq-generate` and remove argument `--postprocess-workers 5` since it is only provided by fastseq.

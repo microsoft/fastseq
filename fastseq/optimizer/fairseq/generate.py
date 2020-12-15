@@ -272,7 +272,7 @@ def add_generation_args_v1(parser):
     group = original_add_generation_args(parser)
     # fmt: off
     group.add_argument(
-        '--post-process-workers',
+        '--postprocess-workers',
         default=1,
         type=int,
         choices=range(1, 128, 1),
@@ -354,7 +354,7 @@ def main_v1(args):
     message_queue = JoinableQueue()
 
     p_list = []
-    for i in range(args.post_process_workers):
+    for i in range(args.postprocess_workers):
         p = PostProcess(args, task, data_queue, message_queue)
         p_list.append(p)
         p.start()
