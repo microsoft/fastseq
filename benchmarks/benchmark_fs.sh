@@ -31,6 +31,9 @@ for f in "${file_list[@]}"; do
 done
 
 if [[ $framework == fairseq ]]; then
+    if [[ $SKIP_BASELINE -gt 0 ]]; then
+        exit 0
+    fi
     ver=`pip show fairseq | awk  '{if($1=="Version:")print $2}'`
     framework_versioned="fairseq_v$ver"
     if [[ $type == lm ]]; then
