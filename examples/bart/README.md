@@ -35,7 +35,7 @@ Model | Description | # params | Download
 
 ```bash
 $ fastseq-generate-for-fairseq \
-      cnn_dm.1k/len-1024.bin \
+      cnn_dm/len-1024.bin \
       --path bart.large.cnn/model.pt \
       --fp16 \
       --task translation \
@@ -62,7 +62,7 @@ Refer to [file](../../tests/optimizer/fairseq/test_fairseq_optimizer.py).
 
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 3.5 samples/s |      OOM       |      OOM       |
+  | transformers-3.0.2  | 2.5 samples/s |      OOM       |      OOM       |
   |  above + fastseq    | 7.6 samples/s | 11.3 samples/s  | 12.4 samples/s  |
 
 
@@ -77,7 +77,7 @@ Refer to [file](../../tests/optimizer/fairseq/test_fairseq_optimizer.py).
 ```bash
 $ fastseq-generate-for-transformers \
     facebook/bart-large-cnn \
-    cnn_dm.1k/val.source \
+    cnn_dm/val.source \
     out.summary \
     --reference_path cnn_dm.1k/val.target \
     --device cuda \

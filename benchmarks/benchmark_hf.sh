@@ -17,6 +17,9 @@ done
 
 extra_param=""
 if [[ $framework == transformers ]]; then
+    if [[ $SKIP_BASELINE -gt 0 ]]; then
+        exit 0
+    fi
     ver=`pip show transformers | awk  '{if($1=="Version:")print $2}'`
     framework_versioned="transformers_v$ver"
     extra_param="--without_fastseq_opt"

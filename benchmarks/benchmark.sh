@@ -4,15 +4,15 @@ task="$1"; shift
 split="$1"; shift
 bss="$1"; shift
 
-shell=benchmark_seq.sh
+shell=benchmark_fs.sh
 if [ "$framework" = "fairseq+fastseq" ]; then
     :
 elif [ "$framework" = "fairseq" ]; then
     :
 elif [ "$framework" = "transformers+fastseq" ]; then
-    shell=benchmark_transformers.sh
+    shell=benchmark_hf.sh
 elif [ "$framework" = "transformers" ]; then
-    shell=benchmark_transformers.sh
+    shell=benchmark_hf.sh
 else
     echo "Unsupported framework '$framework'!"
     exit -1

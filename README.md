@@ -9,9 +9,9 @@ Below shows the generation speed gain by using FastSeq.
 
 | Model            | W/O FastSeq (in samples/s) | W/ FastSeq (in samples/s) | Speedup |
 |------------------|:--------------------------:|:-------------------------:|:-----:|
-| [ProphetNet](examples/prophetnet/README.md)       | 2.8 | 11.3  | 4.0x  |
+| [ProphetNet](examples/prophetnet/README.md)       | 3.2 | 11.3  | 3.5x  |
 | [Bart (`fs`)](examples/bart/README.md)              | 2.4  | 19.7 | 8.2x  |
-| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 3.5 | 12.4 | 3.5x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 2.5 | 12.4 | 5.0x  |
 | [DistilBart (`hf`)](examples/distilbart/README.md)    | 4.3  | 18.3  | 4.3x  |
 | [T5 (`hf`)](examples/t5/README.md)                  | 5.0  | 23.4  | 4.7x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 96.0   | 417.0  | 4.3x  |
