@@ -42,3 +42,9 @@ To get baseline speed number which doesn't use FastSeq optimizations, replace `f
 
 ### Code Example
 Refer to [file](../../tests/models/test_prophetnet_fs.py).
+
+### Generate the binary data
+
+```bash
+bash generate_binary_data_for_prophetnet.sh INPUT_DATA_DIR
+```
