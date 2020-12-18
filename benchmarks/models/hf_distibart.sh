@@ -6,7 +6,7 @@
 #   <task>
 #   <split> # train/val/test (text) or train/valid/test (binary)
 #   <batch-sizes>
-source utils.sh
+source hf.sh
 
 # MODEL - distibart cnn
 ## TASK - cnn dm val full set

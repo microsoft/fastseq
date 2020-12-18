@@ -8,26 +8,26 @@
 #   <batch-sizes>
 source utils.sh
 
-## Download ProphetNet repo as the baseline if it does not exist
-#prophetnet_repo_path=$CACHE_DIR/ProphetNet
-#git_clone_if_not_in_cache \
-#    https://github.com/microsoft/ProphetNet.git \
-#    $prophetnet_repo_path
-#
-#./benchmark.sh \
-#    fairseq \
-#    prophetnet_large_160G_cnndm_model \
-#    cnn_dm_bert/len-512.bin \
-#    valid \
-#    64 \
-#    --user-dir $prophetnet_repo_path/src/prophetnet/
-#./benchmark.sh \
-#    fairseq+fastseq \
-#    prophetnet_large_160G_cnndm_model \
-#    cnn_dm_bert/len-512.bin \
-#    valid \
-#    64/128
-#
+# Download ProphetNet repo as the baseline if it does not exist
+prophetnet_repo_path=$CACHE_DIR/ProphetNet
+git_clone_if_not_in_cache \
+    https://github.com/microsoft/ProphetNet.git \
+    $prophetnet_repo_path
+
+./benchmark.sh \
+    fairseq \
+    prophetnet_large_160G_cnndm_model \
+    cnn_dm_bert/len-512.bin \
+    valid \
+    64 \
+    --user-dir $prophetnet_repo_path/src/prophetnet/
+./benchmark.sh \
+    fairseq+fastseq \
+    prophetnet_large_160G_cnndm_model \
+    cnn_dm_bert/len-512.bin \
+    valid \
+    64/128
+
 # Accuracy
 grep "prophetnet_large_160G_cnndm_model cnn_dm_bert/len-512.bin valid" perf \
 	| awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' \
