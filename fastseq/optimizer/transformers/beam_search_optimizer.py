@@ -17,7 +17,6 @@ from transformers.generation_utils import (BeamHypotheses, GenerationMixin,
 
 from transformers.modeling_bart import BartForConditionalGeneration
 from transformers.modeling_t5 import T5ForConditionalGeneration
-from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import replace
@@ -650,7 +649,8 @@ class GenerationMixinV2(GenerationMixin):
         cpu_input_ids = input_ids.cpu()
         if no_repeat_ngram_size > 0:
             #custom op for Ngram repeat blocking
-            if (input_ids.is_cuda and scores.is_cuda):
+            if (input_ids.is_cuda and scores.is_cuda and
+                self.cuda_ngram_op_import):
                 scores = self.no_repeat_ngram_op(input_ids,scores.float(),
                         batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
             else:
@@ -725,7 +725,13 @@ class GenerationMixinV2(GenerationMixin):
         done = [False for _ in range(batch_size)]
 
         #NGram Repeat block Op
-        self.no_repeat_ngram_op = NGramRepeatBlock()#.to('cuda', torch.float32)
+        self.cuda_ngram_op_import = True
+        try:
+            #pylint: disable=import-outside-toplevel
+            from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
+            self.no_repeat_ngram_op = NGramRepeatBlock()
+        except:
+            self.cuda_ngram_op_import = False
 
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(
