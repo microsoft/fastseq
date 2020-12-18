@@ -2,7 +2,7 @@
 unset n
 read n
 numInRange() {
-   awk -v n="$1" -v low="$2" -v high="$3" 'BEGIN {if(n<low||n>high) print "Error"; else print "Success";}'
+   awk -v n="$1" -v low="$2" -v high="$3" 'BEGIN {if(n==-1) print "Ignored"; if(n<low||n>high) print "Error"; else print "Success";}'
 }
 
 #echo "$n $1 $2"

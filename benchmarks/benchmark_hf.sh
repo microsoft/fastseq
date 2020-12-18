@@ -40,7 +40,7 @@ fi
 IFS='/' read -ra bs_list <<< "$bss"
 for i in `seq $LOOP`; do
 for bs in "${bs_list[@]}"; do
-    echo "Processing Loop=$i/$LOOP Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
+    echo "`date` Processing Loop=$i/$LOOP Util=$framework_versioned Model=$model Task=$task Split=$split BS=$bs"
     rm -rf $SUMMARY_FILE $SCORE_FILE
     start=`date +%s`
     fastseq-generate-for-transformers $model_id $data_dir/$split.source $SUMMARY_FILE --reference_path $data_dir/$split.target --device cuda --bs $bs --fp16 --score_path $SCORE_FILE $extra_param $* > $STDOUT_FILE 2> $STDERR_FILE

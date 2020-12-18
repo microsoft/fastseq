@@ -10,8 +10,8 @@ More info can be found [here](https://github.com/huggingface/transformers/blob/m
 
   |      BatchSize      |       64       |       128      |
   |:-------------------:|:--------------:|:--------------:|
-  | transformers-3.0.2  | 4.3 samples/s  |      OOM       |
-  |  above + fastseq    | 16.5 samples/s  | 18.3 samples/s  |
+  | transformers-3.0.2  | 3.4 samples/s  |      OOM       |
+  |  above + fastseq    | 16.8 samples/s  | 18.5 samples/s  |
 
 
 ### Model
@@ -25,9 +25,9 @@ More info can be found [here](https://github.com/huggingface/transformers/blob/m
 ```bash
 $ fastseq-generate-for-transformers \
     sshleifer/distilbart-cnn-12-6 \
-    cnn_dm.1k/val.source \
+    cnn_dm/val.source \
     out.summary \
-    --reference_path cnn_dm.1k/val.target \
+    --reference_path cnn_dm/val.target \
     --device cuda \
     --bs BATCH_SIZE \
     --fp16 \

@@ -10,8 +10,8 @@ A pre-trained language model for sequence-to-sequence learning with a novel self
 
   |       BatchSize      |       32      |        64       |      128       |
   |:--------------------:|:-------------:|:---------------:|:--------------:|
-  |      prophetnet      | 2.8 samples/s |  3.2 samples/s  |      OOM       |
-  |   above + fastseq    | 6.0 samples/s |  8.8 samples/s  | 11.3 samples/s |
+  |      prophetnet      | 2.4 samples/s |  2.8 samples/s  |      OOM       |
+  |   above + fastseq    | 6.0 samples/s |  7.6 samples/s  | 10.7 samples/s |
 
 
 ### Model
@@ -24,7 +24,7 @@ ProphetNet-large-160GB (fine-tuned on CNN/Daily Mail with 9 epochs) [link](https
 
 ```bash
 $ fastseq-generate-for-fairseq \
-      cnn_dm_bert.1k/len-512.bin \
+      cnn_dm_bert/len-512.bin \
       --path prophetnet/model.pt \
       --fp16 \
       --task translation_prophetnet \
