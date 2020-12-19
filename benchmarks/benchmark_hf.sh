@@ -61,9 +61,9 @@ for bs in "${bs_list[@]}"; do
         if [ $nf -eq 4 ]; then
             bleu=`sed 's/.*"bleu": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.2f",$1}'`
         else
-            rouge1=`sed 's/.*"rouge1": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.2f",$1}'`
-            rouge2=`sed 's/.*"rouge2": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.2f",$1}'`
-            rougel=`sed 's/.*"rougeL": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.2f",$1}'`
+            rouge1=`sed 's/.*"rouge1": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.3f",$1}'`
+            rouge2=`sed 's/.*"rouge2": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.3f",$1}'`
+            rougel=`sed 's/.*"rougeL": \([.0-9]*\).*/\1/' $SCORE_FILE | awk '{printf "%.3f",$1}'`
         fi
         echo "$framework_versioned $model $task $split $bs $samples $tokens $bleu $rouge1|$rouge2|$rougel NA NA $runtime $throughput1 $throughput2" >> $perff
     else

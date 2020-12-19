@@ -9,27 +9,28 @@
 source hf.sh
 
 # MODEL - distibart cnn
-## TASK - cnn dm val full set
+# TASK - cnn dm val full set
 ./benchmark.sh \
     transformers \
     hf.sshleifer.distilbart-cnn-12-6.tar.gz \
     cnn_dm/raw \
     val \
     64 \
-    --task summarization  # each loop takes 2.5 hours
+    --task summarization
 ./benchmark.sh \
     transformers+fastseq \
     hf.sshleifer.distilbart-cnn-12-6.tar.gz \
     cnn_dm/raw \
     val \
     64/128 \
-    --task summarization  # each loop takes 2.5 hours
+    --task summarization \
+    --postprocess_workers 3
 
 # Accuracy
 grep "hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val " perf \
 	| awk '{print $9}' \
 	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
-	| ./range.sh 45 45.1
+	| ./range.sh 0.45 0.452
 # Speed on V100 16GB 250W
 grep -E "transformers_v3.0.2 hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \

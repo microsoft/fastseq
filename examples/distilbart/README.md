@@ -35,5 +35,5 @@ $ fastseq-generate-for-transformers \
     --task summarization
 ```
 
-To get the baseline transformers' speed number, we can either add option `--without_fastseq_opt` or use [tool](https://github.com/huggingface/transformers/tree/master/examples/seq2seq) provided in Transformers GitHub repository.
+Baseline speed number is obtained by running [Transformers v3.0.2 code](https://github.com/huggingface/transformers/blob/b0892fa0e8df02d683e05e625b3903209bff362d/examples/seq2seq/run_eval.py).
 
