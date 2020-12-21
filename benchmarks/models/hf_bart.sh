@@ -16,14 +16,16 @@ source hf.sh
     cnn_dm/raw \
     val \
     32 \
-    --task summarization
+    --task summarization \
+    --no_repeat_ngram_size 3
 ./benchmark.sh \
     transformers+fastseq \
     facebook/bart-large-cnn \
     cnn_dm/raw \
     val \
     32/64/128 \
-    --task summarization
+    --task summarization \
+    --no_repeat_ngram_size 3
 
 # Accuracy
 grep "facebook/bart-large-cnn cnn_dm/raw val " perf \
