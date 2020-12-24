@@ -42,4 +42,4 @@ grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 12
 	| ./range.sh 18.1 100
 grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 256 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 19.4 100
+	| ./range.sh 19 100

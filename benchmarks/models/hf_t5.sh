@@ -28,7 +28,7 @@ source hf.sh
 # Accuracy
 grep "t5-base wmt_en_ro/raw val " perf \
 	| awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' \
-	| ./range.sh 0.578 0.579
+	| ./range.sh 57.8 57.9
 # Speed on V100 16GB 250W
 grep -E "transformers_v3.0.2 t5-base wmt_en_ro/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
