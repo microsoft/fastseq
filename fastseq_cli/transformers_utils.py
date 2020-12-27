@@ -301,7 +301,7 @@ def calculate_rouge(output_lns: List[str],
         aggregator.add_scores(scores)
 
     result = aggregator.aggregate()
-    return {k: v.mid.fmeasure * 100 for k, v in result.items()}
+    return {k: v.mid.fmeasure for k, v in result.items()}
 
 
 def freeze_params(model: nn.Module):

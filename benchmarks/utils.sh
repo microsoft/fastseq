@@ -34,8 +34,10 @@ download_if_not_in_cache() {
             exit -1
         fi
         if [[ "$#" -eq 3 && $local_path == *.tar.gz ]]; then
+	    wd=`pwd`
             cd `dirname $local_path`
             tar xzvf $local_path
+	    cd $wd
         fi
     else
         echo "Reuse $local_path"
@@ -51,6 +53,12 @@ git_clone_if_not_in_cache() {
         if [ $? -ne 0 ]; then
             echo "Failed to clone '$git_url'"
             exit -1
+        fi
+        if [[ "$#" -eq 3 ]]; then
+	    wd=`pwd`
+            cd $local_path
+	    git checkout tags/$3
+	    cd $wd
         fi
     else
         echo "Reuse $local_path"
