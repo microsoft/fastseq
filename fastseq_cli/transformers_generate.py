@@ -5,8 +5,77 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from tqdm import tqdm
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+import transformers
+from transformers import PretrainedConfig, AutoConfig
+from transformers import AutoTokenizer as _AutoTokenizer
+from transformers import AutoModelForSeq2SeqLM as _AutoModelForSeq2SeqLM
 from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
+
+from fastseq.models.unilm_hf import UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP, UnilmConfig, UnilmForSeq2Seq, UnilmTokenizer
+
+transformers.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.update(dict({
+    UnilmConfig: UnilmForSeq2Seq
+}))
+
+transformers.TOKENIZER_MAPPING.update(dict({
+    UnilmConfig: (UnilmTokenizer, None)
+}))
+
+transformers.CONFIG_MAPPING.update(dict({
+    "unilm": UnilmConfig
+}))
+
+class AutoModelForSeq2SeqLM(_AutoModelForSeq2SeqLM):
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
+        config = kwargs.pop("config", None)
+        if not isinstance(config, PretrainedConfig):
+            if pretrained_model_name_or_path in UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP:
+                pretrained_config_name_or_path = UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP[pretrained_model_name_or_path]
+            else:
+                pretrained_config_name_or_path = pretrained_model_name_or_path
+            config = AutoConfig.from_pretrained(pretrained_config_name_or_path, **kwargs)
+
+        for config_class, model_class in transformers.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.items():
+            if isinstance(config, config_class):
+                return model_class.from_pretrained(pretrained_model_name_or_path, *model_args, config=config, **kwargs)
+        raise ValueError(
+            "Unrecognized configuration class {} for this kind of AutoModel: {}.\n"
+            "Model type should be one of {}.".format(
+                config.__class__,
+                cls.__name__,
+                ", ".join(c.__name__ for c in transformers.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.keys()),
+            )
+        )
+
+class AutoTokenizer(_AutoTokenizer):
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, *inputs, **kwargs):
+        config = kwargs.pop("config", None)
+        if not isinstance(config, PretrainedConfig):
+            if pretrained_model_name_or_path in UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP:
+                pretrained_config_name_or_path = UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP[pretrained_model_name_or_path]
+            else:
+                pretrained_config_name_or_path = pretrained_model_name_or_path
+            config = AutoConfig.from_pretrained(pretrained_config_name_or_path, **kwargs)
+
+        if "bert-base-japanese" in str(pretrained_model_name_or_path):
+            return BertJapaneseTokenizer.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+
+        use_fast = kwargs.pop("use_fast", False)
+        for config_class, (tokenizer_class_py, tokenizer_class_fast) in transformers.TOKENIZER_MAPPING.items():
+            if isinstance(config, config_class):
+                if tokenizer_class_fast and use_fast:
+                    return tokenizer_class_fast.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+                else:
+                    return tokenizer_class_py.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+
+        raise ValueError(
+            "Unrecognized configuration class {} to build an AutoTokenizer.\n"
+            "Model type should be one of {}.".format(
+                config.__class__, ", ".join(c.__name__ for c in TOKENIZER_MAPPING.keys())
+            )
+        )
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -158,6 +227,7 @@ def generate_summaries_or_translations(
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer.model_max_length = 128
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
