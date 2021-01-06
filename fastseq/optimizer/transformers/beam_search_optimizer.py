@@ -17,6 +17,7 @@ from transformers.generation_utils import (BeamHypotheses, GenerationMixin,
 
 from transformers.modeling_bart import BartForConditionalGeneration
 from transformers.modeling_t5 import T5ForConditionalGeneration
+from transformers.modeling_gpt2 import GPT2Model, GPT2LMHeadModel, GPT2DoubleHeadsModel
 from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 
 from fastseq.logging import get_logger
@@ -95,6 +96,19 @@ class GenerationMixinV2(GenerationMixin):
                 block.layer[1].EncDecAttention.num_beams = num_beams
             logger.debug(
                 "num_beams has been updated to {}".format(num_beams))
+            return
+
+        if isinstance(self, GPT2Model):
+            for block in self.h:
+                block.attn.num_beams = num_beams
+            logger.debug("num_beams has been updated to {}".format(num_beams))
+            return
+
+        if (isinstance(self, GPT2LMHeadModel) or
+            isinstance(self, GPT2DoubleHeadsModel)):
+            for block in self.transformer.h:
+                block.attn.num_beams = num_beams
+            logger.debug("num_beams has been updated to {}".format(num_beams))
             return
 
         logger.debug(
@@ -552,9 +566,9 @@ class GenerationMixinV2(GenerationMixin):
         assert (
             cur_len < max_length
         ), (f"The context has {cur_len} number of tokens, but `max_length` is "
-            "only {max_length}. Please make sure that `max_length` is bigger "
+            f"only {max_length}. Please make sure that `max_length` is bigger "
             "than the number of tokens, by setting either "
-            "`generate(max_length=...,...)` or `config.max_length = ...`")
+            f"`generate(max_length=...,...)` or `config.max_length = ...`")
 
         if num_beams > 1:
             output = self._generate_beam_search(
