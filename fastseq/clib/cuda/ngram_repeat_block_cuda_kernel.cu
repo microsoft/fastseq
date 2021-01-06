@@ -41,6 +41,7 @@ __global__ void banRepeatedTokens(long* __restrict__ tokens,
   for (int k = 0; k < no_repeat_ngram_size - 1; k++) {
     if (tokens_shm[col + k] != tokens_shm[check_start_pos + k]) {
       is_banned = false;
+      break;
     }
   }
   if (is_banned == true) {
