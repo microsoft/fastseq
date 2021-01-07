@@ -26,7 +26,6 @@ __global__ void banRepeatedTokens(long* __restrict__ tokens,
   // step - no_repeat_ngram_size +2
   auto check_start_pos = blockDim.x;
   auto lprob_start = row * vocab_size;
-  bool is_banned = true;
   extern __shared__ long tokens_shm[];
   tokens_shm[col] = tokens[start];
   if (col == blockDim.x - 1) {
@@ -40,14 +39,12 @@ __global__ void banRepeatedTokens(long* __restrict__ tokens,
 
   for (int k = 0; k < no_repeat_ngram_size - 1; k++) {
     if (tokens_shm[col + k] != tokens_shm[check_start_pos + k]) {
-      is_banned = false;
-      break;
+      return;
     }
   }
-  if (is_banned == true) {
-    auto token_to_be_banned = tokens_shm[col + no_repeat_ngram_size - 1];
-    lprobs[lprob_start + token_to_be_banned] = -INFINITY;
-  }
+  // reach here means ban
+  auto token_to_be_banned = tokens_shm[col + no_repeat_ngram_size - 1];
+  lprobs[lprob_start + token_to_be_banned] = -INFINITY;
 }
 
 // Allocate blocks and threads based on
