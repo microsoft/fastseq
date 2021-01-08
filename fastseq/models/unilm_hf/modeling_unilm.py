@@ -19,21 +19,22 @@ from transformers.modeling_bert import (
     BertPreTrainingHeads,
     BertSelfOutput,
 )
-from .configuration_unilm import UnilmConfig
-from .utils_hf import get_checkpoint_from_transformer_cache
-from ...optimizer.transformers.beam_search_optimizer_v2 import GenerationMixinV3
-from ...optimizer.transformers.beam_search_optimizer import GenerationMixinV2
+from fastseq.models.unilm_hf.configuration_unilm import UnilmConfig
+from fastseq.models.unilm_hf.utils_hf import get_checkpoint_from_transformer_cache
+from fastseq.models.unilm_hf.beam_search_optimizer_v2 import GenerationMixinV3
 
 logger = logging.getLogger(__name__)
 BertLayerNorm = torch.nn.LayerNorm
 
 UNILM_PRETRAINED_MODEL_ARCHIVE_MAP = {
-    'unilm-base-cased': "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
-    'unilm-large-cased': "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
-    'unilm1-base-cased': "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
-    'unilm1-large-cased': "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
-    'unilm1.2-base-uncased': "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased.bin"
+    "unilm-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
+    "unilm-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
+    "unilm1-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
+    "unilm1-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
+    "unilm1.2-base-uncased": "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased.bin",
+    "xsum-unilm-base-uncased": "https://huggingface.co/fuliucansheng/unilm/resolve/main/xsum_unilm_base_uncased.bin",
 }
+
 
 def _reorder_buffer_v2(attn_cache, beam_idx):
     for k, input_buffer_k in attn_cache.items():
@@ -47,6 +48,7 @@ def _get_new_tensor(tensor, batch_idx, beam_idx, beam_size):
     tensor = tensor.view(-1, beam_size, *tsz[1:])
     tensor = tensor[batch_idx].view(-1, *tsz[1:])[beam_idx]
     return tensor
+
 
 def _reorder_buffer_v3(attn_cache, batch_idx, beam_idx, beam_size):
     for k, input_buffer_k in attn_cache.items():
@@ -65,9 +67,10 @@ def _reorder_buffer_v3(attn_cache, batch_idx, beam_idx, beam_size):
 
 
 class UnilmPreTrainedModel(PreTrainedModel):
-    """ An abstract class to handle weights initialization and
-        a simple interface for dowloading and loading pretrained models.
+    """An abstract class to handle weights initialization and
+    a simple interface for dowloading and loading pretrained models.
     """
+
     config_class = UnilmConfig
     base_model_prefix = "unilm"
     pretrained_model_archive_map = {
@@ -87,19 +90,31 @@ class UnilmPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, reuse_position_embedding=None, *model_args, **kwargs):
+    def from_pretrained(
+        cls,
+        pretrained_model_name_or_path,
+        reuse_position_embedding=None,
+        *model_args,
+        **kwargs
+    ):
         pretrained_model_archive_map = cls.pretrained_model_archive_map
         if pretrained_model_name_or_path in pretrained_model_archive_map:
             state_dict = get_checkpoint_from_transformer_cache(
-                archive_file=pretrained_model_archive_map[pretrained_model_name_or_path],
+                archive_file=pretrained_model_archive_map[
+                    pretrained_model_name_or_path
+                ],
                 pretrained_model_name_or_path=pretrained_model_name_or_path,
                 pretrained_model_archive_map=pretrained_model_archive_map,
-                cache_dir=kwargs.get("cache_dir", None), force_download=kwargs.get("force_download", None),
-                proxies=kwargs.get("proxies", None), resume_download=kwargs.get("resume_download", None),
+                cache_dir=kwargs.get("cache_dir", None),
+                force_download=kwargs.get("force_download", None),
+                proxies=kwargs.get("proxies", None),
+                resume_download=kwargs.get("resume_download", None),
             )
             kwargs["state_dict"] = state_dict
         elif os.path.isfile(pretrained_model_name_or_path):
-            kwargs["state_dict"] = torch.load(pretrained_model_name_or_path, map_location='cpu')
+            kwargs["state_dict"] = torch.load(
+                pretrained_model_name_or_path, map_location="cpu"
+            )
 
         if kwargs["state_dict"] is None:
             logger.info("unilm does't support the model !")
@@ -110,7 +125,9 @@ class UnilmPreTrainedModel(PreTrainedModel):
 
         # initialize new position embeddings (From Microsoft/UniLM)
         if not isinstance(config, PretrainedConfig):
-            config_path = config if config is not None else pretrained_model_name_or_path
+            config_path = (
+                config if config is not None else pretrained_model_name_or_path
+            )
             config, model_kwargs = cls.config_class.from_pretrained(
                 config_path,
                 *model_args,
@@ -125,40 +142,71 @@ class UnilmPreTrainedModel(PreTrainedModel):
         else:
             model_kwargs = kwargs
 
-        kwargs['config'] = config
+        kwargs["config"] = config
 
-        _k = 'bert.embeddings.position_embeddings.weight'
+        _k = "bert.embeddings.position_embeddings.weight"
         if _k in state_dict:
             if config.max_position_embeddings > state_dict[_k].shape[0]:
                 logger.info("Resize > position embeddings !")
                 old_vocab_size = state_dict[_k].shape[0]
-                new_postion_embedding = state_dict[_k].data.new_tensor(torch.ones(
-                    size=(config.max_position_embeddings, state_dict[_k].shape[1])), dtype=torch.float)
-                new_postion_embedding = nn.Parameter(data=new_postion_embedding, requires_grad=True)
-                new_postion_embedding.data.normal_(mean=0.0, std=config.initializer_range)
-                max_range = config.max_position_embeddings if reuse_position_embedding else old_vocab_size
+                new_postion_embedding = state_dict[_k].data.new_tensor(
+                    torch.ones(
+                        size=(config.max_position_embeddings, state_dict[_k].shape[1])
+                    ),
+                    dtype=torch.float,
+                )
+                new_postion_embedding = nn.Parameter(
+                    data=new_postion_embedding, requires_grad=True
+                )
+                new_postion_embedding.data.normal_(
+                    mean=0.0, std=config.initializer_range
+                )
+                max_range = (
+                    config.max_position_embeddings
+                    if reuse_position_embedding
+                    else old_vocab_size
+                )
                 shift = 0
                 while shift < max_range:
                     delta = min(old_vocab_size, max_range - shift)
-                    new_postion_embedding.data[shift: shift + delta, :] = state_dict[_k][:delta, :]
-                    logger.info("  CP [%d ~ %d] into [%d ~ %d]  " % (0, delta, shift, shift + delta))
+                    new_postion_embedding.data[shift : shift + delta, :] = state_dict[
+                        _k
+                    ][:delta, :]
+                    logger.info(
+                        "  CP [%d ~ %d] into [%d ~ %d]  "
+                        % (0, delta, shift, shift + delta)
+                    )
                     shift += delta
                 state_dict[_k] = new_postion_embedding.data
                 del new_postion_embedding
             elif config.max_position_embeddings < state_dict[_k].shape[0]:
                 logger.info("Resize < position embeddings !")
                 old_vocab_size = state_dict[_k].shape[0]
-                new_postion_embedding = state_dict[_k].data.new_tensor(torch.ones(
-                    size=(config.max_position_embeddings, state_dict[_k].shape[1])), dtype=torch.float)
-                new_postion_embedding = nn.Parameter(data=new_postion_embedding, requires_grad=True)
-                new_postion_embedding.data.normal_(mean=0.0, std=config.initializer_range)
-                new_postion_embedding.data.copy_(state_dict[_k][:config.max_position_embeddings, :])
+                new_postion_embedding = state_dict[_k].data.new_tensor(
+                    torch.ones(
+                        size=(config.max_position_embeddings, state_dict[_k].shape[1])
+                    ),
+                    dtype=torch.float,
+                )
+                new_postion_embedding = nn.Parameter(
+                    data=new_postion_embedding, requires_grad=True
+                )
+                new_postion_embedding.data.normal_(
+                    mean=0.0, std=config.initializer_range
+                )
+                new_postion_embedding.data.copy_(
+                    state_dict[_k][: config.max_position_embeddings, :]
+                )
                 state_dict[_k] = new_postion_embedding.data
                 del new_postion_embedding
         if pretrained_model_name_or_path in cls.pretrained_model_archive_map:
-            pretrained_model_name_or_path = cls.pretrained_model_archive_map[pretrained_model_name_or_path]
+            pretrained_model_name_or_path = cls.pretrained_model_archive_map[
+                pretrained_model_name_or_path
+            ]
 
-        model = super().from_pretrained(pretrained_model_name_or_path, *model_args, state_dict=state_dict, **kwargs)
+        model = super().from_pretrained(
+            pretrained_model_name_or_path, *model_args, state_dict=state_dict, **kwargs
+        )
         model.load_state_dict(state_dict, False)
         return model
 
@@ -202,7 +250,6 @@ class BertSelfAttention(nn.Module):
         prev_enc_value_layer = history_states.get("prev_enc_value_layer")
         prev_dec_key_layer = history_states.get("prev_dec_key_layer")
         prev_dec_value_layer = history_states.get("prev_dec_value_layer")
-
 
         query_layer = self.transpose_for_scores(new_query_layer)
         key_layer = self.transpose_for_scores(new_key_layer)
@@ -409,6 +456,7 @@ class BertEncoder(nn.Module):
             outputs = outputs + (all_attentions,)
         return outputs  # last-layer hidden state, (all hidden states), (all attentions), (all encoder layers)
 
+
 class UnilmModel(UnilmPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -518,10 +566,12 @@ class UnilmModel(UnilmPreTrainedModel):
         )  # add hidden_states and attentions if they are here
         return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
+
 class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
     def __init__(self, config):
         super().__init__(config)
         config.output_hidden_states = True
+        self.config = config
         self.bert = UnilmModel(config)
         self.cls = BertPreTrainingHeads(config)
 
@@ -642,8 +692,8 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
         *args,
         **kwargs
     ):
-        max_seq_length = kwargs.pop("max_length", 48)
-        min_seq_length = kwargs.pop("min_length", 0)
+        max_seq_length = kwargs.pop("dec_max_length", 48)
+        min_seq_length = kwargs.pop("dec_min_length", 0)
         repetition_penalty = kwargs.pop("repetition_penalty", 1.0)
         no_repeat_ngram_size = kwargs.pop("no_repeat_ngram_size", 0)
         length_penalty = kwargs.pop("length_penalty", 1.0)
@@ -654,8 +704,12 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
         src_len = src_token.size(1)
         total_seq_length = max_seq_length + src_len + 1
         src_mask = src_mask1[:, None, :].repeat(1, total_seq_length, 1)
-        tgt_mask = torch.zeros(batch_size, total_seq_length, max_seq_length + 1).to(src_mask)
-        tri_mask = torch.ones(batch_size, total_seq_length, max_seq_length + 1).to(src_mask)
+        tgt_mask = torch.zeros(batch_size, total_seq_length, max_seq_length + 1).to(
+            src_mask
+        )
+        tri_mask = torch.ones(batch_size, total_seq_length, max_seq_length + 1).to(
+            src_mask
+        )
         tgt_mask[:, src_len:, :] = torch.tril(tri_mask[:, src_len:, :])
         tgt_mask[:, :, 0] = 0
         src_mask = torch.cat((src_mask, tgt_mask), dim=-1)
@@ -681,13 +735,15 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
             .repeat(src_token.size(0) * self.num_beams, 1)
         )
         self.dec_mask_token = (
-            torch.from_numpy(np.array([103]))
+            torch.from_numpy(np.array([self.config.mask_token_id]))
             .repeat([batch_size * self.num_beams])
             .unsqueeze(-1)
             .to(src_token.device)
         )
+        if decoder_start_token_id is not None:
+            self.config.bos_token_id = decoder_start_token_id
         bos_token = (
-            torch.from_numpy(np.array([101]))
+            torch.from_numpy(np.array([self.config.bos_token_id]))
             .repeat([batch_size])
             .unsqueeze(-1)
         )
@@ -703,12 +759,12 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
             no_repeat_ngram_size=no_repeat_ngram_size,
             length_penalty=length_penalty,
             repetition_penalty=repetition_penalty,
-            bos_token_id=101,
-            pad_token_id=0,
-            eos_token_id=102,
+            bos_token_id=self.config.bos_token_id,
+            pad_token_id=self.config.pad_token_id,
+            eos_token_id=self.config.eos_token_id,
             num_return_sequences=num_return_sequences,
         )
 
         batch_hyp = batch_hyp.reshape(batch_size, num_return_sequences, -1)
-        batch_hyp = batch_hyp[:,0,:]
+        batch_hyp = batch_hyp[:, 0, :]
         return batch_hyp

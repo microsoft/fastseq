@@ -227,7 +227,7 @@ def generate_summaries_or_translations(
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer.model_max_length = 128
+    tokenizer.model_max_length = gen_kwargs.get('max_length', 128)
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
@@ -301,6 +301,11 @@ def run_generate():
                         default=8,
                         required=False,
                         help="batch size")
+    parser.add_argument("--max_length",
+                        type=int,
+                        default=128,
+                        required=False,
+                        help="max seq length")
     parser.add_argument(
         "--decoder_start_token_id",
         type=int,
@@ -360,7 +365,8 @@ def run_generate():
         postprocess_workers=args.postprocess_workers,
         return_tensors=args.return_tensors,
         truncation=not args.no_truncation,
-        padding=args.padding
+        padding=args.padding,
+        max_length=args.max_length
         )
     if args.reference_path is None:
         return

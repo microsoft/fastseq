@@ -34,25 +34,26 @@ from transformers.tokenization_bert import BertTokenizer, whitespace_tokenize
 
 logger = logging.getLogger(__name__)
 
-VOCAB_FILES_NAMES = {'vocab_file': 'vocab.txt'}
+VOCAB_FILES_NAMES = {"vocab_file": "vocab.txt"}
 
 PRETRAINED_VOCAB_FILES_MAP = {
-    'vocab_file':
-    {
-        'unilm-large-cased': "https://unilm.blob.core.windows.net/ckpt/unilm-large-cased-vocab.txt",
-        'unilm-base-cased': "https://unilm.blob.core.windows.net/ckpt/unilm-base-cased-vocab.txt",
-        'unilm1-large-cased': "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased-vocab.txt",
-        'unilm1-base-cased': "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-vocab.txt",
-        'unilm1.2-base-uncased': "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-vocab.txt"
+    "vocab_file": {
+        "unilm-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm-large-cased-vocab.txt",
+        "unilm-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm-base-cased-vocab.txt",
+        "unilm1-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased-vocab.txt",
+        "unilm1-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-vocab.txt",
+        "unilm1.2-base-uncased": "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-vocab.txt",
+        "xsum-unilm-base-uncased": "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-vocab.txt",
     }
 }
 
 PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES = {
-    'unilm-large-cased': 512,
-    'unilm-base-cased': 512,
-    'unilm1-large-cased': 512,
-    'unilm1-base-cased': 512,
-    'unilm1.2-base-uncased': 512,
+    "unilm-large-cased": 512,
+    "unilm-base-cased": 512,
+    "unilm1-large-cased": 512,
+    "unilm1-base-cased": 512,
+    "unilm1.2-base-uncased": 512,
+    "xsum-unilm-base-uncased": 512,
 }
 
 
@@ -73,6 +74,7 @@ class UnilmTokenizer(BertTokenizer):
     vocab_files_names = VOCAB_FILES_NAMES
     pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
     max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
+
 
 class WhitespaceTokenizer(object):
     def tokenize(self, text):
