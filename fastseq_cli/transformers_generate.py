@@ -67,6 +67,7 @@ class IOProcess (Process):
 
     def process_dec(self, dec):
         for hypothesis in dec:
+            hypothesis = hypothesis.replace('\n', ' ')
             self.fout.write(hypothesis + "\n")
             self.fout.flush()
 

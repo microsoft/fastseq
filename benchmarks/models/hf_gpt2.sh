@@ -14,7 +14,7 @@ source hf.sh
 ./benchmark.sh \
     transformers+fastseq \
     gpt2 \
-    cnn_dm.1k/raw \
+    cnn_dm/raw \
     val \
     16/32/64/128 \
     --task summarization \
@@ -32,5 +32,3 @@ source hf.sh
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
     --max_gen_length 711
-
-

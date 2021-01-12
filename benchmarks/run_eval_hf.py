@@ -106,6 +106,7 @@ def generate_summaries_or_translations(
             summaries, skip_special_tokens=True,
             clean_up_tokenization_spaces=False)
         for hypothesis in dec:
+            hypothesis = hypothesis.replace('\n', ' ')
             fout.write(hypothesis + "\n")
             fout.flush()
 
