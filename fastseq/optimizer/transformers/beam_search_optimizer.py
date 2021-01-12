@@ -25,6 +25,8 @@ from fastseq.utils.api_decorator import replace
 
 logger = get_logger(__name__, logging.INFO)
 
+no_repeat_ngram_op = NGramRepeatBlock()
+
 @replace(calc_banned_ngram_tokens)
 def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
                                 num_hypos: int,
@@ -665,7 +667,7 @@ class GenerationMixinV2(GenerationMixin):
         if no_repeat_ngram_size > 0:
             #custom op for Ngram repeat blocking
             if (input_ids.is_cuda and scores.is_cuda):
-                scores = self.no_repeat_ngram_op(input_ids,scores.float(),
+                scores = no_repeat_ngram_op(input_ids,scores.float(),
                         batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
             else:
                 num_batch_hypotheses = batch_size * num_beams
@@ -737,9 +739,6 @@ class GenerationMixinV2(GenerationMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
-
-        #NGram Repeat block Op
-        self.no_repeat_ngram_op = NGramRepeatBlock()#.to('cuda', torch.float32)
 
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(

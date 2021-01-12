@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 @replace(Attention)
 class AttentionV2(Attention):
     def __init__(self, nx, n_ctx, config, scale=False, num_beams=1):
-        super().__init__(nx, n_ctx, config, scale)
+        super().__init__(nx=nx, n_ctx=n_ctx, config=config, scale=scale)
 
         self.cache_input_key = None
         self.cache_input_value = None
