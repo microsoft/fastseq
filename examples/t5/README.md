@@ -9,7 +9,7 @@ The T5 model was presented in [Exploring the Limits of Transfer Learning with a 
 
   |       BatchSize      |        64       |      128       |
   |:--------------------:|:---------------:|:--------------:|
-  |   ransformers_v3.0.2 |  8.7 samples/s  |      OOM       |
+  |   transformers_v3.0.2 |  8.7 samples/s  |      OOM       |
   |   above + fastseq    |  19.5 samples/s | 31.3 samples/s  |
 
 
