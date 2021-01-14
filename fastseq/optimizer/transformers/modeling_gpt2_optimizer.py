@@ -83,10 +83,10 @@ class AttentionV2(Attention):
         if use_cache is True:
             if layer_past is None:
                 if self.cache_input_key is not None:
-                    logger.warning(
+                    logger.debug(
                         "The previous cached key and value in GPT2 "
                         "self-attention layer have been updated. If this is not"
-                        "on purpose, please add past/layer_past parameter when"
+                        " on purpose, please add past/layer_past parameter when"
                         " call this model or self-attention layer.")
                 self.cache_input_key = key.transpose(-2, -1)
                 self.cache_input_value = value
