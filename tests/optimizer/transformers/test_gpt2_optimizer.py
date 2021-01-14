@@ -18,7 +18,7 @@ from transformers import (GPT2LMHeadModel, GPT2Tokenizer)
 logger = get_logger(__name__)
 
 class GPT2OptimizerTest(TestCaseBase):
-    """Test the optimizations on HuggingFace-transformers-T5.
+    """Test the optimizations on HuggingFace-transformers-GPT2.
     """
     def setUp(self):
         """Load model, tokenizer and expected output."""
