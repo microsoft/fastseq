@@ -1,12 +1,8 @@
-import torch
 import logging
 
-from transformers.modeling_utils import (
-    cached_path,
-    WEIGHTS_NAME,
-    TF2_WEIGHTS_NAME,
-    TF_WEIGHTS_NAME,
-)
+import torch
+from transformers.modeling_utils import (TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME,
+                                         WEIGHTS_NAME, cached_path)
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +27,8 @@ def get_checkpoint_from_transformer_cache(
     except EnvironmentError:
         if pretrained_model_name_or_path in pretrained_model_archive_map:
             msg = (
-                "Couldn't reach server at '{}' to download pretrained weights.".format(
-                    archive_file
-                )
-            )
+                "Couldn't reach server at '{}' to download pretrained weights."
+                .format(archive_file))
         else:
             msg = (
                 "Model name '{}' was not found in model name list ({}). "
@@ -44,17 +38,13 @@ def get_checkpoint_from_transformer_cache(
                     ", ".join(pretrained_model_archive_map.keys()),
                     archive_file,
                     [WEIGHTS_NAME, TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME],
-                )
-            )
+                ))
         raise EnvironmentError(msg)
 
     if resolved_archive_file == archive_file:
         logger.info("loading weights file {}".format(archive_file))
     else:
-        logger.info(
-            "loading weights file {} from cache at {}".format(
-                archive_file, resolved_archive_file
-            )
-        )
+        logger.info("loading weights file {} from cache at {}".format(
+            archive_file, resolved_archive_file))
 
     return torch.load(resolved_archive_file, map_location="cpu")

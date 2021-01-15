@@ -4,102 +4,36 @@ import json
 from pathlib import Path
 from multiprocessing import Process, Queue
 from tqdm import tqdm
+import fastseq
 import torch
 import transformers
-from transformers import PretrainedConfig, AutoConfig
-from transformers import AutoTokenizer as _AutoTokenizer
-from transformers import AutoModelForSeq2SeqLM as _AutoModelForSeq2SeqLM
+from transformers import AutoConfig, AutoTokenizer, AutoModelForSeq2SeqLM
 from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
-
-from fastseq.models.unilm_hf import UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP, UnilmConfig, UnilmForSeq2Seq, UnilmTokenizer
-
-transformers.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.update(dict({
-    UnilmConfig: UnilmForSeq2Seq
-}))
-
-transformers.TOKENIZER_MAPPING.update(dict({
-    UnilmConfig: (UnilmTokenizer, None)
-}))
-
-transformers.CONFIG_MAPPING.update(dict({
-    "unilm": UnilmConfig
-}))
-
-class AutoModelForSeq2SeqLM(_AutoModelForSeq2SeqLM):
-    @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        config = kwargs.pop("config", None)
-        if not isinstance(config, PretrainedConfig):
-            if pretrained_model_name_or_path in UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP:
-                pretrained_config_name_or_path = UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP[pretrained_model_name_or_path]
-            else:
-                pretrained_config_name_or_path = pretrained_model_name_or_path
-            config = AutoConfig.from_pretrained(pretrained_config_name_or_path, **kwargs)
-
-        for config_class, model_class in transformers.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.items():
-            if isinstance(config, config_class):
-                return model_class.from_pretrained(pretrained_model_name_or_path, *model_args, config=config, **kwargs)
-        raise ValueError(
-            "Unrecognized configuration class {} for this kind of AutoModel: {}.\n"
-            "Model type should be one of {}.".format(
-                config.__class__,
-                cls.__name__,
-                ", ".join(c.__name__ for c in transformers.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.keys()),
-            )
-        )
-
-class AutoTokenizer(_AutoTokenizer):
-    @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, *inputs, **kwargs):
-        config = kwargs.pop("config", None)
-        if not isinstance(config, PretrainedConfig):
-            if pretrained_model_name_or_path in UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP:
-                pretrained_config_name_or_path = UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP[pretrained_model_name_or_path]
-            else:
-                pretrained_config_name_or_path = pretrained_model_name_or_path
-            config = AutoConfig.from_pretrained(pretrained_config_name_or_path, **kwargs)
-
-        if "bert-base-japanese" in str(pretrained_model_name_or_path):
-            return BertJapaneseTokenizer.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
-
-        use_fast = kwargs.pop("use_fast", False)
-        for config_class, (tokenizer_class_py, tokenizer_class_fast) in transformers.TOKENIZER_MAPPING.items():
-            if isinstance(config, config_class):
-                if tokenizer_class_fast and use_fast:
-                    return tokenizer_class_fast.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
-                else:
-                    return tokenizer_class_py.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
-
-        raise ValueError(
-            "Unrecognized configuration class {} to build an AutoTokenizer.\n"
-            "Model type should be one of {}.".format(
-                config.__class__, ", ".join(c.__name__ for c in TOKENIZER_MAPPING.keys())
-            )
-        )
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 GENERATE_FINISHED = 'done'
 POSTPROCESS_FINISHED = None
 
+
 class TokenizeDataset(torch.utils.data.Dataset):
     """Characterizes a dataset for PyTorch"""
-    def __init__(self, examples, tokenizer, model_name, prefix,
-                return_tensors, truncation, padding):
+    def __init__(self, examples, tokenizer, model_name, prefix, return_tensors,
+                 truncation, padding):
         """Multiprocess Dataloader.
         Args:
             examples (List(str)): a list of input sentences.
             tokenizer (AutoTokenizer): instance of AutoTokenizer.
             model_name (string): model name.
             prefix (string): input example prefix if any. 
-        """ 
+        """
         self.examples = examples
-        self.tokenizer= tokenizer
+        self.tokenizer = tokenizer
         self.model_name = model_name
         self.prefix = prefix
-        self.return_tensors=return_tensors
-        self.truncation=truncation
-        self.padding=padding
+        self.return_tensors = return_tensors
+        self.truncation = truncation
+        self.padding = padding
 
     def __len__(self):
         return len(self.examples)
@@ -109,12 +43,13 @@ class TokenizeDataset(torch.utils.data.Dataset):
         if "t5" in self.model_name:
             batch = self.prefix + batch
         batch = self.tokenizer(batch,
-                          return_tensors=self.return_tensors,
-                          truncation=self.truncation,
-                          padding=self.padding)
+                               return_tensors=self.return_tensors,
+                               truncation=self.truncation,
+                               padding=self.padding)
         return batch['input_ids'], batch['attention_mask']
 
-class IOProcess (Process):
+
+class IOProcess(Process):
     """ Write detokenized output to file in order."""
     def __init__(self, msg_queue, fout):
         """Async output writer.
@@ -125,7 +60,7 @@ class IOProcess (Process):
         super(IOProcess, self).__init__()
         self.msg_queue = msg_queue
         self.fout = fout
-        self.waiting_for=0
+        self.waiting_for = 0
         self.dec_buf = {}
 
     def process_dec(self, dec):
@@ -137,7 +72,7 @@ class IOProcess (Process):
         while self.waiting_for in self.dec_buf:
             self.process_dec(self.dec_buf[self.waiting_for])
             del self.dec_buf[self.waiting_for]
-            self.waiting_for+=1
+            self.waiting_for += 1
 
     def run(self):
         while True:
@@ -148,17 +83,18 @@ class IOProcess (Process):
                 self.dec_buf[ind] = dec
             else:
                 self.process_dec(dec)
-                self.waiting_for+=1
+                self.waiting_for += 1
                 self.process_buffer()
         self.process_buffer()
         assert not self.dec_buf, "IO Buffer not empty"
         self.msg_queue.close()
         self.msg_queue.join_thread()
 
+
 class PostProcess(Process):
     """ Parallel detokenization """
-    def __init__(self, tokenizer, data_queue, msg_queue,
-            skip_special_tokens, clean_up_tokenization_spaces):
+    def __init__(self, tokenizer, data_queue, msg_queue, skip_special_tokens,
+                 clean_up_tokenization_spaces):
         """Async Postprocess.
         Args:
             data_queue : Multiprocess data Queue
@@ -169,7 +105,7 @@ class PostProcess(Process):
         """
         super(PostProcess, self).__init__()
         self.data_queue = data_queue
-        self.msg_queue  = msg_queue
+        self.msg_queue = msg_queue
         self.tokenizer = tokenizer
         self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
         self.skip_special_tokens = skip_special_tokens
@@ -184,16 +120,18 @@ class PostProcess(Process):
                 self.data_queue.put((-1, POSTPROCESS_FINISHED))
                 break
             else:
-                dec = self.tokenizer.batch_decode(summaries,
-                        skip_special_tokens = self.skip_special_tokens,
-                        clean_up_tokenization_spaces =
-                        self.clean_up_tokenization_spaces)
+                dec = self.tokenizer.batch_decode(
+                    summaries,
+                    skip_special_tokens=self.skip_special_tokens,
+                    clean_up_tokenization_spaces=self.
+                    clean_up_tokenization_spaces)
                 self.msg_queue.put((ind, dec))
 
         self.data_queue.close()
         self.data_queue.join_thread()
         self.msg_queue.close()
         self.msg_queue.join_thread()
+
 
 def generate_summaries_or_translations(
     examples: list,
@@ -232,28 +170,32 @@ def generate_summaries_or_translations(
     # update config with summarization specific params
     use_task_specific_params(model, task)
     data_queue = Queue()
-    msg_queue =  Queue()
+    msg_queue = Queue()
     p_list = []
 
     for i in range(postprocess_workers):
-        p = PostProcess(tokenizer, data_queue, msg_queue,
-            skip_special_tokens, clean_up_tokenization_spaces)
+        p = PostProcess(tokenizer, data_queue, msg_queue, skip_special_tokens,
+                        clean_up_tokenization_spaces)
         p_list.append(p)
         p.start()
 
-    io_process = IOProcess( msg_queue, fout)
+    io_process = IOProcess(msg_queue, fout)
     io_process.start()
     dataset = TokenizeDataset(examples, tokenizer, model_name,
-            model.config.prefix, return_tensors, truncation, padding)
-    training_generator = torch.utils.data.DataLoader(dataset,
-            batch_size=batch_size, num_workers = preprocess_workers,
-            drop_last=False)
+                              model.config.prefix, return_tensors, truncation,
+                              padding)
+    training_generator = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        num_workers=preprocess_workers,
+        drop_last=False)
     for ind, batch in tqdm(enumerate(training_generator)):
         input_ids, attention_mask = batch
         input_ids = input_ids.view(input_ids.size(0), -1).to(device)
         attention_mask = attention_mask.view(input_ids.size(0), -1).to(device)
-        input_ids, attention_mask = trim_batch(
-            input_ids, tokenizer.pad_token_id, attention_mask)
+        input_ids, attention_mask = trim_batch(input_ids,
+                                               tokenizer.pad_token_id,
+                                               attention_mask)
         summaries = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -269,6 +211,7 @@ def generate_summaries_or_translations(
     msg_queue.put((-1, GENERATE_FINISHED))
     io_process.join()
     fout.close()
+
 
 def run_generate():
     """Entrance is here."""
@@ -306,6 +249,11 @@ def run_generate():
                         default=128,
                         required=False,
                         help="max seq length")
+    parser.add_argument("--dec_max_length",
+                        type=int,
+                        default=128,
+                        required=False,
+                        help="decode max seq length")
     parser.add_argument(
         "--decoder_start_token_id",
         type=int,
@@ -320,8 +268,11 @@ def run_generate():
                         help="How many observations. Defaults to all.")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--without_fastseq_opt", action="store_true")
-    parser.add_argument("--no_repeat_ngram_size", type=int, default=None,
-                         required=False, help="size of no repeat ngram")
+    parser.add_argument("--no_repeat_ngram_size",
+                        type=int,
+                        default=None,
+                        required=False,
+                        help="size of no repeat ngram")
     parser.add_argument("--include_special_tokens", action="store_true")
     parser.add_argument("--clean_up_tokenization_spaces", action="store_true")
     parser.add_argument("--preprocess_workers",
@@ -335,10 +286,16 @@ def run_generate():
                         required=False,
                         help="post-processing worker threads")
     parser.add_argument("--no_truncation", action="store_true")
-    parser.add_argument("--return_tensors", type=str, help="specify return tensors", 
-                        default="pt", required=False)
-    parser.add_argument("--padding", type=str, help="specify padding", 
-                        default="max_length", required=False)
+    parser.add_argument("--return_tensors",
+                        type=str,
+                        help="specify return tensors",
+                        default="pt",
+                        required=False)
+    parser.add_argument("--padding",
+                        type=str,
+                        help="specify padding",
+                        default="max_length",
+                        required=False)
 
     args = parser.parse_args()
     examples = [
@@ -366,8 +323,9 @@ def run_generate():
         return_tensors=args.return_tensors,
         truncation=not args.no_truncation,
         padding=args.padding,
-        max_length=args.max_length
-        )
+        max_length=args.max_length,
+        dec_max_length=args.dec_max_length,
+    )
     if args.reference_path is None:
         return
     # Compute scores

@@ -1,38 +1,46 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 import math
 import os
+
 import numpy as np
-
 import torch
-from torch import nn
 import torch.nn.functional as F
-
-from transformers import PretrainedConfig, PreTrainedModel
-from transformers.modeling_bert import (
-    BertConfig,
-    BertEmbeddings,
-    BertIntermediate,
-    BertOutput,
-    BertPooler,
-    BertPreTrainingHeads,
-    BertSelfOutput,
-)
-from fastseq.models.unilm_hf.configuration_unilm import UnilmConfig
-from fastseq.models.unilm_hf.utils_hf import get_checkpoint_from_transformer_cache
+from fastseq.optimizer.transformers.beam_search_optimizer import GenerationMixinV2
 from fastseq.models.unilm_hf.beam_search_optimizer_v2 import GenerationMixinV3
+from fastseq.models.unilm_hf.configuration_unilm import UnilmConfig
+from fastseq.models.unilm_hf.utils_hf import \
+    get_checkpoint_from_transformer_cache
+from torch import nn
+from transformers import PretrainedConfig, PreTrainedModel
+from transformers.modeling_bert import (BertConfig, BertEmbeddings,
+                                        BertIntermediate, BertOutput,
+                                        BertPooler, BertPreTrainingHeads,
+                                        BertSelfOutput)
 
 logger = logging.getLogger(__name__)
 BertLayerNorm = torch.nn.LayerNorm
 
 UNILM_PRETRAINED_MODEL_ARCHIVE_MAP = {
-    "unilm-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
-    "unilm-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
-    "unilm1-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
-    "unilm1-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
-    "unilm1.2-base-uncased": "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased.bin",
-    "xsum-unilm-base-uncased": "https://huggingface.co/fuliucansheng/unilm/resolve/main/xsum_unilm_base_uncased.bin",
+    "unilm-base-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
+    "unilm-large-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
+    "unilm1-base-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased.bin",
+    "unilm1-large-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
+    "unilm1.2-base-uncased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased.bin",
+    "xsum-unilm-base-uncased":
+    "https://huggingface.co/fuliucansheng/unilm/resolve/main/xsum_unilm_base_uncased.bin",
+    "cnndm-unilm-base-cased":
+    "https://unilm.blob.core.windows.net/ckpt/cnndm.unilm1-base-cased.bin",
 }
 
 
@@ -54,15 +62,11 @@ def _reorder_buffer_v3(attn_cache, batch_idx, beam_idx, beam_size):
     for k, input_buffer_k in attn_cache.items():
         if input_buffer_k is not None:
             if "enc" in k:
-                attn_cache[k] = (
-                    input_buffer_k
-                    if batch_idx is None
-                    else input_buffer_k.index_select(0, batch_idx)
-                )
+                attn_cache[k] = (input_buffer_k if batch_idx is None else
+                                 input_buffer_k.index_select(0, batch_idx))
             else:
-                attn_cache[k] = _get_new_tensor(
-                    input_buffer_k, batch_idx, beam_idx, beam_size
-                )
+                attn_cache[k] = _get_new_tensor(input_buffer_k, batch_idx,
+                                                beam_idx, beam_size)
     return attn_cache
 
 
@@ -82,7 +86,8 @@ class UnilmPreTrainedModel(PreTrainedModel):
         if isinstance(module, (nn.Linear, nn.Embedding)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+            module.weight.data.normal_(mean=0.0,
+                                       std=self.config.initializer_range)
         elif isinstance(module, BertLayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -90,19 +95,16 @@ class UnilmPreTrainedModel(PreTrainedModel):
             module.bias.data.zero_()
 
     @classmethod
-    def from_pretrained(
-        cls,
-        pretrained_model_name_or_path,
-        reuse_position_embedding=None,
-        *model_args,
-        **kwargs
-    ):
+    def from_pretrained(cls,
+                        pretrained_model_name_or_path,
+                        reuse_position_embedding=None,
+                        *model_args,
+                        **kwargs):
         pretrained_model_archive_map = cls.pretrained_model_archive_map
         if pretrained_model_name_or_path in pretrained_model_archive_map:
             state_dict = get_checkpoint_from_transformer_cache(
                 archive_file=pretrained_model_archive_map[
-                    pretrained_model_name_or_path
-                ],
+                    pretrained_model_name_or_path],
                 pretrained_model_name_or_path=pretrained_model_name_or_path,
                 pretrained_model_archive_map=pretrained_model_archive_map,
                 cache_dir=kwargs.get("cache_dir", None),
@@ -112,9 +114,8 @@ class UnilmPreTrainedModel(PreTrainedModel):
             )
             kwargs["state_dict"] = state_dict
         elif os.path.isfile(pretrained_model_name_or_path):
-            kwargs["state_dict"] = torch.load(
-                pretrained_model_name_or_path, map_location="cpu"
-            )
+            kwargs["state_dict"] = torch.load(pretrained_model_name_or_path,
+                                              map_location="cpu")
 
         if kwargs["state_dict"] is None:
             logger.info("unilm does't support the model !")
@@ -125,9 +126,8 @@ class UnilmPreTrainedModel(PreTrainedModel):
 
         # initialize new position embeddings (From Microsoft/UniLM)
         if not isinstance(config, PretrainedConfig):
-            config_path = (
-                config if config is not None else pretrained_model_name_or_path
-            )
+            config_path = (config if config is not None else
+                           pretrained_model_name_or_path)
             config, model_kwargs = cls.config_class.from_pretrained(
                 config_path,
                 *model_args,
@@ -150,32 +150,23 @@ class UnilmPreTrainedModel(PreTrainedModel):
                 logger.info("Resize > position embeddings !")
                 old_vocab_size = state_dict[_k].shape[0]
                 new_postion_embedding = state_dict[_k].data.new_tensor(
-                    torch.ones(
-                        size=(config.max_position_embeddings, state_dict[_k].shape[1])
-                    ),
+                    torch.ones(size=(config.max_position_embeddings,
+                                     state_dict[_k].shape[1])),
                     dtype=torch.float,
                 )
                 new_postion_embedding = nn.Parameter(
-                    data=new_postion_embedding, requires_grad=True
-                )
+                    data=new_postion_embedding, requires_grad=True)
                 new_postion_embedding.data.normal_(
-                    mean=0.0, std=config.initializer_range
-                )
-                max_range = (
-                    config.max_position_embeddings
-                    if reuse_position_embedding
-                    else old_vocab_size
-                )
+                    mean=0.0, std=config.initializer_range)
+                max_range = (config.max_position_embeddings
+                             if reuse_position_embedding else old_vocab_size)
                 shift = 0
                 while shift < max_range:
                     delta = min(old_vocab_size, max_range - shift)
-                    new_postion_embedding.data[shift : shift + delta, :] = state_dict[
-                        _k
-                    ][:delta, :]
-                    logger.info(
-                        "  CP [%d ~ %d] into [%d ~ %d]  "
-                        % (0, delta, shift, shift + delta)
-                    )
+                    new_postion_embedding.data[
+                        shift:shift + delta, :] = state_dict[_k][:delta, :]
+                    logger.info("  CP [%d ~ %d] into [%d ~ %d]  " %
+                                (0, delta, shift, shift + delta))
                     shift += delta
                 state_dict[_k] = new_postion_embedding.data
                 del new_postion_embedding
@@ -183,30 +174,26 @@ class UnilmPreTrainedModel(PreTrainedModel):
                 logger.info("Resize < position embeddings !")
                 old_vocab_size = state_dict[_k].shape[0]
                 new_postion_embedding = state_dict[_k].data.new_tensor(
-                    torch.ones(
-                        size=(config.max_position_embeddings, state_dict[_k].shape[1])
-                    ),
+                    torch.ones(size=(config.max_position_embeddings,
+                                     state_dict[_k].shape[1])),
                     dtype=torch.float,
                 )
                 new_postion_embedding = nn.Parameter(
-                    data=new_postion_embedding, requires_grad=True
-                )
+                    data=new_postion_embedding, requires_grad=True)
                 new_postion_embedding.data.normal_(
-                    mean=0.0, std=config.initializer_range
-                )
+                    mean=0.0, std=config.initializer_range)
                 new_postion_embedding.data.copy_(
-                    state_dict[_k][: config.max_position_embeddings, :]
-                )
+                    state_dict[_k][:config.max_position_embeddings, :])
                 state_dict[_k] = new_postion_embedding.data
                 del new_postion_embedding
         if pretrained_model_name_or_path in cls.pretrained_model_archive_map:
             pretrained_model_name_or_path = cls.pretrained_model_archive_map[
-                pretrained_model_name_or_path
-            ]
+                pretrained_model_name_or_path]
 
-        model = super().from_pretrained(
-            pretrained_model_name_or_path, *model_args, state_dict=state_dict, **kwargs
-        )
+        model = super().from_pretrained(pretrained_model_name_or_path,
+                                        *model_args,
+                                        state_dict=state_dict,
+                                        **kwargs)
         model.load_state_dict(state_dict, False)
         return model
 
@@ -217,12 +204,13 @@ class BertSelfAttention(nn.Module):
         if config.hidden_size % config.num_attention_heads != 0:
             raise ValueError(
                 "The hidden size (%d) is not a multiple of the number of attention "
-                "heads (%d)" % (config.hidden_size, config.num_attention_heads)
-            )
+                "heads (%d)" %
+                (config.hidden_size, config.num_attention_heads))
         self.output_attentions = config.output_attentions
 
         self.num_attention_heads = config.num_attention_heads
-        self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
+        self.attention_head_size = int(config.hidden_size /
+                                       config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
         self.query = nn.Linear(config.hidden_size, self.all_head_size)
@@ -239,9 +227,11 @@ class BertSelfAttention(nn.Module):
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
-    def forward(
-        self, hidden_states, attention_mask, head_mask=None, history_states=None
-    ):
+    def forward(self,
+                hidden_states,
+                attention_mask,
+                head_mask=None,
+                history_states=None):
         new_query_layer = self.query(hidden_states)
         new_key_layer = self.key(hidden_states)
         new_value_layer = self.value(hidden_states)
@@ -258,52 +248,52 @@ class BertSelfAttention(nn.Module):
             enc_size = prev_enc_key_layer.size()
             enc_attention_scores = torch.einsum(
                 "bxhtd,bhsd->bxhts",
-                query_layer.view(enc_size[0], -1, *query_layer.size()[1:]),
+                query_layer.view(enc_size[0], -1,
+                                 *query_layer.size()[1:]),
                 prev_enc_key_layer,
             )
             enc_attention_scores = enc_attention_scores.reshape(
-                -1, *enc_attention_scores.size()[2:]
-            )
+                -1,
+                *enc_attention_scores.size()[2:])
             if prev_dec_key_layer is not None:
                 key_layer = torch.cat((prev_dec_key_layer, key_layer), dim=2)
-                value_layer = torch.cat((prev_dec_value_layer, value_layer), dim=2)
-            dec_attention_scores = torch.matmul(
-                query_layer, key_layer.transpose(-1, -2)
-            )
+                value_layer = torch.cat((prev_dec_value_layer, value_layer),
+                                        dim=2)
+            dec_attention_scores = torch.matmul(query_layer,
+                                                key_layer.transpose(-1, -2))
             enc_attention_scores = enc_attention_scores / math.sqrt(
-                self.attention_head_size
-            )
+                self.attention_head_size)
             dec_attention_scores = dec_attention_scores / math.sqrt(
-                self.attention_head_size
-            )
+                self.attention_head_size)
             attention_scores = torch.cat(
-                (enc_attention_scores, dec_attention_scores), dim=-1
-            )
+                (enc_attention_scores, dec_attention_scores), dim=-1)
             attention_scores = attention_scores + attention_mask
             attention_probs = nn.Softmax(dim=-1)(attention_scores)
             attention_probs = self.dropout(attention_probs)
 
             if head_mask is not None:
                 attention_probs = attention_probs * head_mask
-            enc_attention_probs = attention_probs[:, :, :, : enc_size[2]]
-            dec_attention_probs = attention_probs[:, :, :, enc_size[2] :]
-            enc_attention_probs = enc_attention_probs.to(prev_enc_value_layer.dtype)
+            enc_attention_probs = attention_probs[:, :, :, :enc_size[2]]
+            dec_attention_probs = attention_probs[:, :, :, enc_size[2]:]
+            enc_attention_probs = enc_attention_probs.to(
+                prev_enc_value_layer.dtype)
             enc_context_layer = torch.einsum(
                 "bxhtd,bhds->bxhts",
-                enc_attention_probs.view(
-                    enc_size[0], -1, *enc_attention_probs.size()[1:]
-                ),
+                enc_attention_probs.view(enc_size[0], -1,
+                                         *enc_attention_probs.size()[1:]),
                 prev_enc_value_layer,
             )
             enc_context_layer = enc_context_layer.reshape(
-                -1, *enc_context_layer.size()[2:]
-            )
+                -1,
+                *enc_context_layer.size()[2:])
             dec_context_layer = torch.matmul(dec_attention_probs, value_layer)
             context_layer = enc_context_layer + dec_context_layer
 
         else:
-            attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
-            attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+            attention_scores = torch.matmul(query_layer,
+                                            key_layer.transpose(-1, -2))
+            attention_scores = attention_scores / math.sqrt(
+                self.attention_head_size)
             attention_scores = attention_scores + attention_mask
 
             attention_probs = nn.Softmax(dim=-1)(attention_scores)
@@ -315,34 +305,27 @@ class BertSelfAttention(nn.Module):
 
         if history_states is None or len(history_states) == 0:
             history_states.update(
-                dict(
-                    {
-                        "prev_enc_key_layer": key_layer,
-                        "prev_enc_value_layer": value_layer,
-                    }
-                )
-            )
+                dict({
+                    "prev_enc_key_layer": key_layer,
+                    "prev_enc_value_layer": value_layer,
+                }))
         else:
             history_states.update(
-                dict(
-                    {
-                        "prev_enc_key_layer": prev_enc_key_layer,
-                        "prev_enc_value_layer": prev_enc_value_layer,
-                        "prev_dec_key_layer": key_layer[:, :, :-1, :],
-                        "prev_dec_value_layer": value_layer[:, :, :-1, :],
-                    }
-                )
-            )
+                dict({
+                    "prev_enc_key_layer": prev_enc_key_layer,
+                    "prev_enc_value_layer": prev_enc_value_layer,
+                    "prev_dec_key_layer": key_layer[:, :, :-1, :],
+                    "prev_dec_value_layer": value_layer[:, :, :-1, :],
+                }))
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.size()[:-2] + (
+            self.all_head_size, )
         context_layer = context_layer.view(*new_context_layer_shape)
 
-        outputs = (
-            (context_layer, attention_probs)
-            if self.output_attentions
-            else (context_layer,)
-        )
+        outputs = ((context_layer,
+                    attention_probs) if self.output_attentions else
+                   (context_layer, ))
         return outputs
 
 
@@ -356,10 +339,10 @@ class BertAttention(nn.Module):
     def prune_heads(self, heads):
         if len(heads) == 0:
             return
-        mask = torch.ones(self.self.num_attention_heads, self.self.attention_head_size)
-        heads = (
-            set(heads) - self.pruned_heads
-        )  # Convert to set and emove already pruned heads
+        mask = torch.ones(self.self.num_attention_heads,
+                          self.self.attention_head_size)
+        heads = (set(heads) - self.pruned_heads
+                 )  # Convert to set and emove already pruned heads
         for head in heads:
             # Compute how many pruned heads are before the head and move the index accordingly
             head = head - sum(1 if h < head else 0 for h in self.pruned_heads)
@@ -374,22 +357,24 @@ class BertAttention(nn.Module):
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
-        self.self.all_head_size = (
-            self.self.attention_head_size * self.self.num_attention_heads
-        )
+        self.self.num_attention_heads = self.self.num_attention_heads - len(
+            heads)
+        self.self.all_head_size = (self.self.attention_head_size *
+                                   self.self.num_attention_heads)
         self.pruned_heads = self.pruned_heads.union(heads)
 
-    def forward(
-        self, input_tensor, attention_mask, head_mask=None, history_states=None
-    ):
-        self_outputs = self.self(
-            input_tensor, attention_mask, head_mask, history_states=history_states
-        )
+    def forward(self,
+                input_tensor,
+                attention_mask,
+                head_mask=None,
+                history_states=None):
+        self_outputs = self.self(input_tensor,
+                                 attention_mask,
+                                 head_mask,
+                                 history_states=history_states)
         attention_output = self.output(self_outputs[0], input_tensor)
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
+        outputs = (attention_output,
+                   ) + self_outputs[1:]  # add attentions if we output them
         return outputs
 
 
@@ -400,18 +385,20 @@ class BertLayer(nn.Module):
         self.intermediate = BertIntermediate(config)
         self.output = BertOutput(config)
 
-    def forward(
-        self, hidden_states, attention_mask, head_mask=None, history_states=None
-    ):
-        attention_outputs = self.attention(
-            hidden_states, attention_mask, head_mask, history_states=history_states
-        )
+    def forward(self,
+                hidden_states,
+                attention_mask,
+                head_mask=None,
+                history_states=None):
+        attention_outputs = self.attention(hidden_states,
+                                           attention_mask,
+                                           head_mask,
+                                           history_states=history_states)
         attention_output = attention_outputs[0]
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)
-        outputs = (layer_output,) + attention_outputs[
-            1:
-        ]  # add attentions if we output them
+        outputs = (layer_output, ) + attention_outputs[
+            1:]  # add attentions if we output them
         return outputs
 
 
@@ -421,12 +408,13 @@ class BertEncoder(nn.Module):
         self.output_attentions = config.output_attentions
         self.output_hidden_states = config.output_hidden_states
         self.layer = nn.ModuleList(
-            [BertLayer(config) for _ in range(config.num_hidden_layers)]
-        )
+            [BertLayer(config) for _ in range(config.num_hidden_layers)])
 
-    def forward(
-        self, hidden_states, attention_mask, head_mask=None, history_states=None
-    ):
+    def forward(self,
+                hidden_states,
+                attention_mask,
+                head_mask=None,
+                history_states=None):
         all_hidden_states = ()
         all_attentions = ()
 
@@ -439,21 +427,21 @@ class BertEncoder(nn.Module):
             )
 
             if self.output_hidden_states:
-                all_hidden_states = all_hidden_states + (hidden_states,)
+                all_hidden_states = all_hidden_states + (hidden_states, )
 
             hidden_states = layer_outputs[0]
             if self.output_attentions:
-                all_attentions = all_attentions + (layer_outputs[1],)
+                all_attentions = all_attentions + (layer_outputs[1], )
 
         # Add last layer
         if self.output_hidden_states:
-            all_hidden_states = all_hidden_states + (hidden_states,)
+            all_hidden_states = all_hidden_states + (hidden_states, )
 
-        outputs = (hidden_states,)
+        outputs = (hidden_states, )
         if self.output_hidden_states:
-            outputs = outputs + (all_hidden_states,)
+            outputs = outputs + (all_hidden_states, )
         if self.output_attentions:
-            outputs = outputs + (all_attentions,)
+            outputs = outputs + (all_attentions, )
         return outputs  # last-layer hidden state, (all hidden states), (all attentions), (all encoder layers)
 
 
@@ -469,7 +457,8 @@ class UnilmModel(UnilmPreTrainedModel):
 
     def _resize_token_embeddings(self, new_num_tokens):
         old_embeddings = self.embeddings.word_embeddings
-        new_embeddings = self._get_resized_embeddings(old_embeddings, new_num_tokens)
+        new_embeddings = self._get_resized_embeddings(old_embeddings,
+                                                      new_num_tokens)
         self.embeddings.word_embeddings = new_embeddings
         return self.embeddings.word_embeddings
 
@@ -513,8 +502,7 @@ class UnilmModel(UnilmPreTrainedModel):
         # Since we are adding it to the raw scores before the softmax, this is
         # effectively the same as removing these entirely.
         extended_attention_mask = extended_attention_mask.to(
-            dtype=next(self.parameters()).dtype
-        )  # fp16 compatibility
+            dtype=next(self.parameters()).dtype)  # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
         # Prepare head mask if needed
@@ -524,19 +512,15 @@ class UnilmModel(UnilmPreTrainedModel):
         # and head_mask is converted to shape [num_hidden_layers x batch x num_heads x seq_length x seq_length]
         if head_mask is not None:
             if head_mask.dim() == 1:
-                head_mask = (
-                    head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-                )
-                head_mask = head_mask.expand(
-                    self.config.num_hidden_layers, -1, -1, -1, -1
-                )
+                head_mask = (head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(
+                    -1).unsqueeze(-1))
+                head_mask = head_mask.expand(self.config.num_hidden_layers, -1,
+                                             -1, -1, -1)
             elif head_mask.dim() == 2:
-                head_mask = (
-                    head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)
-                )  # We can specify head_mask for each layer
-            head_mask = head_mask.to(
-                dtype=next(self.parameters()).dtype
-            )  # switch to fload if need + fp16 compatibility
+                head_mask = (head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)
+                             )  # We can specify head_mask for each layer
+            head_mask = head_mask.to(dtype=next(self.parameters(
+            )).dtype)  # switch to fload if need + fp16 compatibility
         else:
             head_mask = [None] * self.config.num_hidden_layers
 
@@ -544,9 +528,9 @@ class UnilmModel(UnilmPreTrainedModel):
             history_states = [
                 dict().copy() for _ in range(self.config.num_hidden_layers)
             ]
-        embedding_output = self.embeddings(
-            input_ids, position_ids=position_ids, token_type_ids=token_type_ids
-        )
+        embedding_output = self.embeddings(input_ids,
+                                           position_ids=position_ids,
+                                           token_type_ids=token_type_ids)
         encoder_outputs = self.encoder(
             embedding_output,
             extended_attention_mask,
@@ -556,18 +540,15 @@ class UnilmModel(UnilmPreTrainedModel):
         sequence_output = encoder_outputs[0]
         pooled_output = self.pooler(sequence_output)
 
-        outputs = (
-            (
-                sequence_output,
-                pooled_output,
-            )
-            + encoder_outputs[1:]
-            + (history_states,)
-        )  # add hidden_states and attentions if they are here
+        outputs = ((
+            sequence_output,
+            pooled_output,
+        ) + encoder_outputs[1:] + (history_states, )
+                   )  # add hidden_states and attentions if they are here
         return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
 
-class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
+class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
     def __init__(self, config):
         super().__init__(config)
         config.output_hidden_states = True
@@ -598,22 +579,20 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
         dec_token = torch.cat([dec_token, self.dec_mask_token], 1)
         dec_len = dec_token.size(1)
         dec_token = dec_token[:, -2:]
-        dec_mask = token_mask[
-            :, dec_len - 2 : dec_len, : self.src_state["src_len"] + dec_len
-        ]
-        dec_pos = pos_ids[:, dec_len - 2 : dec_len]
+        dec_mask = token_mask[:, dec_len -
+                              2:dec_len, :self.src_state["src_len"] + dec_len]
+        dec_pos = pos_ids[:, dec_len - 2:dec_len]
         history_states = kwargs["history_states"]
 
         outputs = self.bert(
             dec_token,
-            self.dec_seg[:, dec_len - 2 : dec_len],
+            self.dec_seg[:, dec_len - 2:dec_len],
             dec_mask,
             dec_pos,
             history_states=history_states,
         )
-        output, _ = self.cls(
-            outputs[0], outputs[1]
-        )  # Pick the last step: (bh * bm) * d_h
+        output, _ = self.cls(outputs[0],
+                             outputs[1])  # Pick the last step: (bh * bm) * d_h
         state4cache = [pos_ids, token_mask] + outputs[3]
         return output, state4cache
 
@@ -631,16 +610,15 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
         reordered_past = []
         for layer_past in history_states:
             reordered_past.append(
-                _reorder_buffer_v3(layer_past, batch_idx, beam_idx, self.num_beams)
-            )
+                _reorder_buffer_v3(layer_past, batch_idx, beam_idx,
+                                   self.num_beams))
         pos_ids = _get_new_tensor(pos_ids, batch_idx, beam_idx, self.num_beams)
-        token_mask = _get_new_tensor(token_mask, batch_idx, beam_idx, self.num_beams)
-        self.dec_mask_token = _get_new_tensor(
-            self.dec_mask_token, batch_idx, beam_idx, self.num_beams
-        )
-        self.dec_seg = _get_new_tensor(
-            self.dec_seg, batch_idx, beam_idx, self.num_beams
-        )
+        token_mask = _get_new_tensor(token_mask, batch_idx, beam_idx,
+                                     self.num_beams)
+        self.dec_mask_token = _get_new_tensor(self.dec_mask_token, batch_idx,
+                                              beam_idx, self.num_beams)
+        self.dec_seg = _get_new_tensor(self.dec_seg, batch_idx, beam_idx,
+                                       self.num_beams)
         newpast = [pos_ids, token_mask] + reordered_past
         return newpast
 
@@ -661,37 +639,27 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
                 src_pos[:, :src_len],
             )
             token_pos = src_pos.repeat(1, self.num_beams).view(
-                active_batch_size, src_pos.size(1)
-            )
+                active_batch_size, src_pos.size(1))
             token_pos = token_pos[:, src_len:]
-            token_mask = (
-                src_mask.unsqueeze(1)
-                .repeat(1, self.num_beams, 1, 1)
-                .view(active_batch_size, src_mask.size(1), src_mask.size(1))
-            )
+            token_mask = (src_mask.unsqueeze(1).repeat(1, self.num_beams, 1,
+                                                       1).view(
+                                                           active_batch_size,
+                                                           src_mask.size(1),
+                                                           src_mask.size(1)))
             token_mask = token_mask[:, src_len:, :]
             history_states = outputs[3]
         else:
             token_pos, token_mask, history_states = past[0], past[1], past[2:]
 
-        ret = dict(
-            {
-                "src_in": (token_ids, token_mask, token_pos),
-                "history_states": history_states,
-            }
-        )
+        ret = dict({
+            "src_in": (token_ids, token_mask, token_pos),
+            "history_states": history_states,
+        })
         return ret
 
     # beam search
-    def generate(
-        self,
-        input_ids,
-        attention_mask,
-        decoder_start_token_id,
-        no_repeat_ngram_size,
-        *args,
-        **kwargs
-    ):
+    def generate(self, input_ids, attention_mask, decoder_start_token_id,
+                 no_repeat_ngram_size, *args, **kwargs):
         max_seq_length = kwargs.pop("dec_max_length", 48)
         min_seq_length = kwargs.pop("dec_min_length", 0)
         repetition_penalty = kwargs.pop("repetition_penalty", 1.0)
@@ -704,12 +672,10 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
         src_len = src_token.size(1)
         total_seq_length = max_seq_length + src_len + 1
         src_mask = src_mask1[:, None, :].repeat(1, total_seq_length, 1)
-        tgt_mask = torch.zeros(batch_size, total_seq_length, max_seq_length + 1).to(
-            src_mask
-        )
-        tri_mask = torch.ones(batch_size, total_seq_length, max_seq_length + 1).to(
-            src_mask
-        )
+        tgt_mask = torch.zeros(batch_size, total_seq_length,
+                               max_seq_length + 1).to(src_mask)
+        tri_mask = torch.ones(batch_size, total_seq_length,
+                              max_seq_length + 1).to(src_mask)
         tgt_mask[:, src_len:, :] = torch.tril(tri_mask[:, src_len:, :])
         tgt_mask[:, :, 0] = 0
         src_mask = torch.cat((src_mask, tgt_mask), dim=-1)
@@ -719,34 +685,27 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV3):
         src_pos0[:, 0] = 0
         src_pos = torch.cat((input_ids, src_pos0.to(input_ids)), dim=-1).ne(0)
         src_pos = torch.cumsum(src_pos, dim=-1) - 1
-        self.src_state = dict(
-            {
-                "src_len": src_len,
-                "src_token": src_token,
-                "src_seg": src_seg,
-                "src_mask": src_mask,
-                "src_pos": src_pos,
-            }
-        )
+        self.src_state = dict({
+            "src_len": src_len,
+            "src_token": src_token,
+            "src_seg": src_seg,
+            "src_mask": src_mask,
+            "src_pos": src_pos,
+        })
         dec_seg = [0] + [1] * max_seq_length
-        self.dec_seg = (
-            torch.tensor(dec_seg, dtype=torch.long, device=src_token.device)
-            .unsqueeze(0)
-            .repeat(src_token.size(0) * self.num_beams, 1)
-        )
-        self.dec_mask_token = (
-            torch.from_numpy(np.array([self.config.mask_token_id]))
-            .repeat([batch_size * self.num_beams])
-            .unsqueeze(-1)
-            .to(src_token.device)
-        )
+        self.dec_seg = (torch.tensor(
+            dec_seg, dtype=torch.long,
+            device=src_token.device).unsqueeze(0).repeat(
+                src_token.size(0) * self.num_beams, 1))
+        self.dec_mask_token = (torch.from_numpy(
+            np.array([self.config.mask_token_id
+                      ])).repeat([batch_size * self.num_beams
+                                  ]).unsqueeze(-1).to(src_token.device))
         if decoder_start_token_id is not None:
             self.config.bos_token_id = decoder_start_token_id
-        bos_token = (
-            torch.from_numpy(np.array([self.config.bos_token_id]))
-            .repeat([batch_size])
-            .unsqueeze(-1)
-        )
+        bos_token = (torch.from_numpy(np.array([self.config.bos_token_id
+                                                ])).repeat([batch_size
+                                                            ]).unsqueeze(-1))
         if torch.cuda.is_available():
             bos_token = bos_token.cuda()
 

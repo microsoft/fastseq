@@ -1,45 +1,35 @@
-# coding=utf-8
-# The MIT License (MIT)
-
-# Copyright (c) Microsoft Corporation
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 """ UniLM model configuration """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import json
 import logging
 import sys
 from io import open
 
+from fastseq.logging import get_logger
 from transformers import PretrainedConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, logging.INFO)
 
 UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP = {
-    "unilm-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm-large-cased-config.json",
-    "unilm-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm-base-cased-config.json",
-    "unilm1-large-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased-config.json",
-    "unilm1-base-cased": "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-config.json",
-    "unilm1.2-base-uncased": "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-config.json",
-    "xsum-unilm-base-uncased": "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-config.json",
+    "unilm-large-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm-large-cased-config.json",
+    "unilm-base-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm-base-cased-config.json",
+    "unilm1-large-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased-config.json",
+    "unilm1-base-cased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-config.json",
+    "unilm1.2-base-uncased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-config.json",
+    "xsum-unilm-base-uncased":
+    "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-config.json",
+    "cnndm-unilm-base-cased":
+    "https://huggingface.co/fuliucansheng/unilm/resolve/main/cnndm-unilm-base-cased-config.json"
 }
 
 
@@ -99,9 +89,9 @@ class UnilmConfig(PretrainedConfig):
         self.mask_token_id = mask_token_id
         self.eos_token_id = eos_token_id
         self.pad_token_id = pad_token_id
-        if isinstance(vocab_size, str) or (
-            sys.version_info[0] == 2 and isinstance(vocab_size, unicode)
-        ):
+        if isinstance(vocab_size,
+                      str) or (sys.version_info[0] == 2
+                               and isinstance(vocab_size, unicode)):
             with open(vocab_size, "r", encoding="utf-8") as reader:
                 json_config = json.loads(reader.read())
             for key, value in json_config.items():
@@ -124,15 +114,12 @@ class UnilmConfig(PretrainedConfig):
         else:
             raise ValueError(
                 "First argument must be either a vocabulary size (int)"
-                " or the path to a pretrained model config file (str)"
-            )
+                " or the path to a pretrained model config file (str)")
 
     @classmethod
-    def from_pretrained(
-        cls, pretrained_model_name_or_path, **kwargs
-    ) -> "PretrainedConfig":
+    def from_pretrained(cls, pretrained_model_name_or_path,
+                        **kwargs) -> "PretrainedConfig":
         if pretrained_model_name_or_path in cls.pretrained_config_archive_map:
             pretrained_model_name_or_path = cls.pretrained_config_archive_map[
-                pretrained_model_name_or_path
-            ]
+                pretrained_model_name_or_path]
         return super().from_pretrained(pretrained_model_name_or_path, **kwargs)

@@ -15,7 +15,8 @@ from absl.testing import absltest, parameterized
 
 import fastseq
 from fastseq.logging import get_logger
-from fastseq.models.unilm_hf import UnilmForSeq2Seq, UnilmTokenizer
+from fastseq.models.unilm_hf.modeling_unilm import UnilmForSeq2Seq
+from fastseq.models.unilm_hf.tokenization_unilm import UnilmTokenizer
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (PROPHETNET_MODEL_URLS,
                                       CACHED_PROPHETNET_MODEL_PATHS,
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 class UnilmModelTest(TestCaseBase):
     """Test Unilm
 
-    `xsum-unilm-base-uncased` is used for benchmarking. If it does
+    `cnndm-unilm-base-cased` is used for benchmarking. If it does
     not exist, it will be downloaded first. As the the model is big, it will
     take a while to download. Once downloaded, it will be cached for future
     usage.
@@ -36,14 +37,14 @@ class UnilmModelTest(TestCaseBase):
         """set up the test environment"""
 
         super().setUp()
-        self.unilm_model = UnilmForSeq2Seq.from_pretrained('xsum-unilm-base-uncased')
-        self.unilm_tokenizer = UnilmTokenizer.from_pretrained('xsum-unilm-base-uncased')
-        self.unilm_tokenizer.model_max_length = 464
+        self.unilm_model = UnilmForSeq2Seq.from_pretrained('cnndm-unilm-base-cased')
+        self.unilm_tokenizer = UnilmTokenizer.from_pretrained('cnndm-unilm-base-cased')
+        self.unilm_tokenizer.model_max_length = 608
 
-        self.source_path = 'tests/models/data/xsum_unilm_base_uncased_data.txt'
+        self.source_path = 'tests/models/data/cnn_dm_128_bert.txt'
 
         # read the expected output.
-        self.expected_output_path = 'tests/models/data/xsum_unilm_base_uncased_expected_output.hypo'  # pylint: disable=line-too-long
+        self.expected_output_path = 'tests/models/data/expected_unilm_base_cased_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []
         with open(self.expected_output_path, 'rt',
                   encoding="utf-8") as expected_output_file:
@@ -53,9 +54,10 @@ class UnilmModelTest(TestCaseBase):
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
         'beam_size': 5,
-        'batch_size': 128,
+        'batch_size': 64,
         'lenpen': 1.0,
-        'no_repeat_ngram_size': 0
+        'max_len_b': 160,
+        'no_repeat_ngram_size': 3
     })
     def test_beam_search_optimizer(self, beam_size, batch_size,
                                    lenpen, max_len_b=48, min_len=0,
