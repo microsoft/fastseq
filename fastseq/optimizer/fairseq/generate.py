@@ -125,7 +125,6 @@ class PostProcess(Process):
         self.task = task
         self.data_queue = data_queue
         self.message_queue = message_queue
-        self.has_target = True
         if args.decode_hypothesis:
             self.tokenizer = encoders.build_tokenizer(args)
             self.bpe = encoders.build_bpe(args)
