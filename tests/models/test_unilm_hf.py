@@ -54,7 +54,7 @@ class UnilmModelTest(TestCaseBase):
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
         'beam_size': 5,
-        'batch_size': 64,
+        'batch_size': 32,
         'lenpen': 1.0,
         'max_len_b': 160,
         'no_repeat_ngram_size': 3
