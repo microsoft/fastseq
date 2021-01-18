@@ -19,7 +19,7 @@ source hf.sh
     --task summarization \
     --no_repeat_ngram_size 3 \
 	--max_length 608 \
-	--dec_max_length 160
+	--max_gen_length 160
 
 # Accuracy
 grep "cnndm-unilm-base-cased cnn_dm/raw val " perf \

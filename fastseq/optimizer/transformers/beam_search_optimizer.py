@@ -876,7 +876,7 @@ class GenerationMixinV2(GenerationMixin):
                         generated_hyps[batch_idx].is_done(
                         next_scores[batch_idx].max().item(), cur_len))
 
-            if sum(done) == len(done):
+            if all(done):
                 break
 
             if use_generation_mixin_v3 and len(finished_batch_idxs) > 0:
