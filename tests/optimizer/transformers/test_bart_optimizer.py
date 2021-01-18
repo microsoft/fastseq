@@ -85,7 +85,6 @@ class BARTOptimizerTest(TestCaseBase):
                 early_stopping=early_stopping,
                 use_cache=use_cache)
             outputs = [self.tokenizer.decode(g) for g in summary_ids]
-            print(outputs)
             self.batch_count += 1
         end = time.time()
         logging.info("Process {} samples in {:.2f} seconds".format(
