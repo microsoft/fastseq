@@ -4,7 +4,9 @@
 """Optimization for beam search related parts in Transformers."""
 
 import logging
+import numpy as np
 from typing import Iterable, Optional
+from itertools import accumulate
 
 import torch
 from torch import Tensor
@@ -717,12 +719,19 @@ class GenerationMixinV2(GenerationMixin):
         if do_sample is False:
             beam_scores[:, 1:] = -1e9
         beam_scores = beam_scores.view(-1)  # shape (batch_size * num_beams,)
+        beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(1).type_as(input_ids)
+
+        cand_size = 2 * num_beams
+        cand_offsets = torch.arange(0, cand_size).type_as(input_ids)
+        cands_to_ignore = torch.zeros(batch_size, num_beams).to(input_ids).eq(-1)
 
         # cache compute states
         past = (encoder_outputs, None) if encoder_outputs is not None else None
 
         # done sentences
         done = [False for _ in range(batch_size)]
+        num_remaining_sent = 0
+        use_generation_mixin_v3 = hasattr(self, '_reorder_cache_v3')
 
         #NGram Repeat block Op
         self.no_repeat_ngram_op = NGramRepeatBlock()#.to('cuda', torch.float32)
@@ -819,63 +828,100 @@ class GenerationMixinV2(GenerationMixin):
             # next batch beam content
             next_tokens_id = next_tokens % vocab_size
             next_beams_id = next_tokens // vocab_size
-            beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(
-                1).type_as(next_beams_id)
             effective_beam_id =  next_beams_id + beams_offset
             if eos_token_id is not None :
                 eos_mask = next_tokens_id.eq(eos_token_id)
             else :
                 eos_mask = torch.zeros_like(next_tokens_id).bool()
+            eos_mask[:, :num_beams][cands_to_ignore] = 0
             eos_effective_idx = torch.masked_select(
                 effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
             )
-            eos_effective_scores = torch.masked_select(
+            finished_batch_idxs = []
+            if use_generation_mixin_v3 and eos_effective_idx.numel() > 0:
+                eos_effective_scores = torch.masked_select(
                     next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
                 )
-            input_ids_cpu = input_ids.cpu()
-            eos_effective_idx_cpu= eos_effective_idx.cpu()
-            eos_effective_scores_cpu = eos_effective_scores.cpu()
-            for i in range (0, eos_effective_idx_cpu.size()[-1]):
-                batch_idx = eos_effective_idx_cpu[i] // num_beams
-                if not done[batch_idx] :
-                    generated_hyps[batch_idx.item()].add(
-                        input_ids_cpu[eos_effective_idx_cpu[i]].clone(),
-                        eos_effective_scores_cpu[i])
-                done[batch_idx] = (
-                    done[batch_idx] or
-                    generated_hyps[batch_idx].is_done(
-                    next_scores[batch_idx].max().item(), cur_len))
-            cand_offsets = torch.arange(
-                start=0,
-                end=2*num_beams,
-                dtype=input_ids.dtype,
-                device=eos_mask.device)
-            active_mask = torch.add(
-                eos_mask.type_as(cand_offsets) * (2*num_beams),
-                cand_offsets[: eos_mask.size(1)],)
-            _, active_hypos = torch.topk(
+                input_clone = input_ids.index_select(0, eos_effective_idx)
+                unfin_offset = np.array(list(accumulate(done)))[np.array(done) == 0]
+                for i in range(eos_effective_idx.size(0)):
+                    eos_idx = eos_effective_idx[i]
+                    eos_score = eos_effective_scores[i]
+                    unfin_batch_idx = eos_idx // num_beams
+                    batch_idx = unfin_batch_idx + unfin_offset[unfin_batch_idx]
+                    if not done[batch_idx] :
+                        generated_hyps[batch_idx.item()].add(
+                            input_clone[i],
+                            eos_score.item())
+                    is_done = done[batch_idx]
+                    done[batch_idx] = (
+                        done[batch_idx] or
+                        generated_hyps[batch_idx].is_done(
+                        next_scores[unfin_batch_idx].max().item(), cur_len))
+                    if is_done != done[batch_idx]:
+                        finished_batch_idxs.append(unfin_batch_idx)
+
+            if not use_generation_mixin_v3:
+                eos_effective_scores = torch.masked_select(
+                    next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
+                )
+                input_ids_cpu = input_ids.cpu()
+                eos_effective_idx_cpu= eos_effective_idx.cpu()
+                eos_effective_scores_cpu = eos_effective_scores.cpu()
+                for i in range (0, eos_effective_idx_cpu.size()[-1]):
+                    batch_idx = eos_effective_idx_cpu[i] // num_beams
+                    if not done[batch_idx] :
+                        generated_hyps[batch_idx.item()].add(
+                            input_ids_cpu[eos_effective_idx_cpu[i]].clone(),
+                            eos_effective_scores_cpu[i])
+                    done[batch_idx] = (
+                        done[batch_idx] or
+                        generated_hyps[batch_idx].is_done(
+                        next_scores[batch_idx].max().item(), cur_len))
+
+            if sum(done) == len(done):
+                break
+
+            if use_generation_mixin_v3 and len(finished_batch_idxs) > 0:
+                new_batch_size = batch_size - len(finished_batch_idxs)
+                batch_mask = torch.ones(batch_size).to(next_tokens_id)
+                batch_mask[torch.tensor(finished_batch_idxs)] = 0
+                batch_idxs = batch_mask.nonzero().squeeze(-1)
+                eos_mask = eos_mask[batch_idxs]
+                next_beams_id = next_beams_id[batch_idxs]
+                beams_offset.resize_(new_batch_size, 1)
+                effective_beam_id = next_beams_id.add(beams_offset)
+                next_scores = next_scores[batch_idxs]
+                next_tokens_id = next_tokens_id[batch_idxs]
+                cands_to_ignore = cands_to_ignore[batch_idxs]
+                input_ids = input_ids.view(batch_size, -1)[batch_idxs].view(new_batch_size * num_beams, -1)
+                batch_size = new_batch_size
+            else:
+                batch_idxs = None
+
+            eos_mask[:, :num_beams] = ~((~cands_to_ignore) & (~eos_mask[:, :num_beams]))
+            active_mask = torch.add(eos_mask.type_as(cand_offsets) * cand_size, cand_offsets[:eos_mask.size(1)])
+            new_cands_to_ignore, active_hypos = torch.topk(
                 active_mask, k=num_beams, dim=1, largest=False)
+            cands_to_ignore = new_cands_to_ignore.ge(cand_size)[:, :num_beams]
             active_effective_beam_id  = torch.gather(
                 effective_beam_id, dim=1, index=active_hypos)
             active_scores  = torch.gather(next_scores,
                 dim=1, index=active_hypos)
             active_tokens  = torch.gather(next_tokens_id,
                 dim=1, index=active_hypos)
-            beam_idx = active_effective_beam_id.view(-1)
+            beam_idxs = active_effective_beam_id.view(-1)
             beam_scores = active_scores.view(-1)
             beam_tokens = active_tokens.view(-1)
 
-            #stop when we are done with each sentence
-            if all(done):
-                break
             # re-order batch and update current length
-            input_ids = input_ids[beam_idx, :]
+            input_ids = input_ids[beam_idxs, :]
             input_ids = torch.cat([input_ids, beam_tokens.unsqueeze(1)], dim=-1)
             cur_len = cur_len + 1
 
             # re-order internal states
             if past is not None:
-                past = self._reorder_cache(past, beam_idx)
+                past = self._reorder_cache_v3(past, batch_idxs, beam_idxs, num_beams=num_beams) if use_generation_mixin_v3 else self._reorder_cache(past, beam_idxs)
 
             # extend attention_mask for new generated input if only decoder
             if self.config.is_encoder_decoder is False:
@@ -885,10 +931,10 @@ class GenerationMixinV2(GenerationMixin):
                     dim=-1)
 
         # finalize all open beam hypotheses and add to generated hypotheses
+        unfin_offset = np.array(list(accumulate(done)))
         for batch_idx in range(batch_size):
-            if done[batch_idx]:
+            if not use_generation_mixin_v3 and done[batch_idx]:
                 continue
-
             # test that beam scores match previously calculated scores if not
             # eos and batch_idx not done
             if eos_token_id is not None and all(
@@ -903,12 +949,18 @@ class GenerationMixinV2(GenerationMixin):
                     beam_scores.view(batch_size, num_beams)[batch_idx],
                 )
 
+            if use_generation_mixin_v3:
+                final_batch_idx = batch_idx + unfin_offset[batch_idx]
+            else:
+                final_batch_idx = batch_idx
             # need to add best num_beams hypotheses to generated hyps
             for beam_id in range(num_beams):
                 effective_beam_id = batch_idx * num_beams + beam_id
                 final_score = beam_scores[effective_beam_id].item()
                 final_tokens = input_ids[effective_beam_id]
-                generated_hyps[batch_idx].add(final_tokens, final_score)
+                generated_hyps[final_batch_idx].add(final_tokens, final_score)
+
+        batch_size = len(done)
 
         # depending on whether greedy generation is wanted or not define
         # different output_batch_size and output_num_return_sequences_per_batch

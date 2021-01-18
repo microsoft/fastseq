@@ -12,7 +12,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from fastseq.optimizer.transformers.beam_search_optimizer import GenerationMixinV2
-from fastseq.models.unilm_hf.beam_search_optimizer_v2 import GenerationMixinV3
 from fastseq.models.unilm_hf.configuration_unilm import UnilmConfig
 from fastseq.models.unilm_hf.utils_hf import \
     get_checkpoint_from_transformer_cache
@@ -605,20 +604,20 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
         newpast = [pos_ids, token_mask] + reordered_past
         return newpast
 
-    def _reorder_cache_v3(self, past, batch_idx, beam_idx):
+    def _reorder_cache_v3(self, past, batch_idx, beam_idx, num_beams):
         pos_ids, token_mask, history_states = past[0], past[1], past[2:]
         reordered_past = []
         for layer_past in history_states:
             reordered_past.append(
                 _reorder_buffer_v3(layer_past, batch_idx, beam_idx,
-                                   self.num_beams))
-        pos_ids = _get_new_tensor(pos_ids, batch_idx, beam_idx, self.num_beams)
+                                   num_beams))
+        pos_ids = _get_new_tensor(pos_ids, batch_idx, beam_idx, num_beams)
         token_mask = _get_new_tensor(token_mask, batch_idx, beam_idx,
-                                     self.num_beams)
+                                     num_beams)
         self.dec_mask_token = _get_new_tensor(self.dec_mask_token, batch_idx,
-                                              beam_idx, self.num_beams)
+                                              beam_idx, num_beams)
         self.dec_seg = _get_new_tensor(self.dec_seg, batch_idx, beam_idx,
-                                       self.num_beams)
+                                       num_beams)
         newpast = [pos_ids, token_mask] + reordered_past
         return newpast
 
