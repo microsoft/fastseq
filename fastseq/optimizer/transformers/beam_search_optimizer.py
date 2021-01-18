@@ -889,6 +889,7 @@ class GenerationMixinV2(GenerationMixin):
                 beams_offset.resize_(new_batch_size, 1)
                 effective_beam_id = next_beams_id.add(beams_offset)
                 next_scores = next_scores[batch_idxs]
+                next_tokens = next_tokens[batch_idxs]
                 next_tokens_id = next_tokens_id[batch_idxs]
                 input_ids = input_ids.view(batch_size, -1)[batch_idxs].view(new_batch_size * num_beams, -1)
                 batch_size = new_batch_size
@@ -928,7 +929,8 @@ class GenerationMixinV2(GenerationMixin):
                     dim=-1)
 
         # finalize all open beam hypotheses and add to generated hypotheses
-        unfin_offset = np.array(list(accumulate(done)))
+        unfin_offset = np.array(list(accumulate(done)))[np.array(done) == 0]
+        batch_size = len(unfin_offset)
         for batch_idx in range(batch_size):
             if not use_generation_mixin_v3 and done[batch_idx]:
                 continue
