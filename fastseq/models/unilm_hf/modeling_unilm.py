@@ -36,8 +36,6 @@ UNILM_PRETRAINED_MODEL_ARCHIVE_MAP = {
     "https://unilm.blob.core.windows.net/ckpt/unilm1-large-cased.bin",
     "unilm1.2-base-uncased":
     "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased.bin",
-    "xsum-unilm-base-uncased":
-    "https://huggingface.co/fuliucansheng/unilm/resolve/main/xsum_unilm_base_uncased.bin",
     "cnndm-unilm-base-cased":
     "https://unilm.blob.core.windows.net/ckpt/cnndm.unilm1-base-cased.bin",
 }

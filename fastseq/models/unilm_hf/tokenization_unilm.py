@@ -49,8 +49,6 @@ PRETRAINED_VOCAB_FILES_MAP = {
         "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-vocab.txt",
         "unilm1.2-base-uncased":
         "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-vocab.txt",
-        "xsum-unilm-base-uncased":
-        "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-vocab.txt",
         "cnndm-unilm-base-cased":
         "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-vocab.txt",
     }
@@ -62,7 +60,6 @@ PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES = {
     "unilm1-large-cased": 512,
     "unilm1-base-cased": 512,
     "unilm1.2-base-uncased": 512,
-    "xsum-unilm-base-uncased": 512,
     "cnndm-unilm-base-cased": 768,
 }
 

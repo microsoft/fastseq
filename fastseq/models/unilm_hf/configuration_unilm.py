@@ -26,8 +26,6 @@ UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "https://unilm.blob.core.windows.net/ckpt/unilm1-base-cased-config.json",
     "unilm1.2-base-uncased":
     "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-config.json",
-    "xsum-unilm-base-uncased":
-    "https://unilm.blob.core.windows.net/ckpt/unilm1.2-base-uncased-config.json",
     "cnndm-unilm-base-cased":
     "https://huggingface.co/fuliucansheng/unilm/resolve/main/cnndm-unilm-base-cased-config.json"
 }

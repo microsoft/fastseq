@@ -723,14 +723,12 @@ class GenerationMixinV2(GenerationMixin):
 
         cand_size = 2 * num_beams
         cand_offsets = torch.arange(0, cand_size).type_as(input_ids)
-        cands_to_ignore = torch.zeros(batch_size, num_beams).to(input_ids).eq(-1)
 
         # cache compute states
         past = (encoder_outputs, None) if encoder_outputs is not None else None
 
         # done sentences
         done = [False for _ in range(batch_size)]
-        num_remaining_sent = 0
         use_generation_mixin_v3 = hasattr(self, '_reorder_cache_v3')
 
         #NGram Repeat block Op
@@ -833,7 +831,6 @@ class GenerationMixinV2(GenerationMixin):
                 eos_mask = next_tokens_id.eq(eos_token_id)
             else :
                 eos_mask = torch.zeros_like(next_tokens_id).bool()
-            eos_mask[:, :num_beams][cands_to_ignore] = 0
             eos_effective_idx = torch.masked_select(
                 effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
             )
@@ -893,17 +890,14 @@ class GenerationMixinV2(GenerationMixin):
                 effective_beam_id = next_beams_id.add(beams_offset)
                 next_scores = next_scores[batch_idxs]
                 next_tokens_id = next_tokens_id[batch_idxs]
-                cands_to_ignore = cands_to_ignore[batch_idxs]
                 input_ids = input_ids.view(batch_size, -1)[batch_idxs].view(new_batch_size * num_beams, -1)
                 batch_size = new_batch_size
             else:
                 batch_idxs = None
 
-            eos_mask[:, :num_beams] = ~((~cands_to_ignore) & (~eos_mask[:, :num_beams]))
             active_mask = torch.add(eos_mask.type_as(cand_offsets) * cand_size, cand_offsets[:eos_mask.size(1)])
-            new_cands_to_ignore, active_hypos = torch.topk(
+            _, active_hypos = torch.topk(
                 active_mask, k=num_beams, dim=1, largest=False)
-            cands_to_ignore = new_cands_to_ignore.ge(cand_size)[:, :num_beams]
             active_effective_beam_id  = torch.gather(
                 effective_beam_id, dim=1, index=active_hypos)
             active_scores  = torch.gather(next_scores,
@@ -921,7 +915,10 @@ class GenerationMixinV2(GenerationMixin):
 
             # re-order internal states
             if past is not None:
-                past = self._reorder_cache_v3(past, batch_idxs, beam_idxs, num_beams=num_beams) if use_generation_mixin_v3 else self._reorder_cache(past, beam_idxs)
+                if use_generation_mixin_v3:
+                    past = self._reorder_cache_v3(past, batch_idxs, beam_idxs, num_beams=num_beams)
+                else:
+                    past = self._reorder_cache(past, beam_idxs)
 
             # extend attention_mask for new generated input if only decoder
             if self.config.is_encoder_decoder is False:
