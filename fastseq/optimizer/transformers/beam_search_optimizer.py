@@ -930,7 +930,8 @@ class GenerationMixinV2(GenerationMixin):
 
         # finalize all open beam hypotheses and add to generated hypotheses
         unfin_offset = np.array(list(accumulate(done)))[np.array(done) == 0]
-        batch_size = len(unfin_offset)
+        if use_generation_mixin_v3:
+            batch_size = len(unfin_offset)
         for batch_idx in range(batch_size):
             if not use_generation_mixin_v3 and done[batch_idx]:
                 continue
