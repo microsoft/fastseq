@@ -16,11 +16,7 @@ from fairseq.data import encoders
 from fairseq.meters import StopwatchMeter, TimeMeter
 from fairseq.options import add_generation_args
 from fairseq.utils import apply_to_sample
-
 from fastseq.utils.api_decorator import replace
-
-GENERATE_FINISHED = "done"
-POSTPROCESS_FINISHED = None
 
 def move_to_cpu(sample):
     def _move_to_cpu(tensor):
@@ -60,30 +56,25 @@ class IOProcess(Process):
 
         self.args = args
         self.message_queue = message_queue
-        self.has_target = False
+        self.empty = True
 
     def run(self):
         while True:
             msg = self.message_queue.get()
             if isinstance(msg, tuple):
-                t, h = msg
                 if hasattr(self.scorer, 'add_string'):
-                    self.scorer.add_string(t, h)
+                    self.scorer.add_string(*msg)
                 else:
-                    self.scorer.add(t, h)
-                self.has_target = True
-            elif msg == GENERATE_FINISHED:
-                if self.has_target:
+                    self.scorer.add(*msg)
+                self.empty = False
+            elif msg is None:
+                if not self.empty:
                     print('| Generate {} with beam={}: {}'.format(
                         self.args.gen_subset, self.args.beam,
                         self.scorer.result_string()))
                 break
             else:
                 print(msg)
-            self.message_queue.task_done()
-        self.message_queue.close()
-        self.message_queue.join_thread()
-
 
 class PostProcess(Process):
     '''
@@ -248,21 +239,8 @@ class PostProcess(Process):
     def run(self):
         while True:
             r = self.data_queue.get()
-            if r == GENERATE_FINISHED:
-                self.data_queue.put(POSTPROCESS_FINISHED)
-                break
-            elif r is POSTPROCESS_FINISHED:
-                self.data_queue.put(POSTPROCESS_FINISHED)
-                break
-            else:
-                sample, hypos = r
-                self._detokenize(sample, hypos)
-        self.data_queue.close()
-        self.data_queue.join_thread()
-        self.message_queue.close()
-        self.message_queue.join_thread()
-        self.message_queue.join()
-
+            self._detokenize(*r)
+            self.data_queue.task_done()
 
 original_add_generation_args = add_generation_args
 
@@ -350,16 +328,18 @@ def main_v1(args):
     generator = task.build_generator(args)
 
     num_sentences = 0
-    data_queue = Queue()
-    message_queue = JoinableQueue()
+    data_queue = JoinableQueue()
+    message_queue = Queue()
 
     p_list = []
     for i in range(args.postprocess_workers):
         p = PostProcess(args, task, data_queue, message_queue)
+        p.daemon = True
         p_list.append(p)
         p.start()
 
     io_process = IOProcess(args, task, message_queue)
+    io_process.daemon = True
     io_process.start()
 
     with progress_bar.build_progress_bar(args, itr) as t:
@@ -375,17 +355,8 @@ def main_v1(args):
                 prefix_tokens = sample['target'][:, :args.prefix_size]
 
             gen_timer.start()
-            try:
-                hypos = task.inference_step(
-                    generator, models, sample, prefix_tokens)
-            except:
-                logging.exception(sys.exc_info()[0])
-                for p in p_list:
-                    p.terminate()
-                io_process.terminate()
-                data_queue.close()
-                message_queue.close()
-                sys.exit(1)
+            hypos = task.inference_step(
+                generator, models, sample, prefix_tokens)
 
             num_generated_tokens = sum(len(h[0]['tokens']) for h in hypos)
             gen_timer.stop(num_generated_tokens)
@@ -398,9 +369,7 @@ def main_v1(args):
             t.log({'wps': round(wps_meter.avg)})
             num_sentences += cpu_sample['nsentences']
 
-    data_queue.put(GENERATE_FINISHED)
-    for p in p_list:
-        p.join()
+    data_queue.join()
 
     sent_throught = num_sentences / gen_timer.sum if num_sentences > 0 else 0
     tokens_throught = 1. / gen_timer.avg if num_sentences > 0 else 0
@@ -409,8 +378,7 @@ def main_v1(args):
         '| Translated {} sentences ({} tokens) in {:.1f}s ({:.2f} sentences/s, {:.2f} tokens/s)'. # pylint: disable=line-too-long
         format(num_sentences, gen_timer.n, gen_timer.sum, sent_throught,
                tokens_throught))
-
-    message_queue.put(GENERATE_FINISHED)
-    io_process.join()
+    message_queue.put(None)
+    io_process.join()   # for output completeness and ordering
 
     return
