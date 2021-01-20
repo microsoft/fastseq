@@ -729,7 +729,7 @@ class GenerationMixinV2(GenerationMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
-        use_generation_mixin_v3 = hasattr(self, '_reorder_cache_v3')
+        use_reorder_cache_v2 = hasattr(self, '_reorder_cache_v2')
 
         #NGram Repeat block Op
         self.no_repeat_ngram_op = NGramRepeatBlock()#.to('cuda', torch.float32)
@@ -835,7 +835,7 @@ class GenerationMixinV2(GenerationMixin):
                 effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
             )
             finished_batch_idxs = []
-            if use_generation_mixin_v3 and eos_effective_idx.numel() > 0:
+            if use_reorder_cache_v2 and eos_effective_idx.numel() > 0:
                 eos_effective_scores = torch.masked_select(
                     next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
                 )
@@ -858,7 +858,7 @@ class GenerationMixinV2(GenerationMixin):
                     if is_done != done[batch_idx]:
                         finished_batch_idxs.append(unfin_batch_idx)
 
-            if not use_generation_mixin_v3:
+            if not use_reorder_cache_v2:
                 eos_effective_scores = torch.masked_select(
                     next_scores[:, :num_beams], mask=eos_mask[:, :num_beams]
                 )
@@ -879,7 +879,7 @@ class GenerationMixinV2(GenerationMixin):
             if all(done):
                 break
 
-            if use_generation_mixin_v3 and len(finished_batch_idxs) > 0:
+            if use_reorder_cache_v2 and len(finished_batch_idxs) > 0:
                 new_batch_size = batch_size - len(finished_batch_idxs)
                 batch_mask = torch.ones(batch_size).to(next_tokens_id)
                 batch_mask[torch.tensor(finished_batch_idxs)] = 0
@@ -916,8 +916,8 @@ class GenerationMixinV2(GenerationMixin):
 
             # re-order internal states
             if past is not None:
-                if use_generation_mixin_v3:
-                    past = self._reorder_cache_v3(past, batch_idxs, beam_idxs, num_beams=num_beams)
+                if use_reorder_cache_v2:
+                    past = self._reorder_cache_v2(past, batch_idxs, beam_idxs, num_beams=num_beams)
                 else:
                     past = self._reorder_cache(past, beam_idxs)
 
@@ -930,10 +930,10 @@ class GenerationMixinV2(GenerationMixin):
 
         # finalize all open beam hypotheses and add to generated hypotheses
         unfin_offset = np.array(list(accumulate(done)))[np.array(done) == 0]
-        if use_generation_mixin_v3:
+        if use_reorder_cache_v2:
             batch_size = len(unfin_offset)
         for batch_idx in range(batch_size):
-            if not use_generation_mixin_v3 and done[batch_idx]:
+            if not use_reorder_cache_v2 and done[batch_idx]:
                 continue
             # test that beam scores match previously calculated scores if not
             # eos and batch_idx not done
@@ -949,7 +949,7 @@ class GenerationMixinV2(GenerationMixin):
                     beam_scores.view(batch_size, num_beams)[batch_idx],
                 )
 
-            if use_generation_mixin_v3:
+            if use_reorder_cache_v2:
                 final_batch_idx = batch_idx + unfin_offset[batch_idx]
             else:
                 final_batch_idx = batch_idx

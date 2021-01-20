@@ -41,7 +41,7 @@ UNILM_PRETRAINED_MODEL_ARCHIVE_MAP = {
 }
 
 
-def _reorder_buffer_v2(attn_cache, beam_idx):
+def _reorder_buffer(attn_cache, beam_idx):
     for k, input_buffer_k in attn_cache.items():
         if input_buffer_k is not None and "enc" not in k:
             attn_cache[k] = input_buffer_k.index_select(0, beam_idx)
@@ -55,7 +55,7 @@ def _get_new_tensor(tensor, batch_idx, beam_idx, beam_size):
     return tensor
 
 
-def _reorder_buffer_v3(attn_cache, batch_idx, beam_idx, beam_size):
+def _reorder_buffer_v2(attn_cache, batch_idx, beam_idx, beam_size):
     for k, input_buffer_k in attn_cache.items():
         if input_buffer_k is not None:
             if "enc" in k:
@@ -598,16 +598,16 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
         pos_ids, token_mask, history_states = past[0], past[1], past[2:]
         reordered_past = []
         for layer_past in history_states:
-            reordered_past.append(_reorder_buffer_v2(layer_past, beam_idx))
+            reordered_past.append(_reorder_buffer(layer_past, beam_idx))
         newpast = [pos_ids, token_mask] + reordered_past
         return newpast
 
-    def _reorder_cache_v3(self, past, batch_idx, beam_idx, num_beams):
+    def _reorder_cache_v2(self, past, batch_idx, beam_idx, num_beams):
         pos_ids, token_mask, history_states = past[0], past[1], past[2:]
         reordered_past = []
         for layer_past in history_states:
             reordered_past.append(
-                _reorder_buffer_v3(layer_past, batch_idx, beam_idx,
+                _reorder_buffer_v2(layer_past, batch_idx, beam_idx,
                                    num_beams))
         pos_ids = _get_new_tensor(pos_ids, batch_idx, beam_idx, num_beams)
         token_mask = _get_new_tensor(token_mask, batch_idx, beam_idx,

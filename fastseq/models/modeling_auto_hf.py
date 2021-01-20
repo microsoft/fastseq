@@ -9,6 +9,7 @@ from fastseq.utils.api_decorator import replace
 CONFIG_MAPPING['unilm'] = UnilmConfig
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[UnilmConfig] = UnilmForSeq2Seq
 TOKENIZER_MAPPING[UnilmConfig] = (UnilmTokenizer, None)
+TOKENIZER_MAPPING.move_to_end(transformers.configuration_bert.BertConfig)
 
 @replace(AutoModelForSeq2SeqLM)
 class AutoModelForSeq2SeqLMV2(AutoModelForSeq2SeqLM):
