@@ -607,8 +607,7 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
         reordered_past = []
         for layer_past in history_states:
             reordered_past.append(
-                _reorder_buffer_v2(layer_past, batch_idx, beam_idx,
-                                   num_beams))
+                _reorder_buffer_v2(layer_past, batch_idx, beam_idx, num_beams))
         pos_ids = _get_new_tensor(pos_ids, batch_idx, beam_idx, num_beams)
         token_mask = _get_new_tensor(token_mask, batch_idx, beam_idx,
                                      num_beams)
