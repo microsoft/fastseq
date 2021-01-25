@@ -43,6 +43,7 @@ def apply_transformers_optimization():
         return
 
     import fastseq.optimizer.transformers.modeling_bart_optimizer # pylint: disable=import-outside-toplevel
+    import fastseq.optimizer.transformers.modeling_gpt2_optimizer # pylint: disable=import-outside-toplevel
     import fastseq.optimizer.transformers.modeling_t5_optimizer # pylint: disable=import-outside-toplevel
     import fastseq.optimizer.transformers.beam_search_optimizer # pylint: disable=import-outside-toplevel
 

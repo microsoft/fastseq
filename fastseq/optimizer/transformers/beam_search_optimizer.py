@@ -17,12 +17,15 @@ from transformers.generation_utils import (BeamHypotheses, GenerationMixin,
 
 from transformers.modeling_bart import BartForConditionalGeneration
 from transformers.modeling_t5 import T5ForConditionalGeneration
+from transformers.modeling_gpt2 import GPT2Model, GPT2LMHeadModel, GPT2DoubleHeadsModel
 from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import replace
 
 logger = get_logger(__name__, logging.INFO)
+
+no_repeat_ngram_op = NGramRepeatBlock()
 
 @replace(calc_banned_ngram_tokens)
 def calc_banned_ngram_tokens_v2(prev_input_ids: Tensor,
@@ -95,6 +98,19 @@ class GenerationMixinV2(GenerationMixin):
                 block.layer[1].EncDecAttention.num_beams = num_beams
             logger.debug(
                 "num_beams has been updated to {}".format(num_beams))
+            return
+
+        if isinstance(self, GPT2Model):
+            for block in self.h:
+                block.attn.num_beams = num_beams
+            logger.debug("num_beams has been updated to {}".format(num_beams))
+            return
+
+        if (isinstance(self, GPT2LMHeadModel) or
+            isinstance(self, GPT2DoubleHeadsModel)):
+            for block in self.transformer.h:
+                block.attn.num_beams = num_beams
+            logger.debug("num_beams has been updated to {}".format(num_beams))
             return
 
         logger.debug(
@@ -552,9 +568,9 @@ class GenerationMixinV2(GenerationMixin):
         assert (
             cur_len < max_length
         ), (f"The context has {cur_len} number of tokens, but `max_length` is "
-            "only {max_length}. Please make sure that `max_length` is bigger "
+            f"only {max_length}. Please make sure that `max_length` is bigger "
             "than the number of tokens, by setting either "
-            "`generate(max_length=...,...)` or `config.max_length = ...`")
+            f"`generate(max_length=...,...)` or `config.max_length = ...`")
 
         if num_beams > 1:
             output = self._generate_beam_search(
@@ -651,7 +667,7 @@ class GenerationMixinV2(GenerationMixin):
         if no_repeat_ngram_size > 0:
             #custom op for Ngram repeat blocking
             if (input_ids.is_cuda and scores.is_cuda):
-                scores = self.no_repeat_ngram_op(input_ids,scores.float(),
+                scores = no_repeat_ngram_op(input_ids,scores.float(),
                         batch_size, cur_len-1, num_beams, no_repeat_ngram_size)
             else:
                 num_batch_hypotheses = batch_size * num_beams
@@ -723,9 +739,6 @@ class GenerationMixinV2(GenerationMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
-
-        #NGram Repeat block Op
-        self.no_repeat_ngram_op = NGramRepeatBlock()#.to('cuda', torch.float32)
 
         while cur_len < max_length:
             model_inputs = self.prepare_inputs_for_generation(

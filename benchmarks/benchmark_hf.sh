@@ -22,7 +22,7 @@ if [[ $framework == transformers ]]; then
     fi
     ver=`pip show transformers | awk  '{if($1=="Version:")print $2}'`
     framework_versioned="transformers_v$ver"
-    util="python $BASELINE_REPO/examples/seq2seq/run_eval.py"
+    util="python run_eval_hf.py"
 elif [[ "$framework" == "transformers+fastseq" ]]; then
     ver1=`pip show transformers | awk  '{if($1=="Version:")print $2}'`
     ver2=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
