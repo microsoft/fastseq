@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 """
-Test the optimizations on FairSeq to make sure the changes do not affect the
+Test the optimizations on FastSeq to make sure the changes do not affect the
 model accuracy.
 """
 
@@ -17,10 +17,7 @@ import fastseq
 from fastseq.logging import get_logger
 from fastseq.models.unilm_hf.modeling_unilm import UnilmForSeq2Seq
 from fastseq.models.unilm_hf.tokenization_unilm import UnilmTokenizer
-from fastseq.utils.file_utils import decompress_file, make_dirs, wget
-from fastseq.utils.test_utils import (PROPHETNET_MODEL_URLS,
-                                      CACHED_PROPHETNET_MODEL_PATHS,
-                                      fastseq_test_main, TestCaseBase)
+from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 
 logger = get_logger(__name__)
 
@@ -96,8 +93,8 @@ class UnilmModelTest(TestCaseBase):
                         decoder_start_token_id=None,
                         num_beams=beam_size,
                         length_penalty=lenpen,
-                        dec_max_length=max_len_b,
-                        dec_min_length=min_len,
+                        max_gen_length=max_len_b,
+                        min_gen_length=min_len,
                         no_repeat_ngram_size=no_repeat_ngram_size
                     )
                     hypotheses_batch = self.unilm_tokenizer.batch_decode(hypotheses_batch, skip_special_tokens=True, clean_up_tokenization_spaces=False)
@@ -116,8 +113,8 @@ class UnilmModelTest(TestCaseBase):
                     decoder_start_token_id=None,
                     num_beams=beam_size,
                     length_penalty=lenpen,
-                    dec_max_length=max_len_b,
-                    dec_min_length=min_len,
+                    max_gen_length=max_len_b,
+                    min_gen_length=min_len,
                     no_repeat_ngram_size=no_repeat_ngram_size
                 )
                 hypotheses_batch = self.unilm_tokenizer.batch_decode(hypotheses_batch, skip_special_tokens=True, clean_up_tokenization_spaces=False)

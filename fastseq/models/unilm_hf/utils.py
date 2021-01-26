@@ -1,10 +1,13 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 import logging
 
 import torch
+from fastseq.logging import get_logger
 from transformers.modeling_utils import (TF2_WEIGHTS_NAME, TF_WEIGHTS_NAME,
                                          WEIGHTS_NAME, cached_path)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, logging.INFO)
 
 
 def get_checkpoint_from_transformer_cache(

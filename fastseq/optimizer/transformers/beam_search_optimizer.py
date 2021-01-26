@@ -729,6 +729,12 @@ class GenerationMixinV2(GenerationMixin):
 
         # done sentences
         done = [False for _ in range(batch_size)]
+        """
+        _reorder_cache_v2(past, batch_idxs, beam_idxs)
+        Remove the finished batches during beam search, reorder_cache_v2 is used to support dynamic batch size.
+        for cache tensors with shape like (batch_size, ~): tensor = tensor[batch_idxs]
+        for cache tensors with shape like (batch_size * beam_size, ~): tensor = tensor[beam_idxs]
+        """
         use_reorder_cache_v2 = hasattr(self, '_reorder_cache_v2')
 
         #NGram Repeat block Op
@@ -834,6 +840,7 @@ class GenerationMixinV2(GenerationMixin):
             eos_effective_idx = torch.masked_select(
                 effective_beam_id[:, :num_beams], mask=eos_mask[:, :num_beams]
             )
+
             finished_batch_idxs = []
             if use_reorder_cache_v2 and eos_effective_idx.numel() > 0:
                 eos_effective_scores = torch.masked_select(
@@ -892,8 +899,10 @@ class GenerationMixinV2(GenerationMixin):
                 next_tokens = next_tokens[batch_idxs]
                 next_tokens_id = next_tokens_id[batch_idxs]
                 input_ids = input_ids.view(batch_size, -1)[batch_idxs].view(new_batch_size * num_beams, -1)
+                before_batch_size = batch_size
                 batch_size = new_batch_size
             else:
+                before_batch_size = batch_size
                 batch_idxs = None
 
             active_mask = torch.add(eos_mask.type_as(cand_offsets) * cand_size, cand_offsets[:eos_mask.size(1)])
@@ -917,7 +926,9 @@ class GenerationMixinV2(GenerationMixin):
             # re-order internal states
             if past is not None:
                 if use_reorder_cache_v2:
-                    past = self._reorder_cache_v2(past, batch_idxs, beam_idxs, num_beams=num_beams)
+                    new_beam_idxs = torch.arange(before_batch_size * num_beams).reshape(before_batch_size, num_beams).to(input_ids)
+                    beam_idxs = new_beam_idxs[batch_idxs].reshape(-1)[beam_idxs]
+                    past = self._reorder_cache_v2(past, batch_idxs, beam_idxs)
                 else:
                     past = self._reorder_cache(past, beam_idxs)
 

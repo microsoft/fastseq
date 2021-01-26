@@ -1,10 +1,15 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 import transformers
-from transformers import PretrainedConfig, AutoConfig, AutoTokenizer, AutoModelForSeq2SeqLM
-from transformers import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING, TOKENIZER_MAPPING, CONFIG_MAPPING
-from fastseq.models.unilm_hf.configuration_unilm import UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP, UnilmConfig
+from fastseq.models.unilm_hf.configuration_unilm import (UNILM_PRETRAINED_CONFIG_ARCHIVE_MAP,
+                                                         UnilmConfig)
 from fastseq.models.unilm_hf.modeling_unilm import UnilmForSeq2Seq
 from fastseq.models.unilm_hf.tokenization_unilm import UnilmTokenizer
 from fastseq.utils.api_decorator import replace
+from transformers import (CONFIG_MAPPING,
+                          MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
+                          TOKENIZER_MAPPING, AutoConfig, AutoModelForSeq2SeqLM,
+                          AutoTokenizer, PretrainedConfig)
 
 CONFIG_MAPPING['unilm'] = UnilmConfig
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[UnilmConfig] = UnilmForSeq2Seq

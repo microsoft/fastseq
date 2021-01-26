@@ -11,18 +11,20 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
-from fastseq.optimizer.transformers.beam_search_optimizer import GenerationMixinV2
+from fastseq.logging import get_logger
 from fastseq.models.unilm_hf.configuration_unilm import UnilmConfig
-from fastseq.models.unilm_hf.utils_hf import \
-    get_checkpoint_from_transformer_cache
+from fastseq.models.unilm_hf.utils import get_checkpoint_from_transformer_cache
+from fastseq.optimizer.transformers.beam_search_optimizer import \
+    GenerationMixinV2
 from torch import nn
-from transformers import PretrainedConfig, PreTrainedModel
+from transformers import PretrainedConfig, PreTrainedModel, WEIGHTS_NAME
 from transformers.modeling_bert import (BertConfig, BertEmbeddings,
                                         BertIntermediate, BertOutput,
                                         BertPooler, BertPreTrainingHeads,
                                         BertSelfOutput)
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, logging.INFO)
+
 BertLayerNorm = torch.nn.LayerNorm
 
 UNILM_PRETRAINED_MODEL_ARCHIVE_MAP = {
@@ -48,22 +50,15 @@ def _reorder_buffer(attn_cache, beam_idx):
     return attn_cache
 
 
-def _get_new_tensor(tensor, batch_idx, beam_idx, beam_size):
-    tsz = tensor.size()
-    tensor = tensor.view(-1, beam_size, *tsz[1:])
-    tensor = tensor[batch_idx].view(-1, *tsz[1:])[beam_idx]
-    return tensor
-
-
-def _reorder_buffer_v2(attn_cache, batch_idx, beam_idx, beam_size):
+def _reorder_buffer_v2(attn_cache, batch_idx, beam_idx):
     for k, input_buffer_k in attn_cache.items():
         if input_buffer_k is not None:
             if "enc" in k:
                 attn_cache[k] = (input_buffer_k if batch_idx is None else
                                  input_buffer_k.index_select(0, batch_idx))
             else:
-                attn_cache[k] = _get_new_tensor(input_buffer_k, batch_idx,
-                                                beam_idx, beam_size)
+                attn_cache[k] = (input_buffer_k if beam_idx is None else
+                                 input_buffer_k.index_select(0, beam_idx))
     return attn_cache
 
 
@@ -97,6 +92,48 @@ class UnilmPreTrainedModel(PreTrainedModel):
                         reuse_position_embedding=None,
                         *model_args,
                         **kwargs):
+        """
+        Instantiate a pretrained pytorch model from a pre-trained model configuration. Mainly from unilm offical repo.
+        Parameters:
+            pretrained_model_name_or_path: either:
+              - a string with the `shortcut name` of a pre-trained model to load from cache or download, e.g.: ``unilm-base-cased``.
+              - a path to a `directory` containing model weights saved using :func:`~transformers.PreTrainedModel.save_pretrained`, e.g.: ``./my_model_directory/``.
+            model_args: (`optional`) Sequence of positional arguments:
+                All remaning positional arguments will be passed to the underlying model's ``__init__`` method
+            config: (`optional`) one of:
+                - an instance of a class derived from :class:`~transformers.PretrainedConfig`, or
+                - a string valid as input to :func:`~transformers.PretrainedConfig.from_pretrained()`
+                Configuration for the model to use instead of an automatically loaded configuation. Configuration can be automatically loaded when:
+                    - the model is a model provided by the library (loaded with the ``shortcut-name`` string of a pretrained model), or
+                    - the model was saved using :func:`~transformers.PreTrainedModel.save_pretrained` and is reloaded by suppling the save directory.
+                    - the model is loaded by suppling a local directory as ``pretrained_model_name_or_path`` and a configuration JSON file named `config.json` is found in the directory.
+            state_dict: (`optional`) dict:
+                an optional state dictionnary for the model to use instead of a state dictionary loaded from saved weights file.
+                This option can be used if you want to create a model from a pretrained configuration but load your own weights.
+                In this case though, you should check if using :func:`~transformers.PreTrainedModel.save_pretrained` and :func:`~transformers.PreTrainedModel.from_pretrained` is not a simpler option.
+            cache_dir: (`optional`) string:
+                Path to a directory in which a downloaded pre-trained model
+                configuration should be cached if the standard cache should not be used.
+            force_download: (`optional`) boolean, default False:
+                Force to (re-)download the model weights and configuration files and override the cached versions if they exists.
+            resume_download: (`optional`) boolean, default False:
+                Do not delete incompletely recieved file. Attempt to resume the download if such a file exists.
+            proxies: (`optional`) dict, default None:
+                A dictionary of proxy servers to use by protocol or endpoint, e.g.: {'http': 'foo.bar:3128', 'http://hostname': 'foo.bar:4012'}.
+                The proxies are used on each request.
+            output_loading_info: (`optional`) boolean:
+                Set to ``True`` to also return a dictionnary containing missing keys, unexpected keys and error messages.
+            kwargs: (`optional`) Remaining dictionary of keyword arguments:
+                Can be used to update the configuration object (after it being loaded) and initiate the model. (e.g. ``output_attention=True``). Behave differently depending on whether a `config` is provided or automatically loaded:
+                - If a configuration is provided with ``config``, ``**kwargs`` will be directly passed to the underlying model's ``__init__`` method (we assume all relevant updates to the configuration have already been done)
+                - If a configuration is not provided, ``kwargs`` will be first passed to the configuration class initialization function (:func:`~transformers.PretrainedConfig.from_pretrained`). Each key of ``kwargs`` that corresponds to a configuration attribute will be used to override said attribute with the supplied ``kwargs`` value. Remaining keys that do not correspond to any configuration attribute will be passed to the underlying model's ``__init__`` function.
+        Examples::
+            # For example purposes. Not runnable.
+            model = UnilmForSeq2Seq.from_pretrained('unilm-base-cased')    # Download model and configuration from S3 and cache.
+            model = UnilmForSeq2Seq.from_pretrained('./test/saved_model/')  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+            model = UnilmForSeq2Seq.from_pretrained('bert-base-uncased', output_attention=True)  # Update configuration during loading
+            assert model.config.output_attention == True
+        """
         pretrained_model_archive_map = cls.pretrained_model_archive_map
         if pretrained_model_name_or_path in pretrained_model_archive_map:
             state_dict = get_checkpoint_from_transformer_cache(
@@ -112,6 +149,10 @@ class UnilmPreTrainedModel(PreTrainedModel):
             kwargs["state_dict"] = state_dict
         elif os.path.isfile(pretrained_model_name_or_path):
             kwargs["state_dict"] = torch.load(pretrained_model_name_or_path,
+                                              map_location="cpu")
+        elif os.path.isdir(pretrained_model_name_or_path):
+            kwargs["state_dict"] = torch.load(os.path.join(
+                pretrained_model_name_or_path, WEIGHTS_NAME),
                                               map_location="cpu")
 
         if kwargs["state_dict"] is None:
@@ -196,6 +237,9 @@ class UnilmPreTrainedModel(PreTrainedModel):
 
 
 class BertSelfAttention(nn.Module):
+    """
+    An optimized bert self attn to unilm for faster generation 
+    """
     def __init__(self, config):
         super(BertSelfAttention, self).__init__()
         if config.hidden_size % config.num_attention_heads != 0:
@@ -229,6 +273,20 @@ class BertSelfAttention(nn.Module):
                 attention_mask,
                 head_mask=None,
                 history_states=None):
+        """
+        Args:
+            - hidden_states: last layer output or embedding output 
+            - attention_mask: mask for tokens per batch
+            - history_states: a optimized cache dict for beam search inference
+        Shape:
+            - hidden_states: (N, S + L, E) for training, (N, 2, E) for cached beam search inference
+            - history_states is a optimized cache dict for beam search inference
+                - prev_enc_key_layer: (N, S, E)
+                - prev_enc_value_layer: (N, S, E)
+                - prev_dec_key_layer: (N * B, L, E)
+                - prev_dec_value_layer: (N * B, L, E)
+            Note: S is the source sequence length, L is the target sequence length, N is the batch size, E is the embedding dimension, B is the beam size
+        """
         new_query_layer = self.query(hidden_states)
         new_key_layer = self.key(hidden_states)
         new_value_layer = self.value(hidden_states)
@@ -327,6 +385,10 @@ class BertSelfAttention(nn.Module):
 
 
 class BertAttention(nn.Module):
+    """
+    Bert Attention from Unilm offical repo
+    https://github.com/microsoft/unilm/tree/master/s2s-ft
+    """
     def __init__(self, config):
         super(BertAttention, self).__init__()
         self.self = BertSelfAttention(config)
@@ -376,6 +438,10 @@ class BertAttention(nn.Module):
 
 
 class BertLayer(nn.Module):
+    """
+    Bert Layer from Unilm offical repo
+    https://github.com/microsoft/unilm/tree/master/s2s-ft
+    """
     def __init__(self, config):
         super(BertLayer, self).__init__()
         self.attention = BertAttention(config)
@@ -400,6 +466,10 @@ class BertLayer(nn.Module):
 
 
 class BertEncoder(nn.Module):
+    """
+    Bert Encoder from Unilm offical repo
+    https://github.com/microsoft/unilm/tree/master/s2s-ft
+    """
     def __init__(self, config):
         super(BertEncoder, self).__init__()
         self.output_attentions = config.output_attentions
@@ -443,6 +513,9 @@ class BertEncoder(nn.Module):
 
 
 class UnilmModel(UnilmPreTrainedModel):
+    """
+    Unilm model structure
+    """
     def __init__(self, config):
         super().__init__(config)
 
@@ -542,16 +615,20 @@ class UnilmModel(UnilmPreTrainedModel):
             pooled_output,
         ) + encoder_outputs[1:] + (history_states, )
                    )  # add hidden_states and attentions if they are here
-        return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
+        return outputs  # sequence_output, pooled_output, (hidden_states), (attentions), (history_states)
 
 
 class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
+    """
+    Unilm model for generation inference
+    """
     def __init__(self, config):
         super().__init__(config)
-        config.output_hidden_states = True
         self.config = config
         self.bert = UnilmModel(config)
         self.cls = BertPreTrainingHeads(config)
+        self.hist_index = int(config.output_hidden_states) + int(
+            config.output_attentions) + 2  # refer to line 600
 
     def get_input_embeddings(self):
         return self.bert.embeddings.word_embeddings
@@ -567,12 +644,13 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
             return False
         return True
 
-    def forward(self, src_in, **kwargs):
+    def forward(self, **kwargs):
         if self.training:
             # code for training
             return
 
-        dec_token, token_mask, pos_ids = src_in
+        dec_in = kwargs.pop('dec_in')
+        dec_token, token_mask, pos_ids = dec_in
         dec_token = torch.cat([dec_token, self.dec_mask_token], 1)
         dec_len = dec_token.size(1)
         dec_token = dec_token[:, -2:]
@@ -590,35 +668,47 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
         )
         output, _ = self.cls(outputs[0],
                              outputs[1])  # Pick the last step: (bh * bm) * d_h
-        state4cache = [pos_ids, token_mask] + outputs[3]
+        state4cache = [pos_ids, token_mask, self.dec_mask_token, self.dec_seg
+                       ] + outputs[self.hist_index]
         return output, state4cache
 
     @staticmethod
     def _reorder_cache(past, beam_idx):
-        pos_ids, token_mask, history_states = past[0], past[1], past[2:]
+        """
+        For beam search in huggingface generation mixin
+        """
+        pos_ids, token_mask, dec_mask_token, dec_seg, history_states = past[
+            0], past[1], past[2], past[3], past[4:]
         reordered_past = []
         for layer_past in history_states:
             reordered_past.append(_reorder_buffer(layer_past, beam_idx))
-        newpast = [pos_ids, token_mask] + reordered_past
+        newpast = [pos_ids, token_mask, dec_mask_token, dec_seg
+                   ] + reordered_past
         return newpast
 
-    def _reorder_cache_v2(self, past, batch_idx, beam_idx, num_beams):
-        pos_ids, token_mask, history_states = past[0], past[1], past[2:]
+    @staticmethod
+    def _reorder_cache_v2(past, batch_idx, beam_idx):
+        """
+        For faster inference by optimized beam search in generation mixin v2
+        """
+        pos_ids, token_mask, dec_mask_token, dec_seg, history_states = past[
+            0], past[1], past[2], past[3], past[4:]
         reordered_past = []
         for layer_past in history_states:
             reordered_past.append(
-                _reorder_buffer_v2(layer_past, batch_idx, beam_idx, num_beams))
-        pos_ids = _get_new_tensor(pos_ids, batch_idx, beam_idx, num_beams)
-        token_mask = _get_new_tensor(token_mask, batch_idx, beam_idx,
-                                     num_beams)
-        self.dec_mask_token = _get_new_tensor(self.dec_mask_token, batch_idx,
-                                              beam_idx, num_beams)
-        self.dec_seg = _get_new_tensor(self.dec_seg, batch_idx, beam_idx,
-                                       num_beams)
-        newpast = [pos_ids, token_mask] + reordered_past
+                _reorder_buffer_v2(layer_past, batch_idx, beam_idx))
+        pos_ids = pos_ids[beam_idx]
+        token_mask = token_mask[beam_idx]
+        dec_mask_token = dec_mask_token[beam_idx]
+        dec_seg = dec_seg[beam_idx]
+        newpast = [pos_ids, token_mask, dec_mask_token, dec_seg
+                   ] + reordered_past
         return newpast
 
     def prepare_inputs_for_generation(self, token_ids, past=None, **kwargs):
+        """
+        For beam search in huggingface generation mixin
+        """
         if past is None:
             active_batch_size, _ = token_ids.size()
             src_token, src_seg, src_pos, src_mask = (
@@ -643,12 +733,13 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
                                                            src_mask.size(1),
                                                            src_mask.size(1)))
             token_mask = token_mask[:, src_len:, :]
-            history_states = outputs[3]
+            history_states = outputs[self.hist_index]
         else:
-            token_pos, token_mask, history_states = past[0], past[1], past[2:]
+            token_pos, token_mask, self.dec_mask_token, self.dec_seg, history_states = past[
+                0], past[1], past[2], past[3], past[4:]
 
         ret = dict({
-            "src_in": (token_ids, token_mask, token_pos),
+            "dec_in": (token_ids, token_mask, token_pos),
             "history_states": history_states,
         })
         return ret
@@ -656,10 +747,22 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
     # beam search
     def generate(self, input_ids, attention_mask, decoder_start_token_id,
                  no_repeat_ngram_size, *args, **kwargs):
-        max_seq_length = kwargs.pop("dec_max_length", 48)
-        min_seq_length = kwargs.pop("dec_min_length", 0)
+        """
+        Args:
+            input_ids: the sequence to the encode text
+            attention_mask: the attention mask for input tokens
+            decoder_start_token_id: begin of sentence token id
+            no_repeat_ngram_size: no_repeat_ngram_size for beam search
+            max_gen_length: max length for beam search
+            min_gen_length: min length for beam search
+            repetition_penalty: repetition_penalty for beam search
+            num_beams: beam size for beam search
+            num_return_sequences: num for return sequence for beam search
+        """
+        max_seq_length = kwargs.pop("max_gen_length", 48)
+        min_seq_length = kwargs.pop("min_gen_length", 0)
         repetition_penalty = kwargs.pop("repetition_penalty", 1.0)
-        no_repeat_ngram_size = kwargs.pop("no_repeat_ngram_size", 0)
+        no_repeat_ngram_size = no_repeat_ngram_size
         length_penalty = kwargs.pop("length_penalty", 1.0)
         self.num_beams = kwargs.pop("num_beams", 5)
         num_return_sequences = kwargs.pop("num_return_sequences", 1)
