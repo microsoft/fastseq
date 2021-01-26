@@ -49,7 +49,9 @@ class TransformersUnitTests(parameterized.TestCase):
         'transformers_version': 'v3.0.2',
         'blocked_tests': ['modeling_reformer',
                           'multigpu',
-                          'HfApiEndpoints'
+                          'HfApiEndpoints',
+                          "test_gpt2_model_att_mask_past",
+                          "test_gpt2_model_past"
         ]
     })
     def test_suites(self, without_fastseq_opt, transformers_version,

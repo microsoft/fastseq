@@ -1,12 +1,15 @@
 """From Huggingface Transformers."""
+
 import argparse
 import json
 from pathlib import Path
 from multiprocessing import Process, Queue
 from tqdm import tqdm
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from fastseq_cli.transformers_utils import use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score
+from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer,
+                          AutoModelForCausalLM)
+from fastseq_cli.transformers_utils import (
+    use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score)
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -16,14 +19,14 @@ POSTPROCESS_FINISHED = None
 class TokenizeDataset(torch.utils.data.Dataset):
     """Characterizes a dataset for PyTorch"""
     def __init__(self, examples, tokenizer, model_name, prefix,
-                return_tensors, truncation, padding):
+                return_tensors, truncation, padding, max_length=None):
         """Multiprocess Dataloader.
         Args:
             examples (List(str)): a list of input sentences.
             tokenizer (AutoTokenizer): instance of AutoTokenizer.
             model_name (string): model name.
-            prefix (string): input example prefix if any. 
-        """ 
+            prefix (string): input example prefix if any.
+        """
         self.examples = examples
         self.tokenizer= tokenizer
         self.model_name = model_name
@@ -31,6 +34,7 @@ class TokenizeDataset(torch.utils.data.Dataset):
         self.return_tensors=return_tensors
         self.truncation=truncation
         self.padding=padding
+        self.max_length=max_length
 
     def __len__(self):
         return len(self.examples)
@@ -39,10 +43,12 @@ class TokenizeDataset(torch.utils.data.Dataset):
         batch = self.examples[index]
         if "t5" in self.model_name:
             batch = self.prefix + batch
-        batch = self.tokenizer(batch,
-                          return_tensors=self.return_tensors,
-                          truncation=self.truncation,
-                          padding=self.padding)
+        batch = self.tokenizer(
+            batch,
+            max_length=self.max_length,
+            return_tensors=self.return_tensors,
+            truncation=self.truncation,
+            padding=self.padding)
         return batch['input_ids'], batch['attention_mask']
 
 class IOProcess (Process):
@@ -61,6 +67,7 @@ class IOProcess (Process):
 
     def process_dec(self, dec):
         for hypothesis in dec:
+            hypothesis = hypothesis.replace('\n', ' ')
             self.fout.write(hypothesis + "\n")
             self.fout.flush()
 
@@ -144,6 +151,8 @@ def generate_summaries_or_translations(
     return_tensors="pt",
     truncation=True,
     padding="max_length",
+    max_tokenizer_length=None,
+    max_gen_length=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -151,13 +160,19 @@ def generate_summaries_or_translations(
         import fastseq  #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+    if model_name == 'gpt2':
+        model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer.pad_token = tokenizer.eos_token
+    else:
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+
     if fp16:
         model = model.half()
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.model_max_length = gen_kwargs.get('max_length', 128)
 
     # update config with summarization specific params
@@ -166,7 +181,7 @@ def generate_summaries_or_translations(
     msg_queue =  Queue()
     p_list = []
 
-    for i in range(postprocess_workers):
+    for _ in range(postprocess_workers):
         p = PostProcess(tokenizer, data_queue, msg_queue,
             skip_special_tokens, clean_up_tokenization_spaces)
         p_list.append(p)
@@ -175,7 +190,8 @@ def generate_summaries_or_translations(
     io_process = IOProcess( msg_queue, fout)
     io_process.start()
     dataset = TokenizeDataset(examples, tokenizer, model_name,
-            model.config.prefix, return_tensors, truncation, padding)
+        model.config.prefix, return_tensors, truncation, padding,
+        max_tokenizer_length)
     training_generator = torch.utils.data.DataLoader(dataset,
             batch_size=batch_size, num_workers = preprocess_workers,
             drop_last=False)
@@ -190,6 +206,7 @@ def generate_summaries_or_translations(
             attention_mask=attention_mask,
             decoder_start_token_id=decoder_start_token_id,
             no_repeat_ngram_size=no_repeat_ngram_size,
+            max_length=max_gen_length,
             **gen_kwargs,
         )
         summaries_cpu = summaries.cpu()
@@ -276,10 +293,17 @@ def run_generate():
                         required=False,
                         help="post-processing worker threads")
     parser.add_argument("--no_truncation", action="store_true")
-    parser.add_argument("--return_tensors", type=str, help="specify return tensors", 
+    parser.add_argument("--return_tensors", type=str,
+                        help="specify return tensors",
                         default="pt", required=False)
-    parser.add_argument("--padding", type=str, help="specify padding", 
+    parser.add_argument("--padding", type=str, help="specify padding",
                         default="max_length", required=False)
+    parser.add_argument("--max_tokenizer_length", type=int,
+                        help="max length for the tokenized sentence",
+                        default=None, required=False)
+    parser.add_argument("--max_gen_length", type=int,
+                        help="max length for generation",
+                        default=None, required=False)
 
     args = parser.parse_args()
     examples = [
@@ -307,9 +331,15 @@ def run_generate():
         return_tensors=args.return_tensors,
         truncation=not args.no_truncation,
         padding=args.padding,
+<<<<<<< HEAD
         max_length=args.max_length,
         max_gen_length=args.max_gen_length
         )
+=======
+        max_tokenizer_length=args.max_tokenizer_length,
+        max_gen_length=args.max_gen_length)
+
+>>>>>>> 0b7afdfa74c27b7dde7e8633dba21c20b72344fe
     if args.reference_path is None:
         return
     # Compute scores
