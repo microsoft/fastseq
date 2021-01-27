@@ -54,7 +54,6 @@ setup(
         "packaging",
         "torch>=1.4.0",
         "pytorch-transformers==1.0.0",
-        "transformers==3.0.2"
     ],
     extras_require=extras,
     python_requires=">=3.6.0",

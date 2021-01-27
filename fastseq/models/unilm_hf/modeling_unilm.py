@@ -644,10 +644,12 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
             return False
         return True
 
-    def forward(self, **kwargs):
+    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, **kwargs):
         if self.training:
             # code for training
-            return
+            output = self.bert(input_ids, token_type_ids, attention_mask, position_ids)
+            output = self.cls(output[0], output[1])
+            return output[0]
 
         dec_in = kwargs.pop('dec_in')
         dec_token, token_mask, pos_ids = dec_in

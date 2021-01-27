@@ -173,7 +173,7 @@ def generate_summaries_or_translations(
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
-    tokenizer.model_max_length = gen_kwargs.get('max_length', 128)
+    tokenizer.model_max_length = max_tokenizer_length
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
@@ -256,11 +256,6 @@ def run_generate():
         required=False,
         help="decoder_start_token_id (otherwise will look at config)",
     )
-    parser.add_argument("--max_length",
-                        type=int,
-                        default=-1,
-                        required=False,
-                        help="max seq length")
     parser.add_argument("--max_gen_length",
                         type=int,
                         default=-1,
@@ -298,7 +293,7 @@ def run_generate():
                         default="pt", required=False)
     parser.add_argument("--padding", type=str, help="specify padding",
                         default="max_length", required=False)
-    parser.add_argument("--max_tokenizer_length", type=int,
+    parser.add_argument("--max_tokenizer_length", "--max_length", type=int,
                         help="max length for the tokenized sentence",
                         default=None, required=False)
     parser.add_argument("--max_gen_length", type=int,
@@ -331,15 +326,10 @@ def run_generate():
         return_tensors=args.return_tensors,
         truncation=not args.no_truncation,
         padding=args.padding,
-<<<<<<< HEAD
-        max_length=args.max_length,
+        max_tokenizer_length=args.max_tokenizer_length,
         max_gen_length=args.max_gen_length
         )
-=======
-        max_tokenizer_length=args.max_tokenizer_length,
-        max_gen_length=args.max_gen_length)
 
->>>>>>> 0b7afdfa74c27b7dde7e8633dba21c20b72344fe
     if args.reference_path is None:
         return
     # Compute scores
