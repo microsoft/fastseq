@@ -18,7 +18,7 @@ source hf.sh
     32/64/128 \
     --task summarization \
     --no_repeat_ngram_size 3 \
-    --max_length 608 \
+    --max_tokenizer_length 608 \
     --max_gen_length 160
 
 # Accuracy

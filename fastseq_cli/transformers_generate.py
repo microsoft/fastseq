@@ -173,7 +173,8 @@ def generate_summaries_or_translations(
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
-    tokenizer.model_max_length = max_tokenizer_length
+    if hasattr(tokenizer, 'model_max_length'):
+        tokenizer.model_max_length = max_tokenizer_length
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
@@ -256,16 +257,6 @@ def run_generate():
         required=False,
         help="decoder_start_token_id (otherwise will look at config)",
     )
-    parser.add_argument("--max_gen_length",
-                        type=int,
-                        default=-1,
-                        required=False,
-                        help="max length for decode")
-    parser.add_argument("--min_gen_length",
-                        type=int,
-                        default=-1,
-                        required=False,
-                        help="min length for decode")
     parser.add_argument("--n_obs",
                         type=int,
                         default=-1,
@@ -293,12 +284,17 @@ def run_generate():
                         default="pt", required=False)
     parser.add_argument("--padding", type=str, help="specify padding",
                         default="max_length", required=False)
-    parser.add_argument("--max_tokenizer_length", "--max_length", type=int,
+    parser.add_argument("--max_tokenizer_length", type=int,
                         help="max length for the tokenized sentence",
                         default=None, required=False)
     parser.add_argument("--max_gen_length", type=int,
                         help="max length for generation",
                         default=None, required=False)
+    parser.add_argument("--min_gen_length",
+                        type=int,
+                        default=-1,
+                        required=False,
+                        help="min length for decode")
 
     args = parser.parse_args()
     examples = [
