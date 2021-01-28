@@ -173,7 +173,7 @@ def generate_summaries_or_translations(
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
-    if hasattr(tokenizer, 'model_max_length'):
+    if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
         tokenizer.model_max_length = max_tokenizer_length
 
     # update config with summarization specific params
