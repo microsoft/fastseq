@@ -173,6 +173,9 @@ def generate_summaries_or_translations(
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
 
+    if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
+        tokenizer.model_max_length = max_tokenizer_length
+
     # update config with summarization specific params
     use_task_specific_params(model, task)
     data_queue = Queue()
@@ -287,6 +290,11 @@ def run_generate():
     parser.add_argument("--max_gen_length", type=int,
                         help="max length for generation",
                         default=None, required=False)
+    parser.add_argument("--min_gen_length",
+                        type=int,
+                        default=-1,
+                        required=False,
+                        help="min length for decode")
 
     args = parser.parse_args()
     examples = [
@@ -315,7 +323,8 @@ def run_generate():
         truncation=not args.no_truncation,
         padding=args.padding,
         max_tokenizer_length=args.max_tokenizer_length,
-        max_gen_length=args.max_gen_length)
+        max_gen_length=args.max_gen_length
+        )
 
     if args.reference_path is None:
         return
