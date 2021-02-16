@@ -134,7 +134,7 @@ class PostProcess(Process):
             x = self.bpe.decode(x)
         if self.tokenizer is not None:
             x = self.tokenizer.decode(x)
-        return x
+        return x.encode('utf-8')
 
     def _detokenize(self, sample, hypos):
         """ detokenize and compute BELU """
