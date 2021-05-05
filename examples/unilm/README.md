@@ -7,12 +7,12 @@
 
 ## Speedup by using FastSeq
 
-- CNN daily mail validation data, NVIDIA-2080TI
+- CNN daily mail validation data, NVIDIA-V100-16GB
 
-  |       BatchSize      |       32      |        64       |      128       |
-  |:--------------------:|:-------------:|:---------------:|:--------------:|
-  |      unilm           |  - samples/s  |  1.2 samples/s  |      OOM       |
-  |   above + fastseq    |  - samples/s  |  8.4 samples/s  |  8.4 samples/s |
+  |       BatchSize       |        64       |      128       |
+  |:---------------------:|:---------------:|:--------------:|
+  |   transformers_v3.0.2 |   1.7 samples/s |      OOM       |
+  |   above + fastseq     |  13.8 samples/s | 16.4 samples/s |
 
 ### Model
 cnndm-unilm-base-cased (fine-tuned on CNN/Daily Mail) [link](https://unilm.blob.core.windows.net/ckpt/cnndm.unilm1-base-cased.bin)
