@@ -19,6 +19,8 @@ from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS,
                                       fastseq_test_main, TestCaseBase)
 
+
+
 logger = get_logger(__name__)
 
 class FairseqBeamSearchOptimizerTest(TestCaseBase):
@@ -64,11 +66,15 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
         'lenpen': 2.0,
         'max_len_b': 140,
         'min_len': 55,
-        'no_repeat_ngram_size': 3
-    })
+        'no_repeat_ngram_size': 3,
+        #To test with el attention, please set 
+        #env variable USE_EL_ATTN=1
+        'use_el_attn':False, 
+    },
+    )
     def test_beam_search_optimizer(self, beam_size, batch_size, need_attn,
                                    lenpen, max_len_b, min_len,
-                                   no_repeat_ngram_size):
+                                   no_repeat_ngram_size, use_el_attn):
         """Make sure the changes do not affect the model accuracy.
 
         Args:
@@ -83,6 +89,10 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
         """
         self.bart.model.make_generation_fast_(beamable_mm_beam_size=beam_size,
                                               need_attn=need_attn)
+        
+        if use_el_attn:
+            self.bart.model.transpose_enc_dec_kv_proj()
+        
         self.bart.cuda()
         self.bart.eval()
         count = 0

@@ -7,6 +7,8 @@ bss="$1"; shift
 shell=benchmark_fs.sh
 if [ "$framework" = "fairseq+fastseq" ]; then
     :
+elif [ "$framework" = "fairseq+fastseq+el" ]; then
+    :
 elif [ "$framework" = "fairseq" ]; then
     :
 elif [ "$framework" = "transformers+fastseq" ]; then
