@@ -1,5 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 
-"""Apply the beam search optimizations to fairseq-v0.9.0"""
+"""Apply the EL Attention optimizations to fairseq-v0.9.0"""
 
 import math
 from typing import Optional
@@ -476,7 +478,6 @@ class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
             self.num_heads = self.decoder.layers[i].encoder_attn.num_heads
             self.head_dim = self.decoder.layers[i].encoder_attn.head_dim
 
-
             self.decoder.layers[i].encoder_attn.k_proj_weight_t = (
                     self.decoder.layers[i].encoder_attn.k_proj.weight
                     .view(self.num_heads,
@@ -499,17 +500,15 @@ class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
                 .view(1, 1, self.num_heads * self.head_dim)
                 ).cuda()
 
+            del self.decoder.layers[i].encoder_attn.k_proj
+            del self.decoder.layers[i].encoder_attn.v_proj
+
+
 @replace(TransformerModel, use_el_attn)
 class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
-
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
-        # Replace reorder_encoder_out with a dummy function.
-        if ('beamable_mm_beam_size' in kwargs and
-            kwargs['beamable_mm_beam_size'] > 1):
-            #self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
-            pass
 
 @replace(MultiheadAttention, use_el_attn)
 class MultiheadAttentionV2(MultiheadAttention):
@@ -632,10 +631,9 @@ class MultiheadAttentionV2(MultiheadAttention):
                     query.view(-1,embed_dim), self.q_proj.weight.T,
                     beta=self.scaling, alpha=self.scaling)
             q = (
-                q#.contiguous()
+                q
                 .view(bsz, self.num_heads, self.head_dim)
                 .transpose(0, 1)
-                #.contiguous()
                 )
             torch.cuda.nvtx.range_pop()
 
@@ -716,7 +714,6 @@ class MultiheadAttentionV2(MultiheadAttention):
             assert incremental_state is not None
             self._set_input_buffer(incremental_state, saved_state)
 
-        #assert k is not None
         if not self.encoder_decoder_attention: src_len = k.size(1)
 
         # This is part of a workaround to get around fork/join parallelism

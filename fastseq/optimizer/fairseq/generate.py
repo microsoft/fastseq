@@ -19,11 +19,8 @@ from fairseq.utils import apply_to_sample
 
 from fastseq.utils.api_decorator import replace
 
-
-
 GENERATE_FINISHED = "done"
 POSTPROCESS_FINISHED = None
-
 
 def move_to_cpu(sample):
     def _move_to_cpu(tensor):
@@ -63,7 +60,7 @@ class IOProcess(Process):
 
         self.args = args
         self.message_queue = message_queue
-        self.has_target = True
+        self.has_target = False
 
     def run(self):
         while True:
@@ -74,6 +71,7 @@ class IOProcess(Process):
                     self.scorer.add_string(t, h)
                 else:
                     self.scorer.add(t, h)
+                self.has_target = True
             elif msg == GENERATE_FINISHED:
                 if self.has_target:
                     print('| Generate {} with beam={}: {}'.format(
@@ -127,7 +125,6 @@ class PostProcess(Process):
         self.task = task
         self.data_queue = data_queue
         self.message_queue = message_queue
-        self.has_target = True
         if args.decode_hypothesis:
             self.tokenizer = encoders.build_tokenizer(args)
             self.bpe = encoders.build_bpe(args)

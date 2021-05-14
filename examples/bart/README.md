@@ -10,11 +10,11 @@ BART is sequence-to-sequence model trained with denoising as pretraining objecti
 
 - CNN daily mail validation data, NVIDIA-V100-16GB
 
-  |     BatchSize    |       32      |        64       |      128       |      256*      |	320	  |
-  |:----------------:|:-------------:|:---------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    | 2.4 samples/s |       OOM       |      OOM       |      OOM       |      OOM       |
-  | above + fastseq  | 8.1 samples/s | 13.3 samples/s  | 18.4 samples/s | 19.7 samples/s |      OOM       |
-  | above + el_attn  | --- samples/s | ---- samples/s  | ---- samples/s | ---  samples/s | 25.3 samples/s |
+  |     BatchSize    |       32      |        64       |      128       |	320	 |
+  |:----------------:|:-------------:|:---------------:|:--------------:|:--------------:|
+  | fairseq-0.9.0    | 2.4 samples/s |       OOM       |      OOM       |      OOM       |
+  | above + fastseq  | 8.1 samples/s | 13.3 samples/s  | 18.4 samples/s |      OOM       |
+  | above + el_attn  | --- samples/s | ---- samples/s  | ---- samples/s | 25.3 samples/s |
 \* with `--max-tokens 131072` to avoid attn_weights' total number of elements exceed INT.MAX, which is a limitation for softmax op. 
 
 ### Model
