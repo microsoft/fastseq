@@ -761,7 +761,7 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
             num_beams: beam size for beam search
             num_return_sequences: num for return sequence for beam search
         """
-        max_seq_length = kwargs.pop("max_gen_length", 48)
+        max_seq_length = kwargs.pop("max_length", 48)
         min_seq_length = kwargs.pop("min_gen_length", 0)
         repetition_penalty = kwargs.pop("repetition_penalty", 1.0)
         no_repeat_ngram_size = no_repeat_ngram_size
@@ -780,7 +780,7 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
         tgt_mask[:, src_len:, :] = torch.tril(tri_mask[:, src_len:, :])
         tgt_mask[:, :, 0] = 0
         src_mask = torch.cat((src_mask, tgt_mask), dim=-1)
-        src_seg = torch.tensor([0] * src_len).to(src_token)
+        src_seg = torch.tensor([self.config.source_type_id] * src_len).to(src_token)
         src_seg = src_seg[None, :].repeat(batch_size, 1)
         src_pos0 = torch.ones(batch_size, max_seq_length + 1).to(input_ids)
         src_pos0[:, 0] = 0
@@ -793,7 +793,7 @@ class UnilmForSeq2Seq(UnilmPreTrainedModel, GenerationMixinV2):
             "src_mask": src_mask,
             "src_pos": src_pos,
         })
-        dec_seg = [0] + [1] * max_seq_length
+        dec_seg = [self.config.source_type_id] + [self.config.target_type_id] * max_seq_length
         self.dec_seg = (torch.tensor(
             dec_seg, dtype=torch.long,
             device=src_token.device).unsqueeze(0).repeat(
