@@ -132,7 +132,7 @@ for bs in "${bs_list[@]}"; do
             --max-len-b 140 \
             --no-repeat-ngram-size 3 \
             --lenpen 2.0 \
-	    `#--print-alignment` \
+  	    `#--print-alignment` \
             `#--print-step	# KeyError: steps` \
             --skip-invalid-size-inputs-valid-test $* \
         > $STDOUT_FILE 2> $STDERR_FILE
