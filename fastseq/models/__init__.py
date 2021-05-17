@@ -3,6 +3,7 @@
 """Register models"""
 
 import logging
+import sys
 from fastseq.logging import get_logger
 logger = get_logger(__name__, logging.INFO)
 

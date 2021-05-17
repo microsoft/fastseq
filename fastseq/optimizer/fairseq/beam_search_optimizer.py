@@ -24,13 +24,13 @@ from fastseq.logging import get_logger
 logger = get_logger(__name__, logging.INFO)
 
 
-#Efficient-Lossless Attention
-use_el_attn = config.USE_EL_ATTN == '1'
-if use_el_attn:
+if config.USE_EL_ATTN:
     logger.info(f"Using Efficient-Lossless Attention optimization")
+#cache optimiztion without Efficient-Lossless Attention
+USE_OPTIMIZED_CACHE_ATTN = not config.USE_EL_ATTN
 
 
-@replace(BeamSearch, True)
+@replace(BeamSearch)
 class BeamSearchV2(BeamSearch):
 
     def step(self, step, lprobs, scores):
@@ -59,7 +59,7 @@ class BeamSearchV2(BeamSearch):
         self.indices_buf.fmod_(vocab_size)
         return self.scores_buf, self.indices_buf, self.beams_buf
 
-@replace(TransformerEncoder, not use_el_attn)
+@replace(TransformerEncoder, USE_OPTIMIZED_CACHE_ATTN)
 class TransformerEncoderV2(TransformerEncoder):
     """
     Transformer encoder consisting of *args.encoder_layers* layers. Each layer
@@ -74,7 +74,7 @@ class TransformerEncoderV2(TransformerEncoder):
         return encoder_out
 
 
-@replace(TransformerModel, not use_el_attn)
+@replace(TransformerModel, USE_OPTIMIZED_CACHE_ATTN)
 class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
 
@@ -86,7 +86,7 @@ class TransformerModelV2(TransformerModel):
             self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 
-@replace(MultiheadAttention, not use_el_attn)
+@replace(MultiheadAttention, USE_OPTIMIZED_CACHE_ATTN)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
 
@@ -438,7 +438,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
-@replace(SequenceGenerator, not use_el_attn)
+@replace(SequenceGenerator, USE_OPTIMIZED_CACHE_ATTN)
 class SequenceGeneratorV2(SequenceGenerator):
     """
     Sequence Generator is optimized by reducing the cached memory usage

@@ -15,9 +15,6 @@ from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import OPTIMIZED_CLASSES
 from fastseq import config
 
-#Efficient-Lossless Attention
-use_el_attn = config.USE_EL_ATTN == '1'
-
 logger = get_logger(__name__, logging.INFO)
 
 LATEST_VERSION = 'latest'
@@ -50,7 +47,7 @@ def apply_fairseq_optimization():
         return
 
     import fastseq.optimizer.fairseq.beam_search_optimizer  # pylint: disable=import-outside-toplevel
-    if use_el_attn:
+    if config.USE_EL_ATTN:
         import fastseq.optimizer.fairseq.el_attention_optimizer  # pylint: disable=import-outside-toplevel
 
     import fastseq.optimizer.fairseq.generate  # pylint: disable=import-outside-toplevel

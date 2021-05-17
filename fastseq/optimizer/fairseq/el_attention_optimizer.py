@@ -25,21 +25,16 @@ from fairseq.tasks.fairseq_task import FairseqTask
 from fairseq.data.data_utils import collate_tokens
 from fastseq.utils.api_decorator import replace
 from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
-from fastseq import config
+from fastseq.config import USE_EL_ATTN
 
-
-#Efficient-Lossless Attention
-use_el_attn = config.USE_EL_ATTN == '1'
-
-
-@replace(collate_tokens, use_el_attn)
+@replace(collate_tokens, USE_EL_ATTN)
 def collate_tokens(values, pad_idx, eos_idx=None,
         left_pad=False, move_eos_to_beginning=False):
     """Convert a list of 1d tensors into a padded 2d tensor."""
     size = max(v.size(0) for v in values)
 
     pad_to_multiple = 8
-    if pad_to_multiple != 1 and size % pad_to_multiple != 0:
+    if size % pad_to_multiple != 0:
         size = int(((size-0.1)//pad_to_multiple + 1) * pad_to_multiple)
 
     res = values[0].new(len(values), size).fill_(pad_idx)
@@ -57,13 +52,13 @@ def collate_tokens(values, pad_idx, eos_idx=None,
         copy_tensor(v, res[i][size - len(v):] if left_pad else res[i][:len(v)])
     return res
 
-@replace(FairseqTask, use_el_attn)
+@replace(FairseqTask, USE_EL_ATTN)
 class FairseqTaskV2(FairseqTask):
     def transpose_enc_dec_kv_proj(self, models):
         for model in models:
             model.transpose_enc_dec_kv_proj()
 
-@replace(TransformerDecoderLayer, use_el_attn)
+@replace(TransformerDecoderLayer, USE_EL_ATTN)
 class TransformerDecoderLayerV2(TransformerDecoderLayer):
     def forward(
         self,
@@ -190,7 +185,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
             return x, attn, self_attn_state
         return x, attn
 
-@replace(TransformerEncoder, use_el_attn)
+@replace(TransformerEncoder, USE_EL_ATTN)
 class TransformerEncoderV2(TransformerEncoder):
     """
     Transformer encoder consisting of *args.encoder_layers* layers. Each layer
@@ -313,7 +308,7 @@ class TransformerEncoderV2(TransformerEncoder):
         return encoder_out
 
 
-@replace(EnsembleModel, use_el_attn)
+@replace(EnsembleModel, USE_EL_ATTN)
 class EnsembleModelV2(EnsembleModel):
     """A wrapper around an ensemble of models."""
 
@@ -331,7 +326,7 @@ class EnsembleModelV2(EnsembleModel):
         ]
 
 
-@replace(TransformerDecoder, use_el_attn)
+@replace(TransformerDecoder, USE_EL_ATTN)
 class TransformerDecoderV2(TransformerDecoder):
     """
     Transformer decoder consisting of *args.decoder_layers* layers. Each layer
@@ -465,7 +460,7 @@ class TransformerDecoderV2(TransformerDecoder):
         return x, {'attn': attn, 'inner_states': inner_states}
 
 
-@replace(FairseqEncoderDecoderModel, use_el_attn)
+@replace(FairseqEncoderDecoderModel, USE_EL_ATTN)
 class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
     """class for encoder-decoder models.
     Args:
@@ -504,13 +499,13 @@ class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
             del self.decoder.layers[i].encoder_attn.v_proj
 
 
-@replace(TransformerModel, use_el_attn)
+@replace(TransformerModel, USE_EL_ATTN)
 class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
 
-@replace(MultiheadAttention, use_el_attn)
+@replace(MultiheadAttention, USE_EL_ATTN)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
 
@@ -919,7 +914,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
-@replace(SequenceGenerator, use_el_attn)
+@replace(SequenceGenerator, USE_EL_ATTN)
 class SequenceGeneratorV2(SequenceGenerator):
     """
     Sequence Generator is optimized by reducing the cached memory usage
