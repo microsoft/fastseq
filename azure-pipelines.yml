@@ -13,7 +13,7 @@ jobs:
     pool:
       name: default
       demands:
-        - agent.name -equals gpu0
+        - agent.name -equals gpu3
     container:
       image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
       endpoint: fastseq-acr
