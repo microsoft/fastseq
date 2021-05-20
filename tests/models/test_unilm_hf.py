@@ -93,7 +93,7 @@ class UnilmModelTest(TestCaseBase):
                         decoder_start_token_id=None,
                         num_beams=beam_size,
                         length_penalty=lenpen,
-                        max_gen_length=max_len_b,
+                        max_length=max_len_b,
                         min_gen_length=min_len,
                         no_repeat_ngram_size=no_repeat_ngram_size
                     )
@@ -113,7 +113,7 @@ class UnilmModelTest(TestCaseBase):
                     decoder_start_token_id=None,
                     num_beams=beam_size,
                     length_penalty=lenpen,
-                    max_gen_length=max_len_b,
+                    max_length=max_len_b,
                     min_gen_length=min_len,
                     no_repeat_ngram_size=no_repeat_ngram_size
                 )
