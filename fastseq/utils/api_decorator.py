@@ -161,7 +161,7 @@ def export_api(module_name, obj_name):
     return decorator
 
 
-def replace(target_obj):
+def replace(target_obj, is_allowed=True):
     """A decorator to replace the specified obj.
 
     `target_obj` can be a class or a function.
@@ -186,6 +186,9 @@ def replace(target_obj):
         A decorator function to replace the input object.
     """
     def decorator(new_obj):
+        if not is_allowed:
+            return target_obj
+        
         if target_obj in OPTIMIZED_CLASSES:
             logger.warning("{} has been optimized again.".format(target_obj))
         setattr(new_obj, '__replaced_class__', target_obj)
@@ -210,5 +213,5 @@ def replace(target_obj):
                         "In module {}, the base class of {} is replaced by {}"
                         .format(k, v.__dict__[key], new_obj))
         return new_obj
-
+ 
     return decorator

@@ -41,7 +41,7 @@ if [[ $framework == fairseq ]]; then
     else
         util=fairseq-generate
     fi
-elif [[ "$framework" == "fairseq+fastseq" ]]; then
+elif [[ "$framework" == fairseq+fastseq* ]]; then
     ver1=`pip show fairseq | awk  '{if($1=="Version:")print $2}'`
     ver2=`pip show fastseq | awk  '{if($1=="Version:")print $2}'`
     framework_versioned="fairseq_v$ver1+fastseq_v$ver2"
@@ -51,7 +51,7 @@ elif [[ "$framework" == "fairseq+fastseq" ]]; then
         util=fastseq-generate-for-fairseq
     fi
 fi
-
+echo $framework
 mark1=" with beam="
 mark2="| Evaluated "
 for i in `seq $LOOP`; do
@@ -94,6 +94,28 @@ for bs in "${bs_list[@]}"; do
             --remove-bpe \
             --gen-subset $split $* \
         > $STDOUT_FILE 2> $STDERR_FILE
+    elif [[ $framework == "fairseq+fastseq+el" ]]; then    
+        echo "USING EL"
+	$util \
+            $data_dir \
+            --path $model_path \
+            --fp16 \
+            --task translation \
+            --batch-size $bs \
+            --gen-subset $split \
+            --truncate-source  \
+            --bpe gpt2 \
+            --beam 4 \
+            --num-workers 4 \
+            --min-len 55 \
+            --max-len-b 140 \
+            --no-repeat-ngram-size 3 \
+            --lenpen 2.0 \
+            --use-el-attn \
+	    `#--print-alignment` \
+            `#--print-step      # KeyError: steps` \
+            --skip-invalid-size-inputs-valid-test $* \
+        > $STDOUT_FILE 2> $STDERR_FILE
     else
         $util \
             $data_dir \
@@ -110,8 +132,8 @@ for bs in "${bs_list[@]}"; do
             --max-len-b 140 \
             --no-repeat-ngram-size 3 \
             --lenpen 2.0 \
-            `#--print-alignment` \
-            `#--print-step	# KeyError: steps` \
+	    `#--print-alignment` \
+	    `#--print-step	# KeyError: steps` \
             --skip-invalid-size-inputs-valid-test $* \
         > $STDOUT_FILE 2> $STDERR_FILE
     fi

@@ -1,65 +1,191 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Apply the beam search optimizations to fairseq-v0.9.0"""
+"""Apply the EL Attention optimizations to fairseq-v0.9.0"""
 
 import math
 from typing import Optional
-
+from typing import List
+from collections import namedtuple
 import torch
-import logging
 import torch.nn.functional as F
 from torch import Tensor
-
+import random
 from fairseq import utils
 from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
-from fairseq.search import BeamSearch
 from fairseq.sequence_generator import SequenceGenerator
-from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
+from fairseq.models.fairseq_model import FairseqEncoderDecoderModel
+from fairseq.models.transformer import TransformerAlignModel
+from fairseq.models.transformer import TransformerEncoder
+from fairseq.models.transformer import TransformerDecoder
+from fairseq.modules.transformer_layer import TransformerDecoderLayer
+from fairseq.sequence_generator import EnsembleModel
+from fairseq.tasks.fairseq_task import FairseqTask
+from fairseq.data.data_utils import collate_tokens
 from fastseq.utils.api_decorator import replace
-from fastseq import config
-from fastseq.logging import get_logger
+from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
+from fastseq.config import USE_EL_ATTN
 
-logger = get_logger(__name__, logging.INFO)
+@replace(collate_tokens, USE_EL_ATTN)
+def collate_tokens(values, pad_idx, eos_idx=None,
+        left_pad=False, move_eos_to_beginning=False):
+    """Convert a list of 1d tensors into a padded 2d tensor."""
+    size = max(v.size(0) for v in values)
 
+    pad_to_multiple = 8
+    if size % pad_to_multiple != 0:
+        size = int(((size-0.1)//pad_to_multiple + 1) * pad_to_multiple)
 
-if config.USE_EL_ATTN:
-    logger.info(f"Using Efficient-Lossless Attention optimization")
-#cache optimiztion without Efficient-Lossless Attention
-USE_OPTIMIZED_CACHE_ATTN = not config.USE_EL_ATTN
+    res = values[0].new(len(values), size).fill_(pad_idx)
 
-
-@replace(BeamSearch)
-class BeamSearchV2(BeamSearch):
-
-    def step(self, step, lprobs, scores):
-        super()._init_buffers(lprobs)
-        bsz, beam_size, vocab_size = lprobs.size()
-
-        if step == 0:
-            # at the first step all hypotheses are equally likely, so use
-            # only the first beam
-            lprobs = lprobs[:, ::beam_size, :].contiguous()
+    def copy_tensor(src, dst):
+        assert dst.numel() == src.numel()
+        if move_eos_to_beginning:
+            assert src[-1] == eos_idx
+            dst[0] = eos_idx
+            dst[1:] = src[:-1]
         else:
-            # make probs contain cumulative scores for each hypothesis
-            lprobs.add_(scores[:, :, step - 1].unsqueeze(-1))
+            dst.copy_(src)
 
-        torch.topk(
-            lprobs.view(bsz, -1),
-            k=min(
-                # Take the best 2 x beam_size predictions. We'll choose the first
-                # beam_size of these which don't predict eos to continue with.
-                beam_size * 2,
-                lprobs.view(bsz, -1).size(1) - 1,  # -1 so we never select pad
-            ),
-            out=(self.scores_buf, self.indices_buf),
+    for i, v in enumerate(values):
+        copy_tensor(v, res[i][size - len(v):] if left_pad else res[i][:len(v)])
+    return res
+
+@replace(FairseqTask, USE_EL_ATTN)
+class FairseqTaskV2(FairseqTask):
+    def transpose_enc_dec_kv_proj(self, models):
+        for model in models:
+            model.transpose_enc_dec_kv_proj()
+
+@replace(TransformerDecoderLayer, USE_EL_ATTN)
+class TransformerDecoderLayerV2(TransformerDecoderLayer):
+    def forward(
+        self,
+        x,
+        encoder_out=None,
+        encoder_out_v=None,
+        encoder_padding_mask=None,
+        incremental_state=None,
+        prev_self_attn_state=None,
+        prev_attn_state=None,
+        self_attn_mask=None,
+        self_attn_padding_mask=None,
+        need_attn=False,
+        need_head_weights=False,
+    ):
+        """
+        Args:
+            x (Tensor): input to the layer of shape
+            `(seq_len, batch, embed_dim)`
+            encoder_padding_mask (ByteTensor, optional): binary
+                ByteTensor of shape `(batch, src_len)` where padding
+                elements are indicated by ``1``.
+            need_attn (bool, optional): return attention weights
+            need_head_weights (bool, optional): return attention weights
+                for each head (default: return average over heads).
+
+        Returns:
+            encoded output of shape `(seq_len, batch, embed_dim)`
+        """
+        if need_head_weights:
+            need_attn = True
+
+        residual = x
+        x = self.maybe_layer_norm(self.self_attn_layer_norm, x, before=True)
+        if prev_self_attn_state is not None:
+            if incremental_state is None:
+                incremental_state = {}
+            prev_key, prev_value = prev_self_attn_state[:2]
+            saved_state = {"prev_key": prev_key, "prev_value": prev_value}
+            if len(prev_self_attn_state) >= 3:
+                saved_state["prev_key_padding_mask"] = prev_self_attn_state[2]
+            self.self_attn._set_input_buffer(incremental_state, saved_state)
+
+        if self.cross_self_attention and not (incremental_state is not None
+            and "prev_key" in
+            self.self_attn._get_input_buffer(incremental_state)):
+            if self_attn_mask is not None:
+                self_attn_mask = torch.cat((x.new(x.size(0),
+                    encoder_out.size(0)).zero_(), self_attn_mask), dim=1)
+            if self_attn_padding_mask is not None:
+                if encoder_padding_mask is None:
+                    encoder_padding_mask = self_attn_padding_mask.new(
+                            encoder_out.size(1), encoder_out.size(0)).zero_()
+                self_attn_padding_mask = torch.cat((encoder_padding_mask,
+                    self_attn_padding_mask), dim=1)
+            y = torch.cat((encoder_out, x), dim=0)
+        else:
+            y = x
+
+        torch.cuda.nvtx.range_push('self attn')
+        x, attn = self.self_attn(
+            query=x,
+            key=y,
+            value=y,
+            key_padding_mask=self_attn_padding_mask,
+            incremental_state=incremental_state,
+            need_weights=False,
+            attn_mask=self_attn_mask,
         )
-        self.beams_buf = torch.floor_divide(self.indices_buf, vocab_size)
-        self.indices_buf.fmod_(vocab_size)
-        return self.scores_buf, self.indices_buf, self.beams_buf
+        torch.cuda.nvtx.range_pop()
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = residual + x
+        x = self.maybe_layer_norm(self.self_attn_layer_norm, x, after=True)
 
-@replace(TransformerEncoder, USE_OPTIMIZED_CACHE_ATTN)
+        if self.encoder_attn is not None:
+            residual = x
+            x = self.maybe_layer_norm(self.encoder_attn_layer_norm,
+                    x, before=True)
+            if prev_attn_state is not None:
+                if incremental_state is None:
+                    incremental_state = {}
+                prev_key, prev_value = prev_attn_state[:2]
+                saved_state = {"prev_key": prev_key, "prev_value": prev_value}
+                if len(prev_attn_state) >= 3:
+                    saved_state["prev_key_padding_mask"] = prev_attn_state[2]
+                self.encoder_attn._set_input_buffer(incremental_state,
+                        saved_state)
+
+            torch.cuda.nvtx.range_push('enc dec attn')
+            x, attn = self.encoder_attn(
+                query=x,
+                key=encoder_out,
+                value=encoder_out_v,
+                key_padding_mask=encoder_padding_mask,
+                incremental_state=incremental_state,
+                static_kv=True,
+                need_weights=need_attn or (not
+                    self.training and self.need_attn),
+                need_head_weights=need_head_weights,
+            )
+            torch.cuda.nvtx.range_pop()
+
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = residual + x
+            x = self.maybe_layer_norm(self.encoder_attn_layer_norm,
+                    x, after=True)
+        residual = x
+        x = self.maybe_layer_norm(self.final_layer_norm, x, before=True)
+        x = self.activation_fn(self.fc1(x))
+        x = F.dropout(x, p=self.activation_dropout, training=self.training)
+        x = self.fc2(x)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = residual + x
+        x = self.maybe_layer_norm(self.final_layer_norm, x, after=True)
+        if self.onnx_trace and incremental_state is not None:
+            saved_state = self.self_attn._get_input_buffer(incremental_state)
+            if self_attn_padding_mask is not None:
+                self_attn_state = (saved_state["prev_key"],
+                        saved_state["prev_value"],
+                        saved_state["prev_key_padding_mask"])
+            else:
+                self_attn_state = (saved_state["prev_key"],
+                        saved_state["prev_value"])
+            return x, attn, self_attn_state
+        return x, attn
+
+@replace(TransformerEncoder, USE_EL_ATTN)
 class TransformerEncoderV2(TransformerEncoder):
     """
     Transformer encoder consisting of *args.encoder_layers* layers. Each layer
@@ -70,23 +196,316 @@ class TransformerEncoderV2(TransformerEncoder):
         dictionary (~fairseq.data.Dictionary): encoding dictionary
         embed_tokens (torch.nn.Embedding): input embedding
     """
-    def _reorder_encoder_out(self, encoder_out, new_order):
+
+    @classmethod
+    def create_named_tuple (cls):
+        EncoderOut = namedtuple('TransformerEncoderOut', [
+            'encoder_out',  # T x B x C
+            'encoder_out_v',  # T x B x C
+            'encoder_padding_mask',  # B x T
+            'encoder_embedding',  # B x T x C
+            'encoder_states',  # List[T x B x C]
+        ])
+        return EncoderOut
+
+
+    def forward(self, src_tokens, src_lengths, cls_input=None,
+            return_all_hiddens=False, **unused):
+        """
+        Args:
+            src_tokens (LongTensor): tokens in the source language of shape
+                `(batch, src_len)`
+            src_lengths (torch.LongTensor): lengths of each source sentence of
+                shape `(batch)`
+            return_all_hiddens (bool, optional): also return all of the
+                intermediate hidden states (default: False).
+
+        Returns:
+            namedtuple:
+                - **encoder_out** (Tensor): the last encoder layer's output of
+                  shape `(src_len, batch, embed_dim)`
+                - **encoder_padding_mask** (ByteTensor): the positions of
+                  padding elements of shape `(batch, src_len)`
+                - **encoder_embedding** (Tensor): the (scaled) embedding lookup
+                  of shape `(batch, src_len, embed_dim)`
+                - **encoder_states** (List[Tensor]): all intermediate
+                  hidden states of shape `(src_len, batch, embed_dim)`.
+                  Only populated if *return_all_hiddens* is True.
+        """
+
+        if self.layer_wise_attention:
+            return_all_hiddens = True
+
+        x, encoder_embedding = self.forward_embedding(src_tokens)
+
+        # B x T x C -> T x B x C
+        x = x.transpose(0, 1)
+
+        # compute padding mask
+        encoder_padding_mask = src_tokens.eq(self.padding_idx)
+        if not encoder_padding_mask.any():
+            encoder_padding_mask = None
+
+        encoder_states = [] if return_all_hiddens else None
+
+        # encoder layers
+        for layer in self.layers:
+            # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
+            dropout_probability = random.uniform(0, 1)
+            if not self.training or (dropout_probability
+                    > self.encoder_layerdrop):
+                x = layer(x, encoder_padding_mask)
+                if return_all_hiddens:
+                    encoder_states.append(x)
+
+        if self.layer_norm:
+            x = self.layer_norm(x)
+            if return_all_hiddens:
+                encoder_states[-1] = x
+
+
+        EncoderOut = TransformerEncoder.create_named_tuple()
+        return EncoderOut(
+            encoder_out=x.permute(1,2,0).contiguous(),  # B x C x T
+            encoder_out_v=x.permute(1,0,2).contiguous(),  # B x T x C
+            encoder_padding_mask=encoder_padding_mask,  # B x T
+            encoder_embedding=encoder_embedding,  # B x T x C
+            encoder_states=encoder_states,  # List[T x B x C]
+        )
+
+
+    def reorder_encoder_out(self, encoder_out, new_order, beam_size):
+        """
+        Reorder encoder output according to *new_order*.
+        Args:
+            encoder_out: output from the ``forward()`` method
+            new_order (LongTensor): desired order
+
+        Returns:
+            *encoder_out* rearranged according to *new_order*
+        """
+        if encoder_out.encoder_out is not None:
+            encoder_out = encoder_out._replace(
+                encoder_out=encoder_out.encoder_out.index_select(
+                            0,
+                            new_order.reshape(-1, beam_size)[:, 0] //
+                            beam_size))
+        if encoder_out.encoder_out_v is not None:
+            encoder_out = encoder_out._replace(
+                encoder_out_v=encoder_out.encoder_out_v.index_select(
+                            0,
+                            new_order.reshape(-1, beam_size)[:, 0] //
+                            beam_size))
+
+        if encoder_out.encoder_padding_mask is not None:
+            encoder_out = encoder_out._replace(
+                encoder_padding_mask=
+                encoder_out.encoder_padding_mask.index_select(
+                                    0,
+                                    new_order.reshape(-1, beam_size)[:, 0] //
+                                    beam_size))
+
         return encoder_out
 
 
-@replace(TransformerModel, USE_OPTIMIZED_CACHE_ATTN)
+@replace(EnsembleModel, USE_EL_ATTN)
+class EnsembleModelV2(EnsembleModel):
+    """A wrapper around an ensemble of models."""
+
+    def transpose_enc_dec_kv_proj(self):
+        for model in self.models:
+            model.transpose_enc_dec_kv_proj()
+
+    def reorder_encoder_out(self, encoder_outs, new_order, beam_size):
+        if not self.has_encoder():
+            return None
+
+        return [
+            model.encoder.reorder_encoder_out(encoder_out, new_order, beam_size)
+            for model, encoder_out in zip(self.models, encoder_outs)
+        ]
+
+
+@replace(TransformerDecoder, USE_EL_ATTN)
+class TransformerDecoderV2(TransformerDecoder):
+    """
+    Transformer decoder consisting of *args.decoder_layers* layers. Each layer
+    is a :class:`TransformerDecoderLayer`.
+    Args:
+        args (argparse.Namespace): parsed command-line arguments
+        dictionary (~fairseq.data.Dictionary): decoding dictionary
+        embed_tokens (torch.nn.Embedding): output embedding
+        no_encoder_attn (bool, optional): whether to attend to encoder outputs
+            (default: False).
+    """
+
+    def extract_features(
+        self,
+        prev_output_tokens,
+        encoder_out=None,
+        incremental_state=None,
+        full_context_alignment=False,
+        alignment_layer=None,
+        alignment_heads=None,
+        **unused,
+    ):
+        """
+        Similar to *forward* but only return features.
+
+        Includes several features from "Jointly Learning to Align and
+        Translate with Transformer Models" (Garg et al., EMNLP 2019).
+
+        Args:
+            full_context_alignment (bool, optional): don't apply
+                auto-regressive mask to self-attention (default: False).
+            alignment_layer (int, optional): return mean alignment over
+                heads at this layer (default: last layer).
+            alignment_heads (int, optional): only average alignment over
+                this many heads (default: all heads).
+
+        Returns:
+            tuple:
+                - the decoder's features of shape `(batch, tgt_len, embed_dim)`
+                - a dictionary with any model-specific outputs
+        """
+        if alignment_layer is None:
+            alignment_layer = len(self.layers) - 1
+
+        # embed positions
+        positions = self.embed_positions(
+            prev_output_tokens,
+            incremental_state=incremental_state,
+        ) if self.embed_positions is not None else None
+
+        if incremental_state is not None:
+            prev_output_tokens = prev_output_tokens[:, -1:]
+            if positions is not None:
+                positions = positions[:, -1:]
+
+        # embed tokens and positions
+        x = self.embed_scale * self.embed_tokens(prev_output_tokens)
+
+        if self.project_in_dim is not None:
+            x = self.project_in_dim(x)
+
+        if positions is not None:
+            x += positions
+
+        if self.layernorm_embedding:
+            x = self.layernorm_embedding(x)
+
+        x = F.dropout(x, p=self.dropout, training=self.training)
+
+        # B x T x C -> T x B x C
+        x = x.transpose(0, 1)
+
+        self_attn_padding_mask = None
+        if (self.cross_self_attention or
+                prev_output_tokens.eq(self.padding_idx).any()):
+            self_attn_padding_mask = prev_output_tokens.eq(self.padding_idx)
+
+        # decoder layers
+        attn = None
+        inner_states = [x]
+        for idx, layer in enumerate(self.layers):
+            encoder_state = None
+            if encoder_out is not None:
+                if self.layer_wise_attention:
+                    encoder_state = encoder_out.encoder_states[idx]
+                else:
+                    encoder_state = encoder_out.encoder_out
+                    encoder_out_v = encoder_out.encoder_out_v
+
+            if incremental_state is None and not full_context_alignment:
+                self_attn_mask = self.buffered_future_mask(x)
+            else:
+                self_attn_mask = None
+
+            # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
+            dropout_probability = random.uniform(0, 1)
+            if not self.training or (dropout_probability
+                    > self.decoder_layerdrop):
+                x, layer_attn = layer(
+                    x,
+                    encoder_state,
+                    encoder_out_v,
+                    (encoder_out.encoder_padding_mask
+                    if encoder_out is not None else None),
+                    incremental_state,
+                    self_attn_mask=self_attn_mask,
+                    self_attn_padding_mask=self_attn_padding_mask,
+                    need_attn=(idx == alignment_layer),
+                    need_head_weights=(idx == alignment_layer),
+                )
+                inner_states.append(x)
+                if layer_attn is not None and idx == alignment_layer:
+                    attn = layer_attn.float()
+
+        if attn is not None:
+            if alignment_heads is not None:
+                attn = attn[:alignment_heads]
+
+            # average probabilities over heads
+            attn = attn.mean(dim=0)
+
+        if self.layer_norm:
+            x = self.layer_norm(x)
+
+        # T x B x C -> B x T x C
+        x = x.transpose(0, 1)
+
+        if self.project_out_dim is not None:
+            x = self.project_out_dim(x)
+
+        return x, {'attn': attn, 'inner_states': inner_states}
+
+
+@replace(FairseqEncoderDecoderModel, USE_EL_ATTN)
+class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
+    """class for encoder-decoder models.
+    Args:
+        encoder (FairseqEncoder): the encoder
+        decoder (FairseqDecoder): the decoder
+    """
+
+    def transpose_enc_dec_kv_proj (self):
+        for i in range (0, len(self.decoder.layers)):
+            self.num_heads = self.decoder.layers[i].encoder_attn.num_heads
+            self.head_dim = self.decoder.layers[i].encoder_attn.head_dim
+
+            self.decoder.layers[i].encoder_attn.k_proj_weight_t = (
+                    self.decoder.layers[i].encoder_attn.k_proj.weight
+                    .view(self.num_heads,
+                        self.head_dim, self.num_heads * self.head_dim)
+                    ).cuda()
+            self.decoder.layers[i].encoder_attn.k_proj_bias_t = (
+                    self.decoder.layers[i].encoder_attn.k_proj.bias
+                    .view(self.num_heads, self.head_dim, 1)
+                    ).cuda()
+
+            self.decoder.layers[i].encoder_attn.v_proj_weight_t = (
+                self.decoder.layers[i].encoder_attn.v_proj.weight
+                .view(self.num_heads, self.head_dim,
+                    self.num_heads * self.head_dim)
+                .transpose(1, 2)
+                .contiguous()
+                ).cuda()
+            self.decoder.layers[i].encoder_attn.v_proj_bias_t = (
+                self.decoder.layers[i].encoder_attn.v_proj.bias
+                .view(1, 1, self.num_heads * self.head_dim)
+                ).cuda()
+
+            del self.decoder.layers[i].encoder_attn.k_proj
+            del self.decoder.layers[i].encoder_attn.v_proj
+
+
+@replace(TransformerModel, USE_EL_ATTN)
 class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
-
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
-        # Replace reorder_encoder_out with a dummy function.
-        if ('beamable_mm_beam_size' in kwargs and
-            kwargs['beamable_mm_beam_size'] > 1):
-            self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
-
-@replace(MultiheadAttention, USE_OPTIMIZED_CACHE_ATTN)
+@replace(MultiheadAttention, USE_EL_ATTN)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
 
@@ -110,6 +529,10 @@ class MultiheadAttentionV2(MultiheadAttention):
 
         self.beam_size = 1
         self.tpu = False
+        self.k_proj_weight_t = None
+        self.k_proj_bias_t = None
+        self.v_proj_weight_t = None
+        self.v_proj_bias_t = None
 
     def apply_sparse_mask(
         self, attn_weights, tgt_len: int, src_len: int, bsz: int):
@@ -145,6 +568,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 weights for each head. Implies *need_weights*. Default:
                 return the average attention weights over all heads.
         """
+
         if need_head_weights:
             need_weights = True
 
@@ -180,15 +604,9 @@ class MultiheadAttentionV2(MultiheadAttention):
                 k_proj_weight=self.k_proj.weight,
                 v_proj_weight=self.v_proj.weight)
 
+
         if incremental_state is not None:
             saved_state = self._get_input_buffer(incremental_state)
-            if 'prev_key' in saved_state:
-                # previous time steps are cached - no need to recompute
-                # key and value if they are static
-                if static_kv:
-                    assert (self.encoder_decoder_attention and
-                            not self.self_attention)
-                    key = value = None
         else:
             saved_state = None
 
@@ -197,55 +615,61 @@ class MultiheadAttentionV2(MultiheadAttention):
             k = self.k_proj(query)
             v = self.v_proj(query)
         elif self.encoder_decoder_attention:
-            # encoder-decoder attention
-            q = self.q_proj(query)
-            if key is None:
-                assert value is None
-                k = v = None
-            else:
-                if self.beam_size > 1 and bsz == key.size(1):
-                    # key is [T, bsz*beam_size, C], reduce to [T, bsz, C]
-                    key = key.view(key.size(0), -1, self.beam_size,
-                                   key.size(2))[:, :, 0, :]
-                    if key_padding_mask is not None:
-                        key_padding_mask = key_padding_mask.view(
-                            -1,
-                            self.beam_size, key_padding_mask.size(1))[:, 0, :]
-                k = self.k_proj(key)
-                v = self.v_proj(key)
 
+            kv_bsz =  key.size(0)
+            src_len = key.size(2)
+            tgt_len = 1
+            embed_dim = key.size(1)
+
+            torch.cuda.nvtx.range_push('Q reshape')
+            q = torch.addmm(self.q_proj.bias.view(1, -1),
+                    query.view(-1,embed_dim), self.q_proj.weight.T,
+                    beta=self.scaling, alpha=self.scaling)
+            q = (
+                q
+                .view(bsz, self.num_heads, self.head_dim)
+                .transpose(0, 1)
+                )
+            torch.cuda.nvtx.range_pop()
+
+            k, v = None, None
         else:
             q = self.q_proj(query)
             k = self.k_proj(key)
             v = self.v_proj(value)
-        q *= self.scaling
 
-        if self.bias_k is not None:
-            assert self.bias_v is not None
-            k = torch.cat([k, self.bias_k.repeat(1, bsz, 1)])
-            v = torch.cat([v, self.bias_v.repeat(1, bsz, 1)])
-            if attn_mask is not None:
-                attn_mask = torch.cat(
-                    [attn_mask, attn_mask.new_zeros(attn_mask.size(0), 1)],
-                    dim=1)
-            if key_padding_mask is not None:
-                key_padding_mask = torch.cat(
-                    [key_padding_mask,
-                     key_padding_mask.new_zeros(key_padding_mask.size(0), 1)],
-                    dim=1)
+        if not self.encoder_decoder_attention:
+            q *= self.scaling
 
-        q = q.contiguous().view(tgt_len, bsz * self.num_heads,
-                                self.head_dim).transpose(0, 1)
-        if k is not None:
-            kv_bsz = k.size(1)
-            k = k.contiguous().view(-1, kv_bsz * self.num_heads,
+        if not self.encoder_decoder_attention:
+            if self.bias_k is not None:
+                assert self.bias_v is not None
+                k = torch.cat([k, self.bias_k.repeat(1, bsz, 1)])
+                v = torch.cat([v, self.bias_v.repeat(1, bsz, 1)])
+                if attn_mask is not None:
+                    attn_mask = torch.cat(
+                        [attn_mask, attn_mask.new_zeros(attn_mask.size(0), 1)],
+                        dim=1)
+                if key_padding_mask is not None:
+                    key_padding_mask = torch.cat(
+                        [key_padding_mask,
+                         key_padding_mask.new_zeros(
+                             key_padding_mask.size(0), 1)],
+                        dim=1)
+
+            q = q.contiguous().view(tgt_len, bsz * self.num_heads,
                                     self.head_dim).transpose(0, 1)
-        if v is not None:
-            assert kv_bsz
-            v = v.contiguous().view(-1, kv_bsz * self.num_heads,
-                                    self.head_dim).transpose(0, 1)
+            if k is not None:
+                kv_bsz = k.size(1)
+                k = k.contiguous().view(-1, kv_bsz * self.num_heads,
+                                        self.head_dim).transpose(0, 1)
+            if v is not None:
+                assert kv_bsz
+                v = v.contiguous().view(-1, kv_bsz * self.num_heads,
+                                        self.head_dim).transpose(0, 1)
 
-        if saved_state is not None:
+
+        if saved_state is not None and not self.encoder_decoder_attention:
             # saved states are stored with shape (bsz, num_heads, seq_len, head_dim)
             if 'prev_key' in saved_state:
                 saved_prev_key = saved_state["prev_key"]
@@ -253,26 +677,21 @@ class MultiheadAttentionV2(MultiheadAttention):
                 kv_bsz = saved_prev_key.size(0)
                 prev_key = saved_prev_key.view(kv_bsz * self.num_heads, -1,
                                                self.head_dim)
-                if static_kv:
-                    k = prev_key
-                else:
-                    assert k is not None
-                    k = torch.cat((prev_key, k), dim=1)
+                assert k is not None
+                k = torch.cat((prev_key, k), dim=1)
             if 'prev_value' in saved_state:
                 saved_prev_value = saved_state["prev_value"]
                 assert saved_prev_value is not None
                 assert kv_bsz == saved_prev_value.size(0)
                 prev_value = saved_prev_value.view(kv_bsz * self.num_heads, -1,
                                                    self.head_dim)
-                if static_kv:
-                    v = prev_value
-                else:
-                    assert v is not None
-                    v = torch.cat([prev_value, v], dim=1)
+                assert v is not None
+                v = torch.cat([prev_value, v], dim=1)
             prev_key_padding_mask: Optional[Tensor] = None
             if "prev_key_padding_mask" in saved_state:
                 prev_key_padding_mask = saved_state["prev_key_padding_mask"]
             assert k is not None and v is not None
+
             key_padding_mask = self._append_prev_key_padding_mask(
                 key_padding_mask=key_padding_mask,
                 prev_key_padding_mask=prev_key_padding_mask,
@@ -290,17 +709,12 @@ class MultiheadAttentionV2(MultiheadAttention):
             assert incremental_state is not None
             self._set_input_buffer(incremental_state, saved_state)
 
-        assert k is not None
-        src_len = k.size(1)
+        if not self.encoder_decoder_attention: src_len = k.size(1)
 
         # This is part of a workaround to get around fork/join parallelism
         # not supporting Optional types.
         if key_padding_mask is not None and key_padding_mask.dim() == 0:
             key_padding_mask = None
-
-        if key_padding_mask is not None:
-            assert key_padding_mask.size(0) == kv_bsz
-            assert key_padding_mask.size(1) == src_len
 
         if self.add_zero_attn:
             src_len += 1
@@ -321,21 +735,39 @@ class MultiheadAttentionV2(MultiheadAttention):
                 ],
                                              dim=1)
 
-        if self.encoder_decoder_attention and bsz != kv_bsz:
-            attn_weights = torch.einsum(
-                'bxhtd,bhsd->bxhts',
-                q.view(kv_bsz, -1, self.num_heads,
-                       *q.size()[1:]),
-                k.view(kv_bsz, self.num_heads,
-                       *k.size()[1:]))
-            attn_weights = attn_weights.reshape(-1, *attn_weights.size()[-2:])
+        if self.encoder_decoder_attention:
+
+            torch.cuda.nvtx.range_push('bmm_q_k_proj_weight')
+            q_w = torch.bmm(q, self.k_proj_weight_t)
+            torch.cuda.nvtx.range_pop()
+            torch.cuda.nvtx.range_push('bmm_q_k_proj_bias')
+            q_b = torch.bmm(q, self.k_proj_bias_t)
+            torch.cuda.nvtx.range_pop()
+            torch.cuda.nvtx.range_push('q_w_reshape')
+            q_b = (q_b.view(self.num_heads, kv_bsz, self.beam_size, 1)
+                    .transpose(0,1)
+                    .reshape(kv_bsz, self.num_heads*self.beam_size, 1)
+                  )
+
+            q_w = (q_w.view(self.num_heads, kv_bsz, self.beam_size, embed_dim)
+                    .transpose(0,1)
+                    .contiguous()
+                    .view(kv_bsz, self.num_heads*self.beam_size, embed_dim)
+                  )
+            torch.cuda.nvtx.range_pop()
+
+            torch.cuda.nvtx.range_push('bmm_q_w_key')
+            attn_weights = torch.bmm(q_w, key)
+            torch.cuda.nvtx.range_pop()
+            torch.cuda.nvtx.range_push('add_attn_weight_q_b')
+            attn_weights = attn_weights + q_b
+            torch.cuda.nvtx.range_pop()
         else:
+            torch.cuda.nvtx.range_push('Q_K')
             attn_weights = torch.bmm(q, k.transpose(1, 2))
+            torch.cuda.nvtx.range_pop()
         attn_weights = self.apply_sparse_mask(
             attn_weights, tgt_len, src_len, bsz)
-
-        assert list(
-            attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
 
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(0)
@@ -348,20 +780,31 @@ class MultiheadAttentionV2(MultiheadAttention):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len,
                                              src_len)
             if not self.tpu:
-                attn_weights = attn_weights.view(kv_bsz, -1, self.num_heads,
-                                                 tgt_len, src_len)
-                attn_weights = attn_weights.masked_fill(
+                if not self.encoder_decoder_attention:
+                    attn_weights = attn_weights.view(kv_bsz, -1, self.num_heads,
+                                                     tgt_len, src_len)
+                    attn_weights = attn_weights.masked_fill(
                     key_padding_mask.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(
-                        torch.bool), float("-inf"))
+                            torch.bool), float("-inf"))
+                else:
+                    attn_weights = attn_weights.view(kv_bsz, self.num_heads,-1,
+                                            tgt_len, src_len)
+                    attn_weights = attn_weights.masked_fill(
+                    key_padding_mask.unsqueeze(1).unsqueeze(2).unsqueeze(3).to(
+                            torch.bool), float("-inf"))
+
             else:
                 attn_weights = attn_weights.transpose(0, 2)
                 attn_weights = attn_weights.masked_fill(
                     key_padding_mask, float('-inf'))
                 attn_weights = attn_weights.transpose(0, 2)
-            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len,
+
+            if not self.encoder_decoder_attention:
+                attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len,
                                              src_len)
 
         if before_softmax:
+            #TODO
             return attn_weights, v
 
         attn_weights_float = utils.softmax(attn_weights,
@@ -371,18 +814,51 @@ class MultiheadAttentionV2(MultiheadAttention):
         attn_probs = F.dropout(attn_weights,
                                p=self.dropout,
                                training=self.training)
-        assert v is not None
 
-        if self.encoder_decoder_attention and bsz != kv_bsz:
-            attn = torch.einsum(
-                'bxhts,bhsd->bxhtd',
-                attn_probs.view(kv_bsz, -1, self.num_heads,
-                                *attn_probs.size()[1:]),
-                v.view(kv_bsz, self.num_heads,
-                       *v.size()[1:]))
-            attn = attn.reshape(-1, *attn.size()[-2:])
+        if self.encoder_decoder_attention:
+
+            attn_probs = attn_probs.view(
+                    kv_bsz, self.num_heads*self.beam_size*tgt_len, src_len)
+
+            torch.cuda.nvtx.range_push('bmm_attn_prob_value')
+            attn_h = torch.bmm(attn_probs, value)
+            torch.cuda.nvtx.range_pop()
+
+            torch.cuda.nvtx.range_push('attn_h_reshape')
+            attn_h = (attn_h.view(kv_bsz,
+                self.num_heads, self.beam_size, embed_dim)
+                .transpose(0,1)
+                .contiguous()
+                .view(self.num_heads, kv_bsz*self.beam_size, embed_dim)
+               )
+            torch.cuda.nvtx.range_pop()
+
+            torch.cuda.nvtx.range_push('bmm_attn_h_v_proj_weight')
+            attn = torch.bmm(attn_h, self.v_proj_weight_t)
+            torch.cuda.nvtx.range_pop()
+
+            torch.cuda.nvtx.range_push('attn reshape')
+            attn = (attn
+                    .transpose(0,1)
+                    .contiguous()
+                    .view(1, kv_bsz*self.beam_size,
+                        self.num_heads*self.head_dim)
+                   )
+            torch.cuda.nvtx.range_pop()
+
+            # (1, kv_bsz*beam, self.num_heads*self.head_dim)
+            torch.cuda.nvtx.range_push('add_attn_v_proj_bias')
+            attn = attn + self.v_proj_bias_t
+            torch.cuda.nvtx.range_pop()
+
+            torch.cuda.nvtx.range_push('attn_reshape')
+            attn = attn.view(1, -1, self.head_dim).transpose(0,1).contiguous()
+            torch.cuda.nvtx.range_pop()
+
         else:
+            torch.cuda.nvtx.range_push('A_V')
             attn = torch.bmm(attn_probs, v)
+            torch.cuda.nvtx.range_pop()
         assert list(
             attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
         if (self.onnx_trace and attn.size(1) == 1):
@@ -414,8 +890,8 @@ class MultiheadAttentionV2(MultiheadAttention):
                 input_buffer_k = input_buffer[k]
                 if input_buffer[k] is not None:
                     if self.encoder_decoder_attention:
-                        if input_buffer_k.size(
-                            0) * self.beam_size == new_order.size(0):
+                        if (input_buffer_k.size(
+                            0) * self.beam_size == new_order.size(0)):
                             return incremental_state
                         elif self.beam_size > 1:
                             input_buffer[k] = input_buffer_k.index_select(
@@ -438,7 +914,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
-@replace(SequenceGenerator, USE_OPTIMIZED_CACHE_ATTN)
+@replace(SequenceGenerator, USE_EL_ATTN)
 class SequenceGeneratorV2(SequenceGenerator):
     """
     Sequence Generator is optimized by reducing the cached memory usage
@@ -452,6 +928,7 @@ class SequenceGeneratorV2(SequenceGenerator):
                   prefix_tokens=None,
                   bos_token=None,
                   **kwargs):
+
         if not self.retain_dropout:
             model.eval()
 
@@ -482,11 +959,68 @@ class SequenceGeneratorV2(SequenceGenerator):
                 model.max_decoder_positions() - 1,
             )
 
+        EncoderOut = TransformerEncoder.create_named_tuple()
+
+
+        def merge_encoder_out(encoder_out_list: List[Optional[EncoderOut]]):
+            encoder_out = torch.cat([
+                o.encoder_out for o in encoder_out_list], dim=0)
+            false_mask=None
+            if not any([
+                o.encoder_padding_mask != None for o in encoder_out_list]):
+                encoder_padding_mask = None
+            else:
+                masks = [o.encoder_padding_mask
+                        if o.encoder_padding_mask != None
+                        else torch.zeros(
+                            (o.encoder_out.size(0), o.encoder_out.size(1)),
+                            dtype = torch.bool, device=encoder_out.device)
+                        for o in encoder_out_list]
+                encoder_padding_mask = torch.cat(masks, dim=0)#.to(encoder_out.device)
+
+            encoder_embedding = torch.cat(
+                    [o.encoder_embedding for o in encoder_out_list], dim=0)
+            encoder_out_v = torch.cat([
+                o.encoder_out_v for o in encoder_out_list], dim=0)
+
+            return [EncoderOut(
+                encoder_out=encoder_out,  # B x C x T
+                encoder_padding_mask=encoder_padding_mask,  # B x T
+                encoder_embedding=encoder_embedding,  # B x T x C
+                encoder_out_v=encoder_out_v,  # B x T x C
+                encoder_states=None,  # List[T x B x C]
+            )]
+
         # compute the encoder output for each beam
-        encoder_outs = model.forward_encoder(encoder_input)
+        max_batch_size = math.ceil(2_147_483_647 / (src_len*src_len*16) / 4)
+        #max_batch_size =32
+        sub_batch_size = 1
+        while sub_batch_size * 2 <= max_batch_size:
+            sub_batch_size *= 2
+
+        loop_num = (bsz + sub_batch_size - 1) // sub_batch_size
+
+        if loop_num > 1:
+            #assert token_embeddings is None, "not support split token_embeddings yet"
+            split_src_tokens = torch.split(src_tokens, sub_batch_size)
+            split_src_lengths = torch.split(src_lengths, sub_batch_size)
+            encoder_out_list = []
+            for sub_src_tokens, sub_src_lengths in zip(
+                    split_src_tokens, split_src_lengths):
+                split_input = {'src_tokens': sub_src_tokens,
+                               'src_lengths': sub_src_lengths}
+                split_output = model.forward_encoder(split_input)
+                encoder_out_list.append(split_output[0])
+            encoder_outs = merge_encoder_out(encoder_out_list)
+        else:
+            encoder_outs = model.forward_encoder(encoder_input)
+
+
+        # compute the encoder output for each beam
+        #encoder_outs = model.forward_encoder(encoder_input)
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
-        encoder_outs = model.reorder_encoder_out(encoder_outs, new_order)
+        #encoder_outs = model.reorder_encoder_out(encoder_outs, new_order, False)
 
         # initialize buffers
         scores = src_tokens.new(bsz * beam_size, max_len + 1).float().fill_(0)
@@ -624,6 +1158,7 @@ class SequenceGeneratorV2(SequenceGenerator):
                 else:
                     cum_unfin.append(prev)
 
+
             sents_seen = set()
             for i, (idx, score) in enumerate(
                 zip(bbsz_idx.tolist(), eos_scores.tolist())):
@@ -662,6 +1197,7 @@ class SequenceGeneratorV2(SequenceGenerator):
                     newly_finished.append(unfin_idx)
             return newly_finished
 
+
         reorder_state = None
         batch_idxs = None
         for step in range(max_len + 1):  # one extra step for EOS marker
@@ -675,7 +1211,7 @@ class SequenceGeneratorV2(SequenceGenerator):
                         corr.unsqueeze(-1) * beam_size)
                 model.reorder_incremental_state(reorder_state)
                 encoder_outs = model.reorder_encoder_out(
-                    encoder_outs, reorder_state)
+                    encoder_outs, reorder_state, self.beam_size)
 
             lprobs, avg_attn_scores = model.forward_decoder(
                 tokens[:, :step + 1],

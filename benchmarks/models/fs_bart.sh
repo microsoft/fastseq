@@ -22,6 +22,12 @@ source utils.sh
     valid \
     32/64/128/256 \
     --max-tokens 131072
+./benchmark.sh \
+    fairseq+fastseq+el \
+    bart.large.cnn \
+    cnn_dm/len-1024.bin \
+    valid \
+    320
 
 # Accuracy
 grep "bart.large.cnn cnn_dm/len-1024.bin valid " perf \
@@ -43,3 +49,6 @@ grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 12
 grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 256 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 19 100
+grep -E "fairseq_v0.9.0\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 320 " perf \
+        | awk '{s+=$13}END{print s/NR}' \
+        | ./range.sh 25 100
