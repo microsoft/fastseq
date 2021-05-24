@@ -20,7 +20,7 @@ Incremental decoding of transformers is often implemented by caching the calcula
 
 ## Results
 
-Speed is benchmarked on a V100 GPU with 16GB memory. We choose batch size based on the maximum batch size that can fit in memory.
+Speed is benchmarked on a V100 GPU with 16GB memory. We choose batch size based on the maximum batch size that can fit in memory. The speed number list in this paper is the model inference time which not including the model loading time and the postprocess time. 
 
 **Inference Speed by Beam Search**
 |Model | Parameter <br> Number | Task |  Multi-Head Attention <br> fp16 (fp32) |  EL-Attention <br> fp16 (fp32) |  Speed Up Ratio <br> fp16 (fp32) |
