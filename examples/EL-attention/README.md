@@ -84,7 +84,7 @@ python summarize.py \
     --out 320_test.hypo \
     --use-el-attn
 ```
-##### [Run in Colab](xxx)
+##### [Run in Colab](https://colab.research.google.com/github/microsoft/fastseq/blob/EL-attention-doc/examples/EL-attention/EL_attention_Demo.ipynb)
 
 ## Citation
 
