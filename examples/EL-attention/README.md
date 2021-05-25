@@ -6,7 +6,7 @@
 
 Incremental decoding of transformers is often implemented by caching the calculated previous keys and values to reuse computes, but it requires caching a different tensor at each layer and each head of the decoder since they are not the same. EL-Attention aims at reducing the cache size by reordering the operations and shifting the burden to the query side. The core idea is to leverage the associative property of matrix multiplications, and instead of first projecting the hidden states to keys/values, the projection is applied to the queries, such that only a single set of hidden states need to be cached for multiple layers and all attention heads. The extensive experiments show EL-attention speeds up existing models (e.g., Transformer, BART and GPT-2) by 1.6x to 5.3x without accuracy loss. 
 
-## Comparison between MultiHead and EL-Attention Attention
+## Comparison between MultiHead Attention and EL-Attention
 
 ![](subfigure-multi-head-attention.png)  |  ![](subfigure-EL-attention.png)
 :-------------------------:|:-------------------------:
