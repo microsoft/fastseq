@@ -4,6 +4,11 @@
 
 FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on popular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be easily done (no need to change any code/model/data if using our command line tool, or simply add one-line code `import fastseq` if using source code).
 
+## Features:
+* [EL-Attention: Memory Efficient Lossless Attention for Generation](examples/EL-attention/README.md)
+* GPU-based Block N-Gram Repeats
+* Asynchronous Pipeline for Postprocess
+
 ## Speed Gain
 Below shows the generation speed gain by using FastSeq.
 
@@ -160,3 +165,23 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Citation
+
+Please cite as:
+
+```bibtex
+@article{yan2021fastseq,
+  title={FastSeq: Make Sequence Generation Faster},
+  author={Yan, Yu and Hu, Fei and Chen, Jiusheng and Bhendawade, Nikhil and Ye, Ting and Gong, Yeyun and Duan, Nan and Cui, Desheng and Chi, Bingyu and Zhang, Ruifei},
+  journal={arXiv preprint arXiv:2106.04718},
+  year={2021}
+}
+
+@article{yan2021attention,
+  title={EL-Attention: Memory Efficient Lossless Attention for Generation},
+  author={Yan, Yu and Chen, Jiusheng and Qi, Weizhen and Bhendawade, Nikhil and Gong, Yeyun and Duan, Nan and Zhang, Ruofei},
+  journal={arXiv preprint arXiv:2105.04779},
+  year={2021}
+}
+```
