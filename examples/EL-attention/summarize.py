@@ -1,3 +1,8 @@
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
 import os
 
 import torch
@@ -11,8 +16,6 @@ CNN_KWARGS = dict(beam=4, lenpen=2.0, max_len_b=140, min_len=55, no_repeat_ngram
 @torch.no_grad()
 def generate(bart, infile, outfile="bart_hypo.txt", bsz=32, n_obs=None, **eval_kwargs):
     count = 1
-
-    # if n_obs is not None: bsz = min(bsz, n_obs)
 
     with open(infile) as source, open(outfile, "w") as fout:
         sline = source.readline().strip()
@@ -103,11 +106,7 @@ def main():
 
     # TODO make this step automatic
     if args.use_el_attn:
-        #for model in bart.models:
         bart.model.transpose_enc_dec_kv_proj()
-        #bart.model.set_beam_size(args.bsz)
-        #param = dict({'beamable_mm_beam_size': args.bsz})
-        #bart.model.make_generation_fast_(param)
         bart.model.make_generation_fast_(beamable_mm_beam_size=eval_kwargs['beam'])
 
     generate(
