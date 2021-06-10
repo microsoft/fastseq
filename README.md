@@ -2,7 +2,7 @@
 
 ## Introduction
 
-FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on pupular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be easily done (no need to change any code/model/data if using our command line tool, or simply add one-line code `import fastseq` if using source code).
+FastSeq provides efficient implementation of popular sequence models (e.g. [Bart](https://arxiv.org/pdf/1910.13461.pdf), [ProphetNet](https://github.com/microsoft/ProphetNet)) for text generation, summarization, translation tasks etc. It automatically optimizes inference speed based on popular NLP toolkits (e.g. [FairSeq](https://github.com/pytorch/fairseq) and [HuggingFace-Transformers](https://github.com/huggingface/transformers)) without accuracy loss. All these can be easily done (no need to change any code/model/data if using our command line tool, or simply add one-line code `import fastseq` if using source code).
 
 ## Features:
 * EL-Attention: Memory Efficient Lossless Attention for Generation ([Yan et al., 2021](https://arxiv.org/abs/2105.04779))
@@ -38,7 +38,7 @@ FastSeq develops multiple speedup techniques, including an attention cache optim
 - [torch](http://pytorch.org/) >= 1.4.0
 - [fairseq](https://github.com/pytorch/fairseq) == 0.9.0
 - [transformers](https://github.com/huggingface/transformers) == 3.0.2
-- [requets](https://pypi.org/project/requests/) >= 2.24.0
+- [requests](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
 - [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4
 
