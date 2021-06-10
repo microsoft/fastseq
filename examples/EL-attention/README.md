@@ -70,7 +70,11 @@ Speed is benchmarked on a V100 GPU with 16GB memory. We choose batch size based 
 ##### Command line:
 ```bash
 $ fastseq-generate-for-fairseq \
-    ...
+    DATA_PATH --path MODEL_PATH \
+    --fp16 --task translation --batch-size 320 \
+    --gen-subset test --truncate-source --bpe gpt2 \
+    --beam 4 --min-len 55 --max-len-b 140 \
+    --no-repeat-ngram-size 3 --lenpen 2.0 \
     --use-el-attn
 ```
 
