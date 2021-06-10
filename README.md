@@ -171,8 +171,11 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 Please cite as:
 
 ```bibtex
-@article{TBA,
-  title={FastSeq – Make Sequence Generation Faster},
+@article{yan2021fastseq,
+  title={FastSeq: Make Sequence Generation Faster},
+  author={Yan, Yu and Hu, Fei and Chen, Jiusheng and Bhendawade, Nikhil and Ye, Ting and Gong, Yeyun and Duan, Nan and Cui, Desheng and Chi, Bingyu and Zhang, Ruifei},
+  journal={arXiv preprint arXiv:2106.04718},
+  year={2021}
 }
 
 @article{yan2021attention,
