@@ -50,6 +50,7 @@ class TransformersUnitTests(parameterized.TestCase):
         'blocked_tests': ['modeling_reformer',
                           'multigpu',
                           'HfApiEndpoints',
+                          'HfApiPublicTest',
                           "test_gpt2_model_att_mask_past",
                           "test_gpt2_model_past"
         ]
