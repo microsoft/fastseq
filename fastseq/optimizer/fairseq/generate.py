@@ -361,8 +361,8 @@ def main_v1(args):
 
     io_process = IOProcess(args, task, message_queue)
     io_process.start()
-    
-    if args.use_el_attn: 
+
+    if args.use_el_attn:
         task.transpose_enc_dec_kv_proj(models)
     with progress_bar.build_progress_bar(args, itr) as t:
         wps_meter = TimeMeter()
