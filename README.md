@@ -173,17 +173,20 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 Please cite as:
 
 ```bibtex
-@article{yan2021fastseq,
-  title={FastSeq: Make Sequence Generation Faster},
-  author={Yan, Yu and Hu, Fei and Chen, Jiusheng and Bhendawade, Nikhil and Ye, Ting and Gong, Yeyun and Duan, Nan and Cui, Desheng and Chi, Bingyu and Zhang, Ruifei},
-  journal={arXiv preprint arXiv:2106.04718},
-  year={2021}
+@inproceedings{yan-etal-2021-fastseq,
+    title = "{F}ast{S}eq: Make Sequence Generation Faster",
+    author = "Yan, Yu and Hu, Fei and Chen, Jiusheng and Bhendawade, Nikhil and Ye, Ting and Gong, Yeyun  and Duan, Nan  and Cui, Desheng  and Chi, Bingyu and Zhang, Ruofei",
+    booktitle = "Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing: System Demonstrations",
+    year = "2021",
 }
 
-@article{yan2021attention,
-  title={EL-Attention: Memory Efficient Lossless Attention for Generation},
-  author={Yan, Yu and Chen, Jiusheng and Qi, Weizhen and Bhendawade, Nikhil and Gong, Yeyun and Duan, Nan and Zhang, Ruofei},
-  journal={arXiv preprint arXiv:2105.04779},
-  year={2021}
+
+@InProceedings{pmlr-v139-yan21a,
+  title = 	 {EL-Attention: Memory Efficient Lossless Attention for Generation},
+  author =       {Yan, Yu and Chen, Jiusheng and Qi, Weizhen and Bhendawade, Nikhil and Gong, Yeyun and Duan, Nan and Zhang, Ruofei},
+  booktitle = 	 {Proceedings of the 38th International Conference on Machine Learning},
+  pages = 	 {11648--11658},
+  year = 	 {2021},
 }
+
 ```

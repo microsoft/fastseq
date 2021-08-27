@@ -1,6 +1,6 @@
 # EL-Attention: Memory Efficient Lossless Attention for Generation
 
-[https://arxiv.org/abs/2105.04779](https://arxiv.org/abs/2105.04779)
+[http://proceedings.mlr.press/v139/yan21a/yan21a.pdf](http://proceedings.mlr.press/v139/yan21a/yan21a.pdf)
 
 ## Introduction
 
@@ -93,10 +93,11 @@ python summarize.py \
 ## Citation
 
 ```bibtex
-@article{yan2021attention,
-  title={EL-Attention: Memory Efficient Lossless Attention for Generation},
-  author={Yan, Yu and Chen, Jiusheng and Qi, Weizhen and Bhendawade, Nikhil and Gong, Yeyun and Duan, Nan and Zhang, Ruofei},
-  journal={arXiv preprint arXiv:2105.04779},
-  year={2021}
+@InProceedings{pmlr-v139-yan21a,
+  title = 	 {EL-Attention: Memory Efficient Lossless Attention for Generation},
+  author =       {Yan, Yu and Chen, Jiusheng and Qi, Weizhen and Bhendawade, Nikhil and Gong, Yeyun and Duan, Nan and Zhang, Ruofei},
+  booktitle = 	 {Proceedings of the 38th International Conference on Machine Learning},
+  pages = 	 {11648--11658},
+  year = 	 {2021},
 }
 ```
