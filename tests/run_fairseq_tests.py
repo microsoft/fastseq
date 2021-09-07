@@ -60,7 +60,7 @@ class FairseqUnitTests(parameterized.TestCase):
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
         'without_fastseq_opt': False,
-        'fairseq_version': 'v0.9.0',
+        'fairseq_version': 'v0.10.2',
         'blocked_tests': [
            'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py']
     })
