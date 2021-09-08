@@ -53,13 +53,13 @@ If you use fairseq or transformers, you only need to install one of them. If you
 $ pip install git+https://github.com/microsoft/fastseq.git
 
 # install fastseq + transformers
-$ pip install git+https://github.com/microsoft/fastseq.git#egg=project[transformers]
+$ pip install git+https://github.com/microsoft/fastseq.git#egg=fastseq[transformers]
 
 # install fastseq + fairseq
-$ pip install git+https://github.com/microsoft/fastseq.git#egg=project[fairseq]
+$ pip install git+https://github.com/microsoft/fastseq.git#egg=fastseq[fairseq]
 
 # install fastseq + transformers + fairseq
-$ pip install git+https://github.com/microsoft/fastseq.git#egg=project[transformers,fairseq]
+$ pip install git+https://github.com/microsoft/fastseq.git#egg=fastseq[transformers,fairseq]
 ```
 
 ## Usage
