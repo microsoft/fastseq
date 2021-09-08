@@ -19,9 +19,28 @@ from fairseq import scoring, checkpoint_utils, tasks, utils
 from fairseq.logging import progress_bar
 from fairseq.logging.meters import StopwatchMeter, TimeMeter
 from fastseq.utils.api_decorator import replace
+from fairseq.options import add_generation_args
 
 GENERATE_FINISHED = "done"
 POSTPROCESS_FINISHED = None
+
+original_add_generation_args = add_generation_args
+
+@replace(add_generation_args)
+def add_generation_args_v1(parser):
+    group = original_add_generation_args(parser)
+    # fmt: off
+    group.add_argument(
+        '--postprocess-workers',
+        default=1,
+        type=int,
+        choices=range(1, 128, 1),
+        metavar='N',
+        help='number of worker for post process')
+    group.add_argument(
+        '--decode-hypothesis',
+        action="store_true")
+    # fmt: on
 
 def move_to_cpu(sample):
     def _move_to_cpu(tensor):
@@ -263,15 +282,19 @@ class PostProcess(Process):
     def run(self):
         while True:
             r = self.data_queue.get()
-            if r == GENERATE_FINISHED or r == POSTPROCESS_FINISHED:
+            if r == GENERATE_FINISHED or r is POSTPROCESS_FINISHED:
+                print("Finishes Generate")
                 self.data_queue.put(POSTPROCESS_FINISHED)
                 break
             else:
+                print("Not done yet")
                 sample, hypos = r
                 self._detokenize(sample, hypos)
         self.data_queue.close()
+        print("Closed Data Queue")
         self.data_queue.join_thread()
         self.message_queue.close()
+        print("Closed Message Queue")
         self.message_queue.join_thread()
         self.message_queue.join()
 
