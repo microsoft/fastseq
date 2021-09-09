@@ -17,18 +17,6 @@ def parse_additional_args():
         '--use-el-attn',
         action='store_true',
         help='Use Efficient Lossless Attention optimization ? ')
-    parser.add_argument(
-        '--postprocess_workers', 
-        metavar="N", 
-        default=1, 
-        type=int, 
-        help="number of workers for post processing step")
-    parser.add_argument(
-        '--decode_hypothesis',
-        action='store_true',
-        help='Decode the hypothesis?'
-
-    )
     args = options.parse_args_and_arch(parser)
     return args
 
