@@ -104,6 +104,7 @@ class IOProcess(Process):
                 break
             else:
                 print(msg, file = self.output_file)
+            self.message_queue.task_done()
         self.message_queue.close()
         self.message_queue.join_thread()
 
