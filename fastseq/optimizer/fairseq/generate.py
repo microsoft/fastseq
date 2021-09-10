@@ -283,18 +283,14 @@ class PostProcess(Process):
         while True:
             r = self.data_queue.get()
             if r == GENERATE_FINISHED or r is POSTPROCESS_FINISHED:
-                print("Finishes Generate")
                 self.data_queue.put(POSTPROCESS_FINISHED)
                 break
             else:
-                print("Not done yet")
                 sample, hypos = r
                 self._detokenize(sample, hypos)
         self.data_queue.close()
-        print("Closed Data Queue")
         self.data_queue.join_thread()
         self.message_queue.close()
-        print("Closed Message Queue")
         self.message_queue.join_thread()
         self.message_queue.join()
 
