@@ -15,18 +15,17 @@ from fairseq.sequence_generator import SequenceGenerator, EnsembleModel
 from fairseq.models.fairseq_model import FairseqEncoderDecoderModel
 from fairseq.modules.transformer_layer import TransformerDecoderLayer
 from fairseq.tasks.fairseq_task import FairseqTask
-from fairseq.models.fairseq_encoder import EncoderOut
 from fastseq.utils.api_decorator import replace
 from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 from fastseq.config import USE_EL_ATTN
 
-@ replace(FairseqTask, USE_EL_ATTN)
+@replace(FairseqTask, USE_EL_ATTN)
 class FairseqTaskV2(FairseqTask):
     def transpose_enc_dec_kv_proj(self, models):
         for model in models:
             model.transpose_enc_dec_kv_proj()
 
-@ replace(TransformerDecoderLayer, USE_EL_ATTN)
+@replace(TransformerDecoderLayer, USE_EL_ATTN)
 class TransformerDecoderLayerV2(TransformerDecoderLayer):
     def forward(
         self,
@@ -169,7 +168,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
         return x, attn, None
 
 
-@ replace(TransformerEncoder, USE_EL_ATTN)
+@replace(TransformerEncoder, USE_EL_ATTN)
 class TransformerEncoderV2(TransformerEncoder):
     """
     Transformer encoder consisting of *args.encoder_layers* layers. Each layer
@@ -184,7 +183,7 @@ class TransformerEncoderV2(TransformerEncoder):
     @classmethod
     def create_named_tuple (cls):
         EncoderOut = NamedTuple(
-            "EncoderOut",
+            "TransformerEncoderOut",
             [
                 ("encoder_out", Tensor),  # T x B x C
                 ("encoder_out_v", Tensor), # B x T x C
@@ -260,7 +259,7 @@ class TransformerEncoderV2(TransformerEncoder):
 
 
     @torch.jit.export
-    def reorder_encoder_out(self, encoder_out: EncoderOut, new_order, beam_size):
+    def reorder_encoder_out(self, encoder_out, new_order, beam_size):
         """
         Reorder encoder output according to *new_order*.
         Args:
@@ -319,7 +318,7 @@ class TransformerEncoderV2(TransformerEncoder):
         )
 
 
-@ replace(EnsembleModel, USE_EL_ATTN)
+@replace(EnsembleModel, USE_EL_ATTN)
 class EnsembleModelV2(EnsembleModel):
     """A wrapper around an ensemble of models."""
 
@@ -329,7 +328,7 @@ class EnsembleModelV2(EnsembleModel):
 
     @torch.jit.export
     def reorder_encoder_out(self, encoder_outs, new_order, beam_size):
-        new_outs: List[EncoderOut] = []
+        new_outs = []
         if not self.has_encoder():
             return new_outs
         for i, model in enumerate(self.models):
@@ -340,7 +339,7 @@ class EnsembleModelV2(EnsembleModel):
         return new_outs
 
 
-@ replace(TransformerDecoder, USE_EL_ATTN)
+@replace(TransformerDecoder, USE_EL_ATTN)
 class TransformerDecoderV2(TransformerDecoder):
     """
     Transformer decoder consisting of *args.decoder_layers* layers. Each layer
@@ -356,7 +355,7 @@ class TransformerDecoderV2(TransformerDecoder):
     def extract_features_scriptable(
         self,
         prev_output_tokens,
-        encoder_out: Optional[EncoderOut] = None,
+        encoder_out = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
@@ -462,7 +461,7 @@ class TransformerDecoderV2(TransformerDecoder):
         return x, {"attn": [attn], "inner_states": inner_states}
 
 
-@ replace(FairseqEncoderDecoderModel, USE_EL_ATTN)
+@replace(FairseqEncoderDecoderModel, USE_EL_ATTN)
 class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
     """class for encoder-decoder models.
     Args:
@@ -501,13 +500,13 @@ class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
             del self.decoder.layers[i].encoder_attn.v_proj
 
 
-@ replace(TransformerModel, USE_EL_ATTN)
+@replace(TransformerModel, USE_EL_ATTN)
 class TransformerModelV2(TransformerModel):
     """ Represent the BART model."""
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
 
-@ replace(MultiheadAttention, USE_EL_ATTN)
+@replace(MultiheadAttention, USE_EL_ATTN)
 class MultiheadAttentionV2(MultiheadAttention):
     """Multi-headed attention.
 
@@ -701,7 +700,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 if "prev_key_padding_mask" in saved_state:
                     prev_key_padding_mask = saved_state["prev_key_padding_mask"]
                 assert k is not None and v is not None
-                key_padding_mask = MultiheadAttention._append_prev_key_padding_mask(
+                key_padding_mask = self._append_prev_key_padding_mask(
                     key_padding_mask=key_padding_mask,
                     prev_key_padding_mask=prev_key_padding_mask,
                     batch_size=kv_bsz,
@@ -913,7 +912,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             self.set_beam_size(beamable_mm_beam_size)
 
 
-@ replace(SequenceGenerator, USE_EL_ATTN)
+@replace(SequenceGenerator, USE_EL_ATTN)
 class SequenceGeneratorV2(SequenceGenerator):
     """
     Sequence Generator is optimized by reducing the cached memory usage
@@ -1009,6 +1008,8 @@ class SequenceGeneratorV2(SequenceGenerator):
                 encoder_embedding=encoder_embedding,  # B x T x C
                 encoder_out_v=encoder_out_v,  # B x T x C
                 encoder_states=None,  # List[T x B x C]
+                src_tokens=None,
+                src_lengths=None,
             )]
 
         # compute the encoder output for each beam
@@ -1166,7 +1167,8 @@ class SequenceGeneratorV2(SequenceGenerator):
                 if (tokens.is_cuda and lprobs.is_cuda):
                     lprobs = self.no_repeat_ngram_op(tokens,lprobs, bsz, step,
                             beam_size, self.no_repeat_ngram_size)
-                lprobs = self._no_repeat_ngram(tokens, lprobs, bsz, beam_size, step)
+                else:
+                    lprobs = self._no_repeat_ngram(tokens, lprobs, bsz, beam_size, step)
 
             # Shape: (batch, cand_size)
             cand_scores, cand_indices, cand_beams = self.search.step(
