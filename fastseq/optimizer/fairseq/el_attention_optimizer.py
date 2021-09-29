@@ -1340,4 +1340,5 @@ class SequenceGeneratorV2(SequenceGenerator):
             finalized[sent] = torch.jit.annotate(
                 List[Dict[str, Tensor]], finalized[sent]
             )
+            
         return finalized

@@ -4,7 +4,7 @@
 """Apply the beam search optimizations to fairseq-v0.9.0"""
 
 import math
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple 
 
 import torch
 import logging
@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from fairseq import utils
-from fairseq.models.transformer import TransformerEncoder, TransformerModel
+from fairseq.models.transformer import TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.search import BeamSearch
 from fairseq.sequence_generator import SequenceGenerator
@@ -33,7 +33,15 @@ USE_OPTIMIZED_CACHE_ATTN = not config.USE_EL_ATTN
 @replace(BeamSearch)
 class BeamSearchV2(BeamSearch):
 
-    def step(self, step, lprobs, scores, prev_output_tokens, original_batch_idxs):
+    @torch.jit.export
+    def step(
+        self, 
+        step: int, 
+        lprobs, 
+        scores: Optional[Tensor], 
+        prev_output_tokens: Optional[Tensor] = None, 
+        original_batch_idxs: Optional[Tensor] = None
+    ):
         bsz, beam_size, vocab_size = lprobs.size()
 
         if step == 0:
@@ -45,36 +53,18 @@ class BeamSearchV2(BeamSearch):
             assert scores is not None
             lprobs = lprobs + scores[:, :, step - 1].unsqueeze(-1)
 
-        top_prediction = torch.topk(
+        scores_buf, indices_buf = torch.topk(
             lprobs.view(bsz, -1),
             k=min(
                 # Take the best 2 x beam_size predictions. We'll choose the first
                 # beam_size of these which don't predict eos to continue with.
                 beam_size * 2,
                 lprobs.view(bsz, -1).size(1) - 1,  # -1 so we never select pad
-            ),
-        )
-        scores_buf = top_prediction[0]
-        indices_buf = top_prediction[1]
+            ),)[:2]
         beams_buf = indices_buf // vocab_size
         indices_buf = indices_buf.fmod(vocab_size)
 
         return scores_buf, indices_buf, beams_buf
-
-@replace(TransformerEncoder, USE_OPTIMIZED_CACHE_ATTN)
-class TransformerEncoderV2(TransformerEncoder):
-    """
-    Transformer encoder consisting of *args.encoder_layers* layers. Each layer
-    is a :class:`TransformerEncoderLayer`.
-
-    Args:
-        args (argparse.Namespace): parsed command-line arguments
-        dictionary (~fairseq.data.Dictionary): encoding dictionary
-        embed_tokens (torch.nn.Embedding): input embedding
-    """
-    def _reorder_encoder_out(self, encoder_out, new_order):
-        return encoder_out
-
 
 @replace(TransformerModel, USE_OPTIMIZED_CACHE_ATTN)
 class TransformerModelV2(TransformerModel):
@@ -83,10 +73,13 @@ class TransformerModelV2(TransformerModel):
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
         # Replace reorder_encoder_out with a dummy function.
+
+        def _reorder_encoder_out(encoder_out, new_order):
+            return encoder_out
+
         if ('beamable_mm_beam_size' in kwargs and
             kwargs['beamable_mm_beam_size'] > 1):
-            self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
-
+            self.encoder.reorder_encoder_out = _reorder_encoder_out
 
 @replace(MultiheadAttention, USE_OPTIMIZED_CACHE_ATTN)
 class MultiheadAttentionV2(MultiheadAttention):
@@ -112,23 +105,22 @@ class MultiheadAttentionV2(MultiheadAttention):
         super().__init__(embed_dim, num_heads, kdim, vdim, dropout, bias,
                          add_bias_kv, add_zero_attn, self_attention,
                          encoder_decoder_attention, q_noise, qn_block_size)
-
         self.beam_size = 1
         self.tpu = False
 
     def forward(
         self,
         query,
-        key,
-        value,
-        key_padding_mask=None,
-        incremental_state=None,
-        need_weights=True,
-        static_kv=False,
-        attn_mask=None,
-        before_softmax=False,
-        need_head_weights=False,
-    ):
+        key: Optional[Tensor],
+        value: Optional[Tensor],
+        key_padding_mask: Optional[Tensor] = None,
+        incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
+        need_weights: bool = True,
+        static_kv: bool = False,
+        attn_mask: Optional[Tensor] = None,
+        before_softmax: bool =False,
+        need_head_weights: bool = False,
+    ) -> Tuple[Tensor, Optional[Tensor]]:
         """Input shape: Time x Batch x Channel
 
         Args:
@@ -199,9 +191,9 @@ class MultiheadAttentionV2(MultiheadAttention):
             saved_state = None
 
         if self.self_attention:
-            q = self.q_proj(query)
-            k = self.k_proj(query)
-            v = self.v_proj(query)
+            q : Tensor = self.q_proj(query)
+            k : Tensor = self.k_proj(query)
+            v : Tensor = self.v_proj(query)
         elif self.encoder_decoder_attention:
             q = self.q_proj(query)
             if key is None:
@@ -248,6 +240,8 @@ class MultiheadAttentionV2(MultiheadAttention):
             .view(tgt_len, bsz * self.num_heads, self.head_dim)
             .transpose(0, 1)
         )
+
+        kv_bsz = 0
         if k is not None:
             kv_bsz = k.size(1)
             k = (
@@ -289,7 +283,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             if "prev_key_padding_mask" in saved_state:
                 prev_key_padding_mask = saved_state["prev_key_padding_mask"]
             assert k is not None and v is not None
-            key_padding_mask = self._append_prev_key_padding_mask(
+            key_padding_mask = MultiheadAttentionV2._append_prev_key_padding_mask(
                 key_padding_mask=key_padding_mask,
                 prev_key_padding_mask=prev_key_padding_mask,
                 batch_size=kv_bsz,
@@ -335,13 +329,14 @@ class MultiheadAttentionV2(MultiheadAttention):
                     dim=1,
                 )
         if self.encoder_decoder_attention and bsz != kv_bsz:
+            q_shape = (kv_bsz, -1, self.num_heads) + q.size()[1:]
+            k_shape = (kv_bsz, self.num_heads) + k.size()[1:]
             attn_weights = torch.einsum(
                 'bxhtd,bhsd->bxhts',
-                q.view(kv_bsz, -1, self.num_heads,
-                       *q.size()[1:]),
-                k.view(kv_bsz, self.num_heads,
-                       *k.size()[1:]))
-            attn_weights = attn_weights.reshape(-1, *attn_weights.size()[-2:])
+                q.view(q_shape),
+                k.view(k_shape))
+            aw_shape = (-1, ) + attn_weights.size()[-2:]
+            attn_weights = attn_weights.reshape(aw_shape)
         else:
             attn_weights = torch.bmm(q, k.transpose(1, 2))
         attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
@@ -381,13 +376,14 @@ class MultiheadAttentionV2(MultiheadAttention):
         assert v is not None
 
         if self.encoder_decoder_attention and bsz != kv_bsz:
+            ap_shape = (kv_bsz, -1, self.num_heads) + attn_probs.size()[1:]
+            v_shape = (-1, self.num_heads) + v.size()[1:]
             attn = torch.einsum(
                 'bxhts,bhsd->bxhtd',
-                attn_probs.view(kv_bsz, -1, self.num_heads,
-                                *attn_probs.size()[1:]),
-                v.view(kv_bsz, self.num_heads,
-                       *v.size()[1:]))
-            attn = attn.reshape(-1, *attn.size()[-2:])
+                attn_probs.view(ap_shape),
+                v.view(v_shape))
+            a_shape = (-1, ) + attn.size()[-2:]
+            attn = attn.reshape(a_shape)
         else:
             attn = torch.bmm(attn_probs, v)
         assert list(attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
@@ -409,7 +405,12 @@ class MultiheadAttentionV2(MultiheadAttention):
 
         return attn, attn_weights
 
-    def reorder_incremental_state(self, incremental_state, new_order):
+    @torch.jit.export
+    def reorder_incremental_state(
+        self,
+        incremental_state: Dict[str, Dict[str, Optional[Tensor]]],
+        new_order: Tensor,
+    ):
         """Reorder buffered internal state (for incremental generation)."""
         input_buffer = self._get_input_buffer(incremental_state)
         if input_buffer is not None:
@@ -655,7 +656,7 @@ class SequenceGeneratorV2(SequenceGenerator):
             # finalize hypotheses that end in eos
             # Shape of eos_mask: (batch size, beam size)
             eos_mask = cand_indices.eq(self.eos) & cand_scores.ne(-math.inf)
-            eos_mask[:, :beam_size][cands_to_ignore] = torch.tensor(0).to(eos_mask)
+            eos_mask[:, :beam_size][cands_to_ignore] = 0 #torch.tensor(0).to(eos_mask)
 
             # only consider eos when it's among the top beam_size indices
             # Now we know what beam item(s) to finish
@@ -795,4 +796,5 @@ class SequenceGeneratorV2(SequenceGenerator):
             finalized[sent] = torch.jit.annotate(
                 List[Dict[str, Tensor]], finalized[sent]
             )
+            
         return finalized
