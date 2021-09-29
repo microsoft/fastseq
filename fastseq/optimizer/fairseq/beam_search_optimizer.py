@@ -23,7 +23,6 @@ from fastseq.logging import get_logger
 
 logger = get_logger(__name__, logging.INFO)
 
-
 if config.USE_EL_ATTN:
     logger.info(f"Using Efficient-Lossless Attention optimization")
 #cache optimiztion without Efficient-Lossless Attention

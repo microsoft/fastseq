@@ -94,7 +94,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
         else:
             y = x
 
-        torch.cuda.nvtx.range_push('self attn')
+        # torch.cuda.nvtx.range_push('self attn')
         x, attn = self.self_attn(
             query=x,
             key=y,
@@ -104,7 +104,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
             need_weights=False,
             attn_mask=self_attn_mask,
         )
-        torch.cuda.nvtx.range_pop()
+        # torch.cuda.nvtx.range_pop()
         x = self.dropout_module(x)
         x = self.residual_connection(x, residual)
         if not self.normalize_before:
@@ -125,7 +125,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
                 assert incremental_state is not None
                 self.encoder_attn._set_input_buffer(incremental_state, saved_state)
 
-            torch.cuda.nvtx.range_push('enc dec attn')
+            # torch.cuda.nvtx.range_push('enc dec attn')
             x, attn = self.encoder_attn(
                 query=x,
                 key=encoder_out,
@@ -136,7 +136,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
                 need_weights=need_attn or (not self.training and self.need_attn),
                 need_head_weights=need_head_weights,
             )
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
             x = self.dropout_module(x)
             x = self.residual_connection(x, residual)
             if not self.normalize_before:
@@ -326,7 +326,7 @@ class EnsembleModelV2(EnsembleModel):
         for model in self.models:
             model.transpose_enc_dec_kv_proj()
 
-    @torch.jit.export
+    # @torch.jit.export
     def reorder_encoder_out(self, encoder_outs, new_order, beam_size):
         new_outs = []
         if not self.has_encoder():
@@ -532,10 +532,10 @@ class MultiheadAttentionV2(MultiheadAttention):
 
         self.beam_size = 1
         self.tpu = False
-        self.k_proj_weight_t = None
-        self.k_proj_bias_t = None
-        self.v_proj_weight_t = None
-        self.v_proj_bias_t = None
+        self.k_proj_weight_t = torch.empty([0])
+        self.k_proj_bias_t = torch.empty([0])
+        self.v_proj_weight_t = torch.empty([0])
+        self.v_proj_bias_t = torch.empty([0])
 
     def apply_sparse_mask(
         self, attn_weights, tgt_len: int, src_len: int, bsz: int):
@@ -622,10 +622,11 @@ class MultiheadAttentionV2(MultiheadAttention):
             k = self.k_proj(query)
             v = self.v_proj(query)
         elif self.encoder_decoder_attention:
+            assert key is not None
             kv_bsz = key.size(0)
             embed_dim = key.size(1)
             tgt_len = 1
-            torch.cuda.nvtx.range_push('Q reshape')
+            # torch.cuda.nvtx.range_push('Q reshape')
             q = torch.addmm(self.q_proj.bias.view(1, -1),
                     query.view(-1,embed_dim), self.q_proj.weight.T,
                     beta=self.scaling, alpha=self.scaling)
@@ -634,7 +635,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 .view(bsz, self.num_heads, self.head_dim)
                 .transpose(0, 1)
                 )
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
             k, v = None, None
         else:
             assert key is not None and value is not None
@@ -642,6 +643,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             k = self.k_proj(key)
             v = self.v_proj(value)
         
+        kv_bsz = 0
         if not self.encoder_decoder_attention:
             q *= self.scaling
             if self.bias_k is not None:
@@ -665,6 +667,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 .view(tgt_len, bsz * self.num_heads, self.head_dim)
                 .transpose(0, 1)
             )
+
             if k is not None:
                 kv_bsz = k.size(1)
                 k = (
@@ -700,7 +703,7 @@ class MultiheadAttentionV2(MultiheadAttention):
                 if "prev_key_padding_mask" in saved_state:
                     prev_key_padding_mask = saved_state["prev_key_padding_mask"]
                 assert k is not None and v is not None
-                key_padding_mask = self._append_prev_key_padding_mask(
+                key_padding_mask = MultiheadAttention._append_prev_key_padding_mask(
                     key_padding_mask=key_padding_mask,
                     prev_key_padding_mask=prev_key_padding_mask,
                     batch_size=kv_bsz,
@@ -714,7 +717,8 @@ class MultiheadAttentionV2(MultiheadAttention):
                 # In this branch incremental_state is never None
                 assert incremental_state is not None
                 incremental_state = self._set_input_buffer(incremental_state, saved_state)
-            
+        
+        assert key is not None
         src_len = key.size(2)
         if not self.encoder_decoder_attention:
             assert k is not None
@@ -726,7 +730,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             key_padding_mask = None
 
         if self.add_zero_attn:
-            assert v is not None
+            assert v is not None and k is not None
             src_len += 1
             k = torch.cat([k, k.new_zeros((k.size(0), 1) + k.size()[2:])], dim=1)
             v = torch.cat([v, v.new_zeros((v.size(0), 1) + v.size()[2:])], dim=1)
@@ -746,13 +750,13 @@ class MultiheadAttentionV2(MultiheadAttention):
                 )
 
         if self.encoder_decoder_attention:
-            torch.cuda.nvtx.range_push('bmm_q_k_proj_weight')
+            # torch.cuda.nvtx.range_push('bmm_q_k_proj_weight')
             q_w = torch.bmm(q, self.k_proj_weight_t)
-            torch.cuda.nvtx.range_pop()
-            torch.cuda.nvtx.range_push('bmm_q_k_proj_bias')
+            # torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_push('bmm_q_k_proj_bias')
             q_b = torch.bmm(q, self.k_proj_bias_t)
-            torch.cuda.nvtx.range_pop()
-            torch.cuda.nvtx.range_push('q_w_reshape')
+            # torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_push('q_w_reshape')
             q_b = (q_b.view(self.num_heads, kv_bsz, self.beam_size, 1)
                     .transpose(0,1)
                     .reshape(kv_bsz, self.num_heads*self.beam_size, 1)
@@ -763,18 +767,19 @@ class MultiheadAttentionV2(MultiheadAttention):
                     .contiguous()
                     .view(kv_bsz, self.num_heads*self.beam_size, embed_dim)
                   )
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
-            torch.cuda.nvtx.range_push('bmm_q_w_key')
+            # torch.cuda.nvtx.range_push('bmm_q_w_key')
             attn_weights = torch.bmm(q_w, key)
-            torch.cuda.nvtx.range_pop()
-            torch.cuda.nvtx.range_push('add_attn_weight_q_b')
+            # torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_push('add_attn_weight_q_b')
             attn_weights = attn_weights + q_b
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
         else:
-            torch.cuda.nvtx.range_push('Q_K')
+            assert k is not None
+            # torch.cuda.nvtx.range_push('Q_K')
             attn_weights = torch.bmm(q, k.transpose(1, 2))
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
         attn_weights = self.apply_sparse_mask(attn_weights, tgt_len, src_len, bsz)
 
         if attn_mask is not None:
@@ -815,49 +820,50 @@ class MultiheadAttentionV2(MultiheadAttention):
         attn_probs = self.dropout_module(attn_weights)
 
         if self.encoder_decoder_attention:
-
+            assert value is not None
             attn_probs = attn_probs.view(
                     kv_bsz, self.num_heads*self.beam_size*tgt_len, src_len)
 
-            torch.cuda.nvtx.range_push('bmm_attn_prob_value')
+            # torch.cuda.nvtx.range_push('bmm_attn_prob_value')
             attn_h = torch.bmm(attn_probs, value)
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
-            torch.cuda.nvtx.range_push('attn_h_reshape')
+            # torch.cuda.nvtx.range_push('attn_h_reshape')
             attn_h = (attn_h.view(kv_bsz,
                 self.num_heads, self.beam_size, embed_dim)
                 .transpose(0,1)
                 .contiguous()
                 .view(self.num_heads, kv_bsz*self.beam_size, embed_dim)
                )
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
-            torch.cuda.nvtx.range_push('bmm_attn_h_v_proj_weight')
+            # torch.cuda.nvtx.range_push('bmm_attn_h_v_proj_weight')
             attn = torch.bmm(attn_h, self.v_proj_weight_t)
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
-            torch.cuda.nvtx.range_push('attn reshape')
+            # torch.cuda.nvtx.range_push('attn reshape')
             attn = (attn
                     .transpose(0,1)
                     .contiguous()
                     .view(1, kv_bsz*self.beam_size,
                         self.num_heads*self.head_dim)
                    )
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
             # (1, kv_bsz*beam, self.num_heads*self.head_dim)
-            torch.cuda.nvtx.range_push('add_attn_v_proj_bias')
+            # torch.cuda.nvtx.range_push('add_attn_v_proj_bias')
             attn = attn + self.v_proj_bias_t
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
-            torch.cuda.nvtx.range_push('attn_reshape')
+            # torch.cuda.nvtx.range_push('attn_reshape')
             attn = attn.view(1, -1, self.head_dim).transpose(0,1).contiguous()
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
 
         else:
-            torch.cuda.nvtx.range_push('A_V')
+            assert v is not None
+            # torch.cuda.nvtx.range_push('A_V')
             attn = torch.bmm(attn_probs, v)
-            torch.cuda.nvtx.range_pop()
+            # torch.cuda.nvtx.range_pop()
         assert list(attn.size()) == [bsz * self.num_heads, tgt_len, self.head_dim]
         if self.onnx_trace and attn.size(1) == 1:
             # when ONNX tracing a single decoder step (sequence length == 1)
