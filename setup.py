@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 FASTSEQ_VERSION = '0.0.4'
-MIN_FAIRSEQ_VERSION = '0.10.2'
+MIN_FAIRSEQ_VERSION = '0.10.0'
 MAX_FAIRSEQ_VERSION = '0.10.2'
 MIN_TRANSFORMERS_VERSION = '3.0.2'
 MAX_TRANSFORMER_VERSION = '3.0.2'
