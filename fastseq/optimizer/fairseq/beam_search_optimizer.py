@@ -656,7 +656,7 @@ class SequenceGeneratorV2(SequenceGenerator):
             # finalize hypotheses that end in eos
             # Shape of eos_mask: (batch size, beam size)
             eos_mask = cand_indices.eq(self.eos) & cand_scores.ne(-math.inf)
-            eos_mask[:, :beam_size][cands_to_ignore] = 0 #torch.tensor(0).to(eos_mask)
+            eos_mask[:, :beam_size][cands_to_ignore] = torch.tensor(0).to(eos_mask)
 
             # only consider eos when it's among the top beam_size indices
             # Now we know what beam item(s) to finish
@@ -796,5 +796,5 @@ class SequenceGeneratorV2(SequenceGenerator):
             finalized[sent] = torch.jit.annotate(
                 List[Dict[str, Tensor]], finalized[sent]
             )
-            
+
         return finalized
