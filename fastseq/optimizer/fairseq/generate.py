@@ -39,7 +39,12 @@ def add_generation_args_v1(parser):
         help='number of worker for post process')
     group.add_argument(
         '--decode-hypothesis',
-        action="store_true")
+        action="store_true", 
+        default=True)
+    group.add_argument(
+        '--use-el-attn',
+        action='store_true',
+        help='Use Efficient Lossless Attention optimization ? ')
     # fmt: on
 
 def move_to_cpu(sample):

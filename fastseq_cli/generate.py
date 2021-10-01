@@ -14,9 +14,19 @@ from fairseq import options
 def parse_additional_args():
     parser = options.get_generation_parser()
     parser.add_argument(
-        '--use-el-attn',
+        '--use_el_attn',
         action='store_true',
         help='Use Efficient Lossless Attention optimization ? ')
+    parser.add_argument(
+        '--postprocess_workers',
+        default=1,
+        type=int,
+        choices=range(1, 128, 1),
+        metavar='N',
+        help='number of worker for post process')
+    parser.add_argument(
+        '--decode_hypothesis',
+        action="store_true")
     args = options.parse_args_and_arch(parser)
     return args
 

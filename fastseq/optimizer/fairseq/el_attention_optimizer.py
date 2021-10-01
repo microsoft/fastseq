@@ -643,7 +643,6 @@ class MultiheadAttentionV2(MultiheadAttention):
             k = self.k_proj(key)
             v = self.v_proj(value)
         
-        kv_bsz = 0
         if not self.encoder_decoder_attention:
             q *= self.scaling
             if self.bias_k is not None:
