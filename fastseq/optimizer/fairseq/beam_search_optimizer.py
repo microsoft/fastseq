@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from fairseq import utils
-from fairseq.models.transformer import TransformerModel
+from fairseq.models.transformer import TransformerEncoder, TransformerModel
 from fairseq.modules.multihead_attention import MultiheadAttention
 from fairseq.search import BeamSearch
 from fairseq.sequence_generator import SequenceGenerator
@@ -30,7 +30,7 @@ USE_OPTIMIZED_CACHE_ATTN = not config.USE_EL_ATTN
 
 
 @replace(BeamSearch)
-class BeamSearchV2(BeamSearch):
+class BeamSearch(BeamSearch):
 
     @torch.jit.export
     def step(
@@ -65,23 +65,33 @@ class BeamSearchV2(BeamSearch):
 
         return scores_buf, indices_buf, beams_buf
 
+@replace(TransformerEncoder, USE_OPTIMIZED_CACHE_ATTN)
+class TransformerEncoder(TransformerEncoder):
+    """
+    Transformer encoder consisting of *args.encoder_layers* layers. Each layer
+    is a :class:`TransformerEncoderLayer`.
+    Args:
+        args (argparse.Namespace): parsed command-line arguments
+        dictionary (~fairseq.data.Dictionary): encoding dictionary
+        embed_tokens (torch.nn.Embedding): input embedding
+    """
+    def _reorder_encoder_out(self, encoder_out, new_order):
+        return encoder_out
+
 @replace(TransformerModel, USE_OPTIMIZED_CACHE_ATTN)
-class TransformerModelV2(TransformerModel):
+class TransformerModel(TransformerModel):
     """ Represent the BART model."""
 
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
         # Replace reorder_encoder_out with a dummy function.
 
-        def _reorder_encoder_out(encoder_out, new_order):
-            return encoder_out
-
         if ('beamable_mm_beam_size' in kwargs and
             kwargs['beamable_mm_beam_size'] > 1):
-            self.encoder.reorder_encoder_out = _reorder_encoder_out
+            self.encoder.reorder_encoder_out = self.encoder._reorder_encoder_out
 
 @replace(MultiheadAttention, USE_OPTIMIZED_CACHE_ATTN)
-class MultiheadAttentionV2(MultiheadAttention):
+class MultiheadAttention(MultiheadAttention):
     """Multi-headed attention.
 
     See "Attention Is All You Need" for more details.
@@ -282,7 +292,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             if "prev_key_padding_mask" in saved_state:
                 prev_key_padding_mask = saved_state["prev_key_padding_mask"]
             assert k is not None and v is not None
-            key_padding_mask = MultiheadAttentionV2._append_prev_key_padding_mask(
+            key_padding_mask = self._append_prev_key_padding_mask(
                 key_padding_mask=key_padding_mask,
                 prev_key_padding_mask=prev_key_padding_mask,
                 batch_size=kv_bsz,
@@ -435,7 +445,7 @@ class MultiheadAttentionV2(MultiheadAttention):
 
 
 @replace(SequenceGenerator, USE_OPTIMIZED_CACHE_ATTN)
-class SequenceGeneratorV2(SequenceGenerator):
+class SequenceGenerator(SequenceGenerator):
     """
     Sequence Generator is optimized by reducing the cached memory usage
     during the encoding period for beam search.

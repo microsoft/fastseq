@@ -20,13 +20,13 @@ from fastseq.ops.ngram_repeat_block import NGramRepeatBlock
 from fastseq.config import USE_EL_ATTN
 
 @replace(FairseqTask, USE_EL_ATTN)
-class FairseqTaskV2(FairseqTask):
+class FairseqTask(FairseqTask):
     def transpose_enc_dec_kv_proj(self, models):
         for model in models:
             model.transpose_enc_dec_kv_proj()
 
 @replace(TransformerDecoderLayer, USE_EL_ATTN)
-class TransformerDecoderLayerV2(TransformerDecoderLayer):
+class TransformerDecoderLayer(TransformerDecoderLayer):
     def forward(
         self,
         x,
@@ -169,7 +169,7 @@ class TransformerDecoderLayerV2(TransformerDecoderLayer):
 
 
 @replace(TransformerEncoder, USE_EL_ATTN)
-class TransformerEncoderV2(TransformerEncoder):
+class TransformerEncoder(TransformerEncoder):
     """
     Transformer encoder consisting of *args.encoder_layers* layers. Each layer
     is a :class:`TransformerEncoderLayer`.
@@ -179,9 +179,8 @@ class TransformerEncoderV2(TransformerEncoder):
         dictionary (~fairseq.data.Dictionary): encoding dictionary
         embed_tokens (torch.nn.Embedding): input embedding
     """
-
     @classmethod
-    def create_named_tuple (cls):
+    def create_named_tuple(cls):
         EncoderOut = NamedTuple(
             "TransformerEncoderOut",
             [
@@ -195,7 +194,6 @@ class TransformerEncoderV2(TransformerEncoder):
             ]
         )
         return EncoderOut
-
 
     def forward(
         self,
@@ -246,10 +244,10 @@ class TransformerEncoderV2(TransformerEncoder):
         if self.layer_norm is not None:
             x = self.layer_norm(x)
 
-        EncoderOut = TransformerEncoder.create_named_tuple()
+        EncoderOut = self.create_named_tuple()
         return EncoderOut(
             encoder_out=x.permute(1, 2, 0).contiguous(),  # B x C x T
-            encoder_out_v = x.permute(1, 0, 2).contiguous(), # B x T x C
+            encoder_out_v=x.permute(1, 0, 2).contiguous(), # B x T x C
             encoder_padding_mask=encoder_padding_mask,  # B x T
             encoder_embedding=encoder_embedding,  # B x T x C
             encoder_states=encoder_states,  # List[T x B x C]
@@ -319,7 +317,7 @@ class TransformerEncoderV2(TransformerEncoder):
 
 
 @replace(EnsembleModel, USE_EL_ATTN)
-class EnsembleModelV2(EnsembleModel):
+class EnsembleModel(EnsembleModel):
     """A wrapper around an ensemble of models."""
 
     def transpose_enc_dec_kv_proj(self):
@@ -340,7 +338,7 @@ class EnsembleModelV2(EnsembleModel):
 
 
 @replace(TransformerDecoder, USE_EL_ATTN)
-class TransformerDecoderV2(TransformerDecoder):
+class TransformerDecoder(TransformerDecoder):
     """
     Transformer decoder consisting of *args.decoder_layers* layers. Each layer
     is a :class:`TransformerDecoderLayer`.
@@ -462,7 +460,7 @@ class TransformerDecoderV2(TransformerDecoder):
 
 
 @replace(FairseqEncoderDecoderModel, USE_EL_ATTN)
-class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
+class FairseqEncoderDecoderModel(FairseqEncoderDecoderModel):
     """class for encoder-decoder models.
     Args:
         encoder (FairseqEncoder): the encoder
@@ -501,13 +499,13 @@ class FairseqEncoderDecoderModelV2(FairseqEncoderDecoderModel):
 
 
 @replace(TransformerModel, USE_EL_ATTN)
-class TransformerModelV2(TransformerModel):
+class TransformerModel(TransformerModel):
     """ Represent the BART model."""
     def make_generation_fast_(self, **kwargs):
         super().make_generation_fast_(**kwargs)  # pylint: disable=bad-super-call
 
 @replace(MultiheadAttention, USE_EL_ATTN)
-class MultiheadAttentionV2(MultiheadAttention):
+class MultiheadAttention(MultiheadAttention):
     """Multi-headed attention.
 
     See "Attention Is All You Need" for more details.
@@ -574,6 +572,7 @@ class MultiheadAttentionV2(MultiheadAttention):
             need_weights = True
 
         tgt_len, bsz, embed_dim = query.size()
+        kv_bsz = -1
         assert embed_dim == self.embed_dim
         assert list(query.size()) == [tgt_len, bsz, embed_dim]
 
@@ -918,7 +917,7 @@ class MultiheadAttentionV2(MultiheadAttention):
 
 
 @replace(SequenceGenerator, USE_EL_ATTN)
-class SequenceGeneratorV2(SequenceGenerator):
+class SequenceGenerator(SequenceGenerator):
     """
     Sequence Generator is optimized by reducing the cached memory usage
     during the encoding period for beam search.
