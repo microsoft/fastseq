@@ -58,8 +58,8 @@ def move_to_cpu(sample):
 
     return apply_to_sample(_move_to_cpu, sample)
 
-def convert_base_e_to_base_2(tensor):
-    return tensor.div_(math.log(2))
+def convert_base_e_to_base_2(t):
+    return t / math.log(2)
 
 class IOProcess(Process):
     """
@@ -293,7 +293,9 @@ class PostProcess(Process):
                 break
             else:
                 sample, hypos = r
+                torch.cuda.nvtx.range_push("detokenize")
                 self._detokenize(sample, hypos)
+                torch.cuda.nvtx.range_pop()
         self.data_queue.close()
         self.data_queue.join_thread()
         self.message_queue.close()

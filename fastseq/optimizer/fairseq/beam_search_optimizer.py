@@ -52,6 +52,7 @@ class BeamSearch(BeamSearch):
             assert scores is not None
             lprobs = lprobs + scores[:, :, step - 1].unsqueeze(-1)
 
+        torch.cuda.nvtx.range_push('beam search top k')
         scores_buf, indices_buf = torch.topk(
             lprobs.view(bsz, -1),
             k=min(
@@ -60,6 +61,7 @@ class BeamSearch(BeamSearch):
                 beam_size * 2,
                 lprobs.view(bsz, -1).size(1) - 1,  # -1 so we never select pad
             ),)[:2]
+        torch.cuda.nvtx.range_pop()
         beams_buf = indices_buf // vocab_size
         indices_buf = indices_buf.fmod(vocab_size)
 
@@ -450,6 +452,115 @@ class SequenceGenerator(SequenceGenerator):
     Sequence Generator is optimized by reducing the cached memory usage
     during the encoding period for beam search.
     """
+    def finalize_hypos(
+        self,
+        step: int,
+        bbsz_idx,
+        eos_scores,
+        tokens,
+        scores,
+        finalized: List[List[Dict[str, Tensor]]],
+        finished: List[bool],
+        beam_size: int,
+        attn: Optional[Tensor],
+        src_lengths,
+        max_len: int,
+    ):
+        """Finalize hypothesis, store finalized information in `finalized`, and change `finished` accordingly.
+        A sentence is finalized when {beam_size} finished items have been collected for it.
+        Returns number of sentences (not beam items) being finalized.
+        These will be removed from the batch and not processed further.
+        Args:
+            bbsz_idx (Tensor):
+        """
+        assert bbsz_idx.numel() == eos_scores.numel()
+
+        # clone relevant token and attention tensors.
+        # tokens is (batch * beam, max_len). So the index_select
+        # gets the newly EOS rows, then selects cols 1..{step + 2}
+        tokens_clone = tokens.index_select(0, bbsz_idx)[
+            :, 1 : step + 2
+        ]  # skip the first index, which is EOS
+
+        tokens_clone[:, step] = self.eos
+        attn_clone = (
+            attn.index_select(0, bbsz_idx)[:, :, 1 : step + 2]
+            if attn is not None
+            else None
+        )
+
+        # compute scores per token position
+        pos_scores = scores.index_select(0, bbsz_idx)[:, : step + 1]
+        pos_scores[:, step] = eos_scores
+        # convert from cumulative to per-position scores
+        pos_scores[:, 1:] = pos_scores[:, 1:] - pos_scores[:, :-1]
+
+        # normalize sentence-level scores
+        if self.normalize_scores:
+            eos_scores /= (step + 1) ** self.len_penalty
+
+        # cum_unfin records which sentences in the batch are finished.
+        # It helps match indexing between (a) the original sentences
+        # in the batch and (b) the current, possibly-reduced set of
+        # sentences.
+        cum_unfin: List[int] = []
+        prev = 0
+        for f in finished:
+            if f:
+                prev += 1
+            else:
+                cum_unfin.append(prev)
+
+        # set() is not supported in script export
+
+        # The keys here are of the form "{sent}_{unfin_idx}", where
+        # "unfin_idx" is the index in the current (possibly reduced)
+        # list of sentences, and "sent" is the index in the original,
+        # unreduced batch
+        sents_seen = set()
+
+        # For every finished beam item
+        for i, (idx, score) in enumerate(
+            zip(bbsz_idx.tolist(), eos_scores.tolist())):
+            # sentence index in the current (possibly reduced) batch
+            unfin_idx = idx // beam_size
+            # sentence index in the original (unreduced) batch
+            sent = unfin_idx + cum_unfin[unfin_idx]
+            
+            sents_seen.add((sent, unfin_idx))
+
+            if self.match_source_len and step > src_lengths[unfin_idx]:
+                score = torch.tensor(-math.inf).to(score)
+
+            # An input sentence (among those in a batch) is finished when
+            # beam_size hypotheses have been collected for it
+            if len(finalized[sent]) < beam_size:
+                if attn_clone is not None:
+                    # remove padding tokens from attn scores
+                    hypo_attn = attn_clone[i]
+                else:
+                    hypo_attn = torch.empty(0)
+
+                finalized[sent].append(
+                    {
+                        "tokens": tokens_clone[i],
+                        "score": score,
+                        "attention": hypo_attn,  # src_len x tgt_len
+                        "alignment": torch.empty(0),
+                        "positional_scores": pos_scores[i],
+                    }
+                )
+
+        newly_finished: List[int] = []
+
+        for sent, unfin_idx in sents_seen:
+            # check termination conditions for this sentence
+            if not finished[sent] and self.is_finished(
+                step, unfin_idx, max_len, len(finalized[sent]), beam_size
+            ):
+                finished[sent] = True
+                newly_finished.append(unfin_idx)
+        return newly_finished
 
     @torch.no_grad()
     def _generate(self,
@@ -623,9 +734,8 @@ class SequenceGenerator(SequenceGenerator):
             # Record attention scores, only support avg_attn_scores is a Tensor
             if avg_attn_scores is not None:
                 if attn is None:
-                    attn = torch.empty(
-                        bsz * beam_size, avg_attn_scores.size(1), max_len + 2
-                    ).to(scores)
+                    attn = scores.new(
+                        bsz * beam_size, avg_attn_scores.size(1), max_len + 2)
                 attn[:, :, step + 1].copy_(avg_attn_scores)
 
             scores = scores.type_as(lprobs)
@@ -798,7 +908,7 @@ class SequenceGenerator(SequenceGenerator):
         # sort by score descending
         for sent in range(len(finalized)):
             scores = torch.tensor(
-                [float(elem["score"].item()) for elem in finalized[sent]]
+                [float(elem["score"]) for elem in finalized[sent]]
             )
             _, sorted_scores_indices = torch.sort(scores, descending=True)
             finalized[sent] = [finalized[sent][ssi] for ssi in sorted_scores_indices]
