@@ -52,7 +52,6 @@ class BeamSearch(BeamSearch):
             assert scores is not None
             lprobs = lprobs + scores[:, :, step - 1].unsqueeze(-1)
 
-        torch.cuda.nvtx.range_push('beam search top k')
         scores_buf, indices_buf = torch.topk(
             lprobs.view(bsz, -1),
             k=min(
@@ -61,7 +60,7 @@ class BeamSearch(BeamSearch):
                 beam_size * 2,
                 lprobs.view(bsz, -1).size(1) - 1,  # -1 so we never select pad
             ),)[:2]
-        torch.cuda.nvtx.range_pop()
+
         beams_buf = indices_buf // vocab_size
         indices_buf = indices_buf.fmod(vocab_size)
 
@@ -294,7 +293,7 @@ class MultiheadAttention(MultiheadAttention):
             if "prev_key_padding_mask" in saved_state:
                 prev_key_padding_mask = saved_state["prev_key_padding_mask"]
             assert k is not None and v is not None
-            key_padding_mask = self._append_prev_key_padding_mask(
+            key_padding_mask = MultiheadAttention._append_prev_key_padding_mask(
                 key_padding_mask=key_padding_mask,
                 prev_key_padding_mask=prev_key_padding_mask,
                 batch_size=kv_bsz,
