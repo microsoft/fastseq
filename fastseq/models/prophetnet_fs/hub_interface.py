@@ -6,6 +6,7 @@
 """Hub interface for ProphetNet"""
 
 import copy
+import logging
 from typing import List
 
 import numpy as np
@@ -16,6 +17,7 @@ import torch.nn.functional as F
 from fairseq import utils
 from fairseq.data import encoders
 
+logger = logging.getLogger(__name__)
 
 class ProphetNetHubInterface(nn.Module):
     """A simple PyTorch Hub interface to BART.
@@ -127,7 +129,7 @@ class ProphetNetHubInterface(nn.Module):
         gen_args.beam = beam
         for k, v in kwargs.items():
             setattr(gen_args, k, v)
-        generator = self.task.build_generator(gen_args)
+        generator = self.task.build_generator([self.model], gen_args)
         translations = self.task.inference_step(
             generator,
             [self.model],
@@ -137,7 +139,7 @@ class ProphetNetHubInterface(nn.Module):
 
         if verbose:
             src_str_with_unk = self.string(tokens)
-            print('S\t{}'.format(src_str_with_unk))
+            logger.info("S\t{}".format(src_str_with_unk))
 
         def getarg(name, default):
             return getattr(gen_args, name, getattr(self.args, name, default))
