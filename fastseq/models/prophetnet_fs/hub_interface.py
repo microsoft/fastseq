@@ -7,6 +7,7 @@
 
 import copy
 import logging
+from fastseq.logging import get_logger
 from typing import List
 
 import numpy as np
@@ -17,7 +18,7 @@ import torch.nn.functional as F
 from fairseq import utils
 from fairseq.data import encoders
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__, logging.INFO)
 
 class ProphetNetHubInterface(nn.Module):
     """A simple PyTorch Hub interface to BART.

@@ -676,7 +676,6 @@ class SequenceGenerator(SequenceGenerator):
 
         for step in range(max_len + 1):
             # reorder decoder internal states based on the prev choice of beams
-            # print(f'step: {step}')
             if reorder_state is not None:
                 if batch_idxs is not None:
                     # update beam indices to take into account removed sentences

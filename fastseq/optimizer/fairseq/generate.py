@@ -27,7 +27,7 @@ POSTPROCESS_FINISHED = None
 original_add_generation_args = add_generation_args
 
 @replace(add_generation_args)
-def add_generation_args_v1(parser):
+def add_generation_args_v2(parser):
     group = original_add_generation_args(parser)
     # fmt: off
     group.add_argument(
@@ -293,9 +293,7 @@ class PostProcess(Process):
                 break
             else:
                 sample, hypos = r
-                torch.cuda.nvtx.range_push("detokenize")
                 self._detokenize(sample, hypos)
-                torch.cuda.nvtx.range_pop()
         self.data_queue.close()
         self.data_queue.join_thread()
         self.message_queue.close()
@@ -462,7 +460,7 @@ def _main(args, output_file):
     return
 
 @replace(main)
-def main_v1(args):
+def main_v2(args):
     assert args.path is not None, '--path required for generation!'
     assert (
         not args.sampling or args.nbest == args.beam

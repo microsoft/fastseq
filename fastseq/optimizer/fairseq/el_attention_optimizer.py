@@ -56,10 +56,8 @@ def collate_tokens(
 @replace(FairseqTask, USE_EL_ATTN)
 class FairseqTask(FairseqTask):
     def transpose_enc_dec_kv_proj(self, models):
-        torch.cuda.nvtx.range_push("transpose_enc_dec_kv_proj")
         for model in models:
             model.transpose_enc_dec_kv_proj()
-        torch.cuda.nvtx.range_pop()
 
 @replace(TransformerDecoderLayer, USE_EL_ATTN)
 class TransformerDecoderLayer(TransformerDecoderLayer):
@@ -96,7 +94,6 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
         if self.normalize_before:
             x = self.self_attn_layer_norm(x)
         if prev_self_attn_state is not None:
-            torch.cuda.nvtx.range_push('decoder layer set self attn input buffer')
             prev_key, prev_value = prev_self_attn_state[:2]
             saved_state: Dict[str, Optional[Tensor]] = {
                 "prev_key": prev_key,
@@ -106,7 +103,6 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
                 saved_state["prev_key_padding_mask"] = prev_self_attn_state[2]
             assert incremental_state is not None
             self.self_attn._set_input_buffer(incremental_state, saved_state)
-            torch.cuda.nvtx.range_pop()
 
         _self_attn_input_buffer = self.self_attn._get_input_buffer(incremental_state)
         if self.cross_self_attention and not (
@@ -133,7 +129,6 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
         else:
             y = x
 
-        torch.cuda.nvtx.range_push('self attn')
         x, attn = self.self_attn(
             query=x,
             key=y,
@@ -143,7 +138,6 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
             need_weights=False,
             attn_mask=self_attn_mask,
         )
-        torch.cuda.nvtx.range_pop()
         x = self.dropout_module(x)
         x = self.residual_connection(x, residual)
         if not self.normalize_before:
@@ -164,7 +158,7 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
                 assert incremental_state is not None
                 self.encoder_attn._set_input_buffer(incremental_state, saved_state)
 
-            torch.cuda.nvtx.range_push('enc dec attn')
+            
             x, attn = self.encoder_attn(
                 query=x,
                 key=encoder_out,
@@ -175,7 +169,7 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
                 need_weights=need_attn or (not self.training and self.need_attn),
                 need_head_weights=need_head_weights,
             )
-            torch.cuda.nvtx.range_pop()
+            
             x = self.dropout_module(x)
             x = self.residual_connection(x, residual)
             if not self.normalize_before:
@@ -1048,7 +1042,7 @@ class SequenceGenerator(SequenceGenerator):
         constraints: Optional[Tensor] = None,
         bos_token: Optional[int] = None,
     ):
-        torch.cuda.nvtx.range_push('generate setup')
+        
         incremental_states = torch.jit.annotate(
             List[Dict[str, Dict[str, Optional[Tensor]]]],
             [
@@ -1102,7 +1096,7 @@ class SequenceGenerator(SequenceGenerator):
         ), "min_len cannot be larger than max_len, please adjust these!"
 
         EncoderOut = TransformerEncoder.create_named_tuple()
-        torch.cuda.nvtx.range_pop()
+        
         def merge_encoder_out(encoder_out_list: List[Optional[EncoderOut]]):
             encoder_out = torch.cat([
                 o.encoder_out for o in encoder_out_list], dim=0)
@@ -1135,7 +1129,7 @@ class SequenceGenerator(SequenceGenerator):
             )]
 
         # compute the encoder output for each beam
-        torch.cuda.nvtx.range_push('compute encoder outputs')
+        
         max_batch_size = math.ceil(2_147_483_647 / (src_len*src_len*16) / 4)
         sub_batch_size = 1
         while sub_batch_size * 2 <= max_batch_size:
@@ -1154,25 +1148,25 @@ class SequenceGenerator(SequenceGenerator):
                                'src_lengths': sub_src_lengths}
                 torch.cuda.nvtx.range_push("forward_encoder")
                 split_output = self.model.forward_encoder(split_input)
-                torch.cuda.nvtx.range_pop()
+                
                 encoder_out_list.append(split_output[0])
-            torch.cuda.nvtx.range_push('merge encoder out')
+            
             encoder_outs = merge_encoder_out(encoder_out_list)
-            torch.cuda.nvtx.range_pop()
+            
         else:
             torch.cuda.nvtx.range_push("forward_encoder")
             encoder_outs = self.model.forward_encoder(net_input)
-            torch.cuda.nvtx.range_pop()
+            
 
         # placeholder of indices for bsz * beam_size to hold tokens and accumulative scores
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
         # ensure encoder_outs is a List.
         assert encoder_outs is not None
-        torch.cuda.nvtx.range_pop()
+        
 
         # initialize buffers
-        torch.cuda.nvtx.range_push('initialize buffers')
+        
         scores = (
             torch.zeros(bsz * beam_size, max_len + 1).to(src_tokens).float()
         )  # +1 for eos; pad is never chosen for scoring
@@ -1210,7 +1204,7 @@ class SequenceGenerator(SequenceGenerator):
         # offset arrays for converting between different indexing schemes
         bbsz_offsets = (torch.arange(0, bsz) * beam_size).unsqueeze(1).type_as(tokens)
         cand_offsets = torch.arange(0, cand_size).type_as(tokens)
-        torch.cuda.nvtx.range_pop()
+        
 
         reorder_state: Optional[Tensor] = None
         batch_idxs: Optional[Tensor] = None
@@ -1226,7 +1220,7 @@ class SequenceGenerator(SequenceGenerator):
             if reorder_state is not None:
                 if batch_idxs is not None:
                     # update beam indices to take into account removed sentences
-                    torch.cuda.nvtx.range_push('update idx for removed sents')
+                    
                     corr = batch_idxs - torch.arange(batch_idxs.numel()).type_as(
                         batch_idxs
                     )
@@ -1234,15 +1228,15 @@ class SequenceGenerator(SequenceGenerator):
                         corr.unsqueeze(-1) * beam_size
                     )
                     original_batch_idxs = original_batch_idxs[batch_idxs]
-                    torch.cuda.nvtx.range_pop()
+                    
                 torch.cuda.nvtx.range_push("reorder_incremental_state")
                 self.model.reorder_incremental_state(incremental_states, reorder_state)
-                torch.cuda.nvtx.range_pop()
+                
                 torch.cuda.nvtx.range_push("reorder_encoder_out")
                 encoder_outs = self.model.reorder_encoder_out(
                     encoder_outs, reorder_state, beam_size
                 )
-                torch.cuda.nvtx.range_pop()
+                
             torch.cuda.nvtx.range_push("forward_decoder")
             lprobs, avg_attn_scores = self.model.forward_decoder(
                 tokens[:, : step + 1],
@@ -1250,7 +1244,7 @@ class SequenceGenerator(SequenceGenerator):
                 incremental_states,
                 self.temperature,
             )
-            torch.cuda.nvtx.range_pop()
+            
             torch.cuda.nvtx.range_push("Lm model")
             if self.lm_model is not None:
                 lm_out = self.lm_model(tokens[:, : step + 1])
@@ -1259,23 +1253,23 @@ class SequenceGenerator(SequenceGenerator):
                 )
                 probs = probs[:, -1, :] * self.lm_weight
                 lprobs += probs
-            torch.cuda.nvtx.range_pop()
-            torch.cuda.nvtx.range_push('lprobs')
+            
+            
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
 
             lprobs[:, self.pad] = -math.inf  # never select pad
             lprobs[:, self.unk] -= self.unk_penalty  # apply unk penalty
-            torch.cuda.nvtx.range_pop()
+            
 
             # handle max length constraint
             if step >= max_len:
-                torch.cuda.nvtx.range_push('max_len')
+                
                 lprobs[:, :self.eos] = -math.inf
                 lprobs[:, self.eos + 1:] = -math.inf
-                torch.cuda.nvtx.range_pop()
+                
 
             # handle prefix tokens (possibly with different lengths)
-            torch.cuda.nvtx.range_push('handle prefix tokens')
+            
             if (
                 prefix_tokens is not None
                 and step < prefix_tokens.size(1)
@@ -1287,19 +1281,19 @@ class SequenceGenerator(SequenceGenerator):
             elif step < self.min_len:
                 # minimum length constraint (does not apply if using prefix_tokens)
                 lprobs[:, self.eos] = -math.inf
-            torch.cuda.nvtx.range_pop()
+            
 
             # Record attention scores, only support avg_attn_scores is a Tensor
             if avg_attn_scores is not None:
-                torch.cuda.nvtx.range_push('record attn scores')
+                
                 if attn is None:
                     attn = scores.new(bsz * beam_size, src_tokens.size(1),
                                       max_len + 2)
                     attn_buf = attn.clone()
                 attn[:, :, step + 1].copy_(avg_attn_scores)
-                torch.cuda.nvtx.range_pop()
+                
 
-            torch.cuda.nvtx.range_push('update buffers')
+            
             scores = scores.type_as(lprobs)
             eos_bbsz_idx = torch.empty(0).to(
                 tokens
@@ -1307,7 +1301,7 @@ class SequenceGenerator(SequenceGenerator):
             eos_scores = torch.empty(0).to(
                 scores
             )  # scores of hypothesis ending with eos (finished sentences)
-            torch.cuda.nvtx.range_pop()
+            
 
             if self.should_set_src_lengths:
                 self.search.set_src_lengths(src_lengths)
@@ -1317,14 +1311,14 @@ class SequenceGenerator(SequenceGenerator):
                     torch.cuda.nvtx.range_push("no repeat ngram cuda")
                     lprobs = self.no_repeat_ngram_op(tokens,lprobs, bsz, step,
                             beam_size, self.no_repeat_ngram_size)
-                    torch.cuda.nvtx.range_pop()
+                    
                 else:
                     torch.cuda.nvtx.range_push("no repeat ngram cpu")
                     lprobs = self._no_repeat_ngram(tokens, lprobs, bsz, beam_size, step)
-                    torch.cuda.nvtx.range_pop()
+                    
 
             # Shape: (batch, cand_size)
-            torch.cuda.nvtx.range_push('beam search')
+            
             cand_scores, cand_indices, cand_beams = self.search.step(
                 step,
                 lprobs.view(bsz, -1, self.vocab_size),
@@ -1332,7 +1326,7 @@ class SequenceGenerator(SequenceGenerator):
                 tokens[:, : step + 1],
                 original_batch_idxs,
             )
-            torch.cuda.nvtx.range_pop()
+            
 
             # cand_bbsz_idx contains beam indices for the top candidate
             # hypotheses, with a range of values: [0, bsz*beam_size),
@@ -1370,7 +1364,7 @@ class SequenceGenerator(SequenceGenerator):
                     src_lengths,
                     max_len,
                 )
-                torch.cuda.nvtx.range_pop()
+                
                 num_remaining_sent -= len(finalized_sents)
 
             assert num_remaining_sent >= 0
@@ -1386,7 +1380,7 @@ class SequenceGenerator(SequenceGenerator):
                 new_bsz = bsz - len(finalized_sents)
 
                 # construct batch_idxs which holds indices of batches to keep for the next pass
-                torch.cuda.nvtx.range_push('batch_mask')
+                
                 batch_mask = torch.ones(
                     bsz, dtype=torch.bool, device=cand_indices.device
                 )
@@ -1395,12 +1389,12 @@ class SequenceGenerator(SequenceGenerator):
                 batch_idxs = torch.arange(
                     bsz, device=cand_indices.device
                 ).masked_select(batch_mask)
-                torch.cuda.nvtx.range_pop()
+                
 
                 # Choose the subset of the hypothesized constraints that will continue
-                torch.cuda.nvtx.range_push('prune')
+                
                 self.search.prune_sentences(batch_idxs)
-                torch.cuda.nvtx.range_pop()
+                
 
                 eos_mask = eos_mask[batch_idxs]
                 cand_beams = cand_beams[batch_idxs]
@@ -1429,13 +1423,13 @@ class SequenceGenerator(SequenceGenerator):
             # After, the min values per row are the top candidate active hypos
 
             # Rewrite the operator since the element wise or is not supported in torchscript.
-            torch.cuda.nvtx.range_push('active_mask')
+            
             eos_mask[:, :beam_size] = ~((~cands_to_ignore) & (~eos_mask[:, :beam_size]))
             active_mask = torch.add(
                 eos_mask.type_as(cand_offsets) * cand_size,
                 cand_offsets[: eos_mask.size(1)],
             )
-            torch.cuda.nvtx.range_pop()
+            
 
             # get the top beam_size active hypotheses, which are just
             # the hypos with the smallest values in active_mask.
@@ -1446,7 +1440,7 @@ class SequenceGenerator(SequenceGenerator):
             new_cands_to_ignore, active_hypos = torch.topk(
                 active_mask, k=beam_size, dim=1, largest=False
             )
-            torch.cuda.nvtx.range_pop()
+            
 
             # update cands_to_ignore to ignore any finalized hypos.
             cands_to_ignore = new_cands_to_ignore.ge(cand_size)[:, :beam_size]
@@ -1457,18 +1451,18 @@ class SequenceGenerator(SequenceGenerator):
 
             # {active_bbsz_idx} denotes which beam number is continued for each new hypothesis (a beam
             # can be selected more than once).
-            torch.cuda.nvtx.range_push('active_bbsz_idx and scores')
+            
             active_bbsz_idx = torch.gather(cand_bbsz_idx, dim=1, index=active_hypos)
             active_scores = torch.gather(cand_scores, dim=1, index=active_hypos)
 
             active_bbsz_idx = active_bbsz_idx.view(-1)
             active_scores = active_scores.view(-1)
-            torch.cuda.nvtx.range_pop()
+            
 
             # copy tokens and scores for active hypotheses
 
             # Set the tokens for each beam (can select the same row more than once)
-            torch.cuda.nvtx.range_push('tokens')
+            
             tokens[:, : step + 1] = torch.index_select(
                 tokens[:, : step + 1], dim=0, index=active_bbsz_idx
             )
@@ -1476,8 +1470,8 @@ class SequenceGenerator(SequenceGenerator):
             tokens.view(bsz, beam_size, -1)[:, :, step + 1] = torch.gather(
                 cand_indices, dim=1, index=active_hypos
             )
-            torch.cuda.nvtx.range_pop()
-            torch.cuda.nvtx.range_push('scores')
+            
+            
             if step > 0:
                 scores[:, :step] = torch.index_select(
                     scores[:, :step], dim=0, index=active_bbsz_idx
@@ -1485,20 +1479,20 @@ class SequenceGenerator(SequenceGenerator):
             scores.view(bsz, beam_size, -1)[:, :, step] = torch.gather(
                 cand_scores, dim=1, index=active_hypos
             )
-            torch.cuda.nvtx.range_pop()
+            
 
             # Update constraints based on which candidates were selected for the next beam
-            torch.cuda.nvtx.range_push('update constraints')
+            
             self.search.update_constraints(active_hypos)
-            torch.cuda.nvtx.range_pop()
+            
 
             # copy attention for active hypotheses
-            torch.cuda.nvtx.range_push('copy attn')
+            
             if attn is not None:
                 attn[:, :, : step + 2] = torch.index_select(
                     attn[:, :, : step + 2], dim=0, index=active_bbsz_idx
                 )
-            torch.cuda.nvtx.range_pop()
+            
 
             # reorder incremental state in decoder
             reorder_state = active_bbsz_idx
@@ -1514,6 +1508,6 @@ class SequenceGenerator(SequenceGenerator):
             finalized[sent] = torch.jit.annotate(
                 List[Dict[str, Tensor]], finalized[sent]
             )
-        torch.cuda.nvtx.range_pop()
+        
             
         return finalized

@@ -32,9 +32,9 @@ def parse_additional_args():
 
 def cli_main():
     os.environ['USE_EL_ATTN'] = '1' if '--use-el-attn' in sys.argv else '0'
-    from fastseq.optimizer.fairseq.generate import main_v1  # pylint: disable=import-outside-toplevel
+    from fastseq.optimizer.fairseq.generate import main_v2  # pylint: disable=import-outside-toplevel
     args = parse_additional_args()
-    main_v1(args)
+    main_v2(args)
 
 if __name__ == '__main__':
     cli_main()
