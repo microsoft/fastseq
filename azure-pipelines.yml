@@ -21,13 +21,18 @@ jobs:
     steps:
     - script: |
         #install fastseq
+        which pip
+        which python 
+
+        echo "******* Installing fastseq, transformers, fairseq *******"
+
         pip install --editable .
         pip show fastseq
 
         pip install transformers
         pip show transformers
 
-        pip install fairseq
+        pip install fairseq==0.10.2
         pip show fairseq
 
         echo "******* Running fastseq unittests *******"
