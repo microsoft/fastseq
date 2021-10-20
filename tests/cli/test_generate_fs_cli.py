@@ -86,8 +86,10 @@ class FairseqGenerateCLITest(TestCaseBase):
                     "--skip-invalid-size-inputs-valid-test",
                     self.source_dir]
         fairseq_outs = subprocess.check_output(['fairseq-generate'] + options).decode("utf-8").split("\n")
-    
-        import fastseq
+        try:
+            import fastseq
+        except ImportError:
+            logger.error("Failed to import fastseq")
 
         # test beam search opt
         options.append("--decode-hypothesis")

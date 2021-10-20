@@ -21,7 +21,14 @@ jobs:
     steps:
     - script: |
         #install fastseq
-        pip install --editable .[transformers,fairseq]
+        pip install --editable .
+        pip show fastseq
+
+        pip install transformers
+        pip show transformers
+
+        pip install fairseq
+        pip show fairseq
 
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
