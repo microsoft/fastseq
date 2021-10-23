@@ -17,7 +17,7 @@ from fastseq.logging import get_logger
 
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
-                                      CACHED_BART_MODEL_PATHS,
+                                      CACHED_BART_MODEL_PATHS,  CNNDM_URL, CACHED_CNNDM_DATA_DIR,
                                       fastseq_test_main, TestCaseBase)
 
 logger = get_logger(__name__)
@@ -43,8 +43,17 @@ class FairseqGenerateCLITest(TestCaseBase):
                 wget(BART_MODEL_URLS['bart.large.cnn'], tar_model_file)
             decompress_file(tar_model_path, CACHED_BART_MODEL_DIR)
 
+        self.source_path = CACHED_CNNDM_DATA_DIR
+        make_dirs(self.source_path, exist_ok=True)
+        file_list = ["dict.source.txt", "dict.target.txt", "valid.source-target.source.bin", "valid.source-target.target.bin", "valid.source-target.source.idx", "valid.source-target.target.idx"]
+        for f in file_list:
+            f_path = os.path.join(self.source_path, f)
+            if not os.path.exists(f_path):
+                with open(f_path, 'xb') as new_file:
+                    wget(os.path.join(CNNDM_URL, f), new_file)
+                    new_file.close()
+            
         self.bart_path = CACHED_BART_MODEL_PATHS['bart.large.cnn'] + '/model.pt'
-        self.source_dir = 'tests/cli/source' # TODO: may need preprocessing!
 
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
@@ -84,7 +93,7 @@ class FairseqGenerateCLITest(TestCaseBase):
                     "--no-repeat-ngram-size", str(no_repeat_ngram_size),
                     "--lenpen", str(lenpen),
                     "--skip-invalid-size-inputs-valid-test",
-                    self.source_dir]
+                    self.source_path]
         fairseq_outs = subprocess.check_output(['fairseq-generate'] + options).decode("utf-8").split("\n")
         try:
             import fastseq

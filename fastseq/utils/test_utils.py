@@ -84,6 +84,12 @@ BART_MODEL_URLS[
 BART_MODEL_URLS[
     'bart.large.xsum'] = 'https://dl.fbaipublicfiles.com/fairseq/models/bart.large.xsum.tar.gz'
 
+CNNDM_URL = 'https://fastseq.blob.core.windows.net/data/tasks/cnn_dm.128/len-1024.bin'
+CACHED_CNNDM_DATA_DIR = os.path.join(FASTSEQ_CACHE_DIR, 'cnn_dm.128/len-1024.bin')
+
+CNNDM_RAW_URL = 'https://fastseq.blob.core.windows.net/data/tasks/unit_tests'
+CACHED_CNNDM_RAW_DATA_DIR = os.path.join(FASTSEQ_CACHE_DIR, 'raw_cnndm_data')
+
 CACHED_BART_MODEL_DIR = os.path.join(FASTSEQ_CACHE_DIR, 'fairseq_bart_models')
 
 CACHED_BART_MODEL_PATHS = {}
