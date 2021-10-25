@@ -102,6 +102,13 @@ class FairseqGenerateCLITest(TestCaseBase):
 
         # test beam search opt
         options.append("--decode-hypothesis")
+        # debug
+        import os
+        import distutils.sysconfig
+        pre = distutils.sysconfig.get_config_var("prefix")
+        bindir = os.path.join(pre, "bin")
+        print bindir
+        # end debug
         fastseq_outs = subprocess.check_output(['fastseq-generate-for-fairseq'] + options).decode("utf-8").split("\n")
         # only compare decoded hypotheses
         fairseq_outs = [l.split() for l in fairseq_outs]
