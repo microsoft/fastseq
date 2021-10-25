@@ -277,7 +277,7 @@ class PostProcess(Process):
                         # replacement and/or without BPE
                         target_tokens = self.tgt_dict.encode_line(
                             target_str, add_if_not_exist = True)
-                        hypo_tokens = self.tgt_dict.enode_line(
+                        hypo_tokens = self.tgt_dict.encode_line(
                             detok_hypo_str, add_if_not_exist = True)
                     if hasattr(self.scorer, "add_string"):
                         self.message_queue.put((target_str, detok_hypo_str))

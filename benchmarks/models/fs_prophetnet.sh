@@ -14,13 +14,13 @@ git_clone_if_not_in_cache \
     https://github.com/microsoft/ProphetNet.git \
     $prophetnet_repo_path
 
-./benchmark.sh \
-    fairseq \
-    prophetnet_large_160G_cnndm_model \
-    cnn_dm_bert/len-512.bin \
-    valid \
-    64 \
-    --user-dir $prophetnet_repo_path/src/prophetnet/
+# ./benchmark.sh \
+#     fairseq \
+#     prophetnet_large_160G_cnndm_model \
+#     cnn_dm_bert/len-512.bin \
+#     valid \
+#     64 \
+#     --user-dir $prophetnet_repo_path/src/prophetnet/
 ./benchmark.sh \
     fairseq+fastseq \
     prophetnet_large_160G_cnndm_model \
