@@ -12,12 +12,22 @@ cd ${FASTSEQ_TEST_PATH}/../
 pip install torch==1.5.0+cu101 torchvision==0.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 rm -rf build/
 rm ngram_repeat_block_cuda*.so
-pip show fairseq 
-pip install fairseq==0.10.2
+which pip
+which python
+echo "FASTSEQ DIR"
+pwd
+echo "FASTSEQ CONTENTS"
+ls .
+# pip show fairseq 
+# pip install fairseq==0.10.2
 pip install --editable .
 pip show fastseq
-pip uninstall fairseq -y
-export PATH="/__w/1/s:$PATH"
-USE_EL_ATTN=1 python tests/run_fairseq_tests.py
+echo "FASTSEQ CONTENTS"
+ls .
+echo "THE PATH"
+echo $PATH
+# pip uninstall fairseq -y
+# export PATH="/__w/1/s:$PATH"
+# USE_EL_ATTN=1 python tests/run_fairseq_tests.py
 #USE_EL_ATTN=0 python tests/run_fairseq_tests.py
 deactivate
