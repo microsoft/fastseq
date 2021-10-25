@@ -24,21 +24,25 @@ jobs:
         which pip
         which python 
 
-        echo "******* Installing fastseq, transformers, fairseq *******"
+        echo "******* Installing fairseq *******"
         sudo pip uninstall fairseq -y
         pip install fairseq==0.10.2
         pip show fairseq
 
+        echo "******* Installing transformers *******"
         sudo pip uninstall transformers -y
         pip install transformers
         pip show transformers
 
+        echo "******* Installing fairseq *******"
         pip install --editable .
         pip show fastseq
 
-        
+        echo "******* Adding local site-packages to pythonpath *******"
+        export PYTHONPATH=$PYTHONPATH:~/.local/lib/site-packages
 
-        
+        echo "******* Adding local bin to path *******"
+        export PATH = ~/.local/bin:$PATH
 
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
