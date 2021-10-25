@@ -16,12 +16,12 @@ Below shows the generation speed gain by using FastSeq.
 
 | Model            | W/O FastSeq (in samples/s) | W/ FastSeq (in samples/s) | Speedup |
 |------------------|:--------------------------:|:-------------------------:|:-----:|
-| [ProphetNet](examples/prophetnet/README.md)       | 2.8 | 10.7  | 3.8x  |
-| [Bart (`fs`)](examples/bart/README.md)              | 2.4  | 25.3 | 10.5x  |
+| [ProphetNet](examples/prophetnet/README.md)       | NA (2.8 w/ fs 0.9.0) | 11.9  | NA  |
+| [Bart (`fs`)](examples/bart/README.md)              | 3.3  | 25.3 | 7.7x  |
 | [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 2.5 | 12.4 | 5.0x  |
 | [DistilBart (`hf`)](examples/distilbart/README.md)    | 3.4  | 18.5  | 5.4x  |
 | [T5 (`hf`)](examples/t5/README.md)                  | 8.7  | 31.3  | 3.6x  |
-| [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 96.0   | 417.0  | 4.3x  |
+| [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
 | [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.0   | 16.7  | 5.5x  |
 | [UniLM (`hf`)](examples/unilm/README.md)        | 1.7   | 16.4  | 9.6x  |
 

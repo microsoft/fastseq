@@ -7,8 +7,8 @@ https://arxiv.org/abs/1806.00187
 
   |     BatchSize    |      256       |      512       |      1024      |
   |:----------------:|:--------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    |  96 samples/s  |      OOM       |      OOM       |
-  | above + fastseq  | 350 samples/s  |  400 samples/s |  417 samples/s |
+  | fairseq-0.10.2    |  144.5 samples/s  |      OOM       |      OOM       |
+  | above + fastseq  | 364.1 samples/s  |  402.1 samples/s |  422.8 samples/s |
 
 ### Training a new model on WMT'16 En-De
 

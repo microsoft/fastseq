@@ -10,8 +10,8 @@ A pre-trained language model for sequence-to-sequence learning with a novel self
 
   |       BatchSize      |       32      |        64       |      128       |
   |:--------------------:|:-------------:|:---------------:|:--------------:|
-  |      prophetnet      | 2.4 samples/s |  2.8 samples/s  |      OOM       |
-  |   above + fastseq    | 6.0 samples/s |  7.6 samples/s  | 10.7 samples/s |
+  |      prophetnet (fs 0.9.0)      | 2.4 samples/s |  2.8 samples/s  |      OOM       |
+  |   above + fastseq    | ??? samples/s |  9.1 samples/s  | 11.9 samples/s |
 
 
 ### Model
