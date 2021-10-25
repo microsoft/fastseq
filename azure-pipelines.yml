@@ -38,11 +38,8 @@ jobs:
         pip install --editable .
         pip show fastseq
 
-        echo "******* Adding local site-packages to pythonpath *******"
-        export PYTHONPATH=$PYTHONPATH:~/.local/lib/site-packages
-
         echo "******* Adding local bin to path *******"
-        export PATH = ~/.local/bin:$PATH
+        export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
