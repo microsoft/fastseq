@@ -107,7 +107,7 @@ class FairseqGenerateCLITest(TestCaseBase):
         import distutils.sysconfig
         pre = distutils.sysconfig.get_config_var("prefix")
         bindir = os.path.join(pre, "bin")
-        print bindir
+        print(bindir)
         # end debug
         fastseq_outs = subprocess.check_output(['fastseq-generate-for-fairseq'] + options).decode("utf-8").split("\n")
         # only compare decoded hypotheses
