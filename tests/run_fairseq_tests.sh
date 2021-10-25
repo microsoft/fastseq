@@ -14,6 +14,7 @@ rm -rf build/
 rm ngram_repeat_block_cuda*.so
 pip install --editable .
 pip show fastseq
+export PATH="/__w/1/s:$PATH"
 USE_EL_ATTN=1 python tests/run_fairseq_tests.py
-USE_EL_ATTN=0 python tests/run_fairseq_tests.py
+#USE_EL_ATTN=0 python tests/run_fairseq_tests.py
 deactivate

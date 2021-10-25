@@ -34,7 +34,7 @@ jobs:
         pip install transformers
         pip show transformers
 
-        echo "******* Installing fairseq *******"
+        echo "******* Installing fastseq *******"
         pip install --editable .
         pip show fastseq
 
