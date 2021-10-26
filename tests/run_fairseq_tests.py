@@ -34,6 +34,8 @@ class FairseqUnitTests(parameterized.TestCase):
 
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""
+        #pipmain(['install', '--editable', FASTSEQ_PATH])
+        sys.path.insert(0, FASTSEQ_PATH)
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
