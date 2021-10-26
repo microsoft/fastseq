@@ -40,7 +40,7 @@ class FairseqUnitTests(parameterized.TestCase):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
         pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
-                  version])
+                  version + '#egg=fairseq'])
         print("FAIRSEQ_PATH: " + FAIRSEQ_PATH)
         directory_path = os.getcwd()
         print("My current directory is : " + directory_path)
