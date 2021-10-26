@@ -36,7 +36,7 @@ grep "bart.large.cnn cnn_dm/len-1024.bin valid " perf \
 # Speed on V100 16GB 250W
 grep -E "fairseq_v0.10.2 bart.large.cnn cnn_dm/len-1024.bin valid 32 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
-	| ./range.sh 2.1 2.7
+	| ./range.sh 3.1 3.7
 grep -E "fairseq_v0.10.2\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 32 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 7.8 100
@@ -51,4 +51,4 @@ grep -E "fairseq_v0.10.2\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 2
 	| ./range.sh 19 100
 grep -E "fairseq_v0.10.2\+fastseq_v.* bart.large.cnn cnn_dm/len-1024.bin valid 320 " perf \
         | awk '{s+=$13}END{print s/NR}' \
-        | ./range.sh 25 100
+        | ./range.sh 24.5 100

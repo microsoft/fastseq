@@ -46,7 +46,7 @@ grep -E "fairseq_v0.10.2\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_b
 	| ./range.sh 5.7 6.5
 grep -E "fairseq_v0.10.2\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert/len-512.bin valid 64 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 7.5 10
+	| ./range.sh 8 10.5
 grep -E "fairseq_v0.10.2\+fastseq_v.* prophetnet_large_160G_cnndm_model cnn_dm_bert/len-512.bin valid 128 " perf \
 	| awk '{s+=$13}END{print s/NR}'\
 	| ./range.sh 10 15

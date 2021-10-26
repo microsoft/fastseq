@@ -9,19 +9,19 @@
 source utils.sh
 
 # MODEL - wmt16
-# ./benchmark.sh \
-#     fairseq \
-#     wmt16.en.de.32k \
-#     wmt16_en_de_bpe32k/bin \
-#     valid \
-#     256
-# ./benchmark.sh \
-#     fairseq+fastseq \
-#     wmt16.en.de.32k \
-#     wmt16_en_de_bpe32k/bin \
-#     valid \
-#     256/512/1024 \
-#     --postprocess-workers 5
+./benchmark.sh \
+    fairseq \
+    wmt16.en.de.32k \
+    wmt16_en_de_bpe32k/bin \
+    valid \
+    256
+./benchmark.sh \
+    fairseq+fastseq \
+    wmt16.en.de.32k \
+    wmt16_en_de_bpe32k/bin \
+    valid \
+    256/512/1024 \
+    --postprocess-workers 5
 # Accuracy
 grep " wmt16.en.de.32k wmt16_en_de_bpe32k/bin valid " perf \
 	| awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' \
