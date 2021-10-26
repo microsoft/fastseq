@@ -33,7 +33,7 @@ class FairseqUnitTests(parameterized.TestCase):
         sys.path.insert(0, FAIRSEQ_PATH)
         sys.path.insert(0, '/tmp/')
         print("PATH (os.environ): " + os.environ['PATH'])
-        print("PATH (sys.path): " + sys.path)
+        print("PATH (sys.path): " + ' '.join(sys.path))
 
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""
