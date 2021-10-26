@@ -28,18 +28,16 @@ class FairseqUnitTests(parameterized.TestCase):
         """set env variables"""
         #Removing following path since it contains utils directory
         #which clashes with utils.py file in fairseq/tests.
-        # if FASTSEQ_PATH in sys.path:
-        #     sys.path.remove(FASTSEQ_PATH)
+        if FASTSEQ_PATH in sys.path:
+            sys.path.remove(FASTSEQ_PATH)
         sys.path.insert(0, FAIRSEQ_PATH)
 
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""
-        #pipmain(['install', '--editable', FASTSEQ_PATH])
-        sys.path.insert(0, FASTSEQ_PATH)
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
-        pipmain(['install', 'git+https://github.com/pytorch/fairseq.git@' +
+        pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
                   version])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''

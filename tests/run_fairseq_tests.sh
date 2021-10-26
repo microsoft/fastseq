@@ -14,21 +14,7 @@ rm -rf build/
 rm ngram_repeat_block_cuda*.so
 which pip
 which python
-# echo "FASTSEQ DIR"
-# pwd
-# echo "FASTSEQ CONTENTS"
-# ls .
-# # pip show fairseq 
-# # pip install fairseq==0.10.2
 pip install --editable .
-# pip show fastseq
-# echo "FASTSEQ CONTENTS"
-# ls .
-# echo "THE PATH"
-# echo $PATH
-# # pip uninstall fairseq -y
-# export PATH=".:/__w/1/s:export PATH=$HOME/bin:$HOME/.local/bin:$PATH$PATH"
-# echo $PATH
 USE_EL_ATTN=1 python tests/run_fairseq_tests.py
 #USE_EL_ATTN=0 python tests/run_fairseq_tests.py
 deactivate
