@@ -32,7 +32,8 @@ class FairseqUnitTests(parameterized.TestCase):
             sys.path.remove(FASTSEQ_PATH)
         sys.path.insert(0, FAIRSEQ_PATH)
         sys.path.insert(0, '/tmp/')
-        print("PATH after prepare env: " + os.environ['PATH'])
+        print("PATH (os.environ): " + os.environ['PATH'])
+        print("PATH (sys.path): " + sys.path)
 
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""
@@ -41,15 +42,16 @@ class FairseqUnitTests(parameterized.TestCase):
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
         pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
                   version + '#egg=fairseq'])
-        print("FAIRSEQ_PATH: " + FAIRSEQ_PATH)
-        directory_path = os.getcwd()
-        print("My current directory is : " + directory_path)
-        folder_name = os.path.basename(directory_path)
-        print("My directory name is : " + folder_name)
-        print("PATH: " + os.environ['PATH'])
+        # print("FAIRSEQ_PATH: " + FAIRSEQ_PATH)
+        # directory_path = os.getcwd()
+        # print("My current directory is : " + directory_path)
+        # print("PATH: " + os.environ['PATH'])
+        contents = os.listdir(FAIRSEQ_PATH)
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
+        original_path = os.environ['PATH'] if 'PATH' in os.environ else ''
+        os.environ['PATH'] = FAIRSEQ_PATH + ':' + original_path
 
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
