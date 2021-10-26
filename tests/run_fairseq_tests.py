@@ -69,7 +69,7 @@ class FairseqUnitTests(parameterized.TestCase):
            'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py', 
            'test_sequence_generator.py', 'test_backtranslation_dataset.py']
            #'test_multi_corpus_sampled_dataset.py', 'test_train.py',
-           #'test_token_block_dataset', 'test_concat_dataset.py']
+           #'test_token_block_dataset.py', 'test_concat_dataset.py']
     })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
         """"run test suites"""
