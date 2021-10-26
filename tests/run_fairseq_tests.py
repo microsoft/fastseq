@@ -39,7 +39,7 @@ class FairseqUnitTests(parameterized.TestCase):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
         pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
-                  version])
+                  version + '#egg=fairseq'])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
