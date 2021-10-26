@@ -46,7 +46,6 @@ class FairseqUnitTests(parameterized.TestCase):
         print("My current directory is : " + directory_path)
         folder_name = os.path.basename(directory_path)
         print("My directory name is : " + folder_name)
-        print("Contents: " + "\t".join([item for item in os.scandir(os.getcwd())]))
         print("PATH: " + os.environ['PATH'])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
