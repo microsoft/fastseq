@@ -31,9 +31,6 @@ class FairseqUnitTests(parameterized.TestCase):
         if FASTSEQ_PATH in sys.path:
             sys.path.remove(FASTSEQ_PATH)
         sys.path.insert(0, FAIRSEQ_PATH)
-        sys.path.insert(0, '/tmp/')
-        print("PATH (os.environ): " + os.environ['PATH'])
-        print("PATH (sys.path): " + ' '.join(sys.path))
 
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""
@@ -42,17 +39,9 @@ class FairseqUnitTests(parameterized.TestCase):
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
         pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
                   version + '#egg=fairseq'])
-        # print("FAIRSEQ_PATH: " + FAIRSEQ_PATH)
-        # directory_path = os.getcwd()
-        # print("My current directory is : " + directory_path)
-        # print("PATH: " + os.environ['PATH'])
-        contents = os.listdir(FAIRSEQ_PATH)
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
-        original_path = os.environ['PATH'] if 'PATH' in os.environ else ''
-        os.environ['PATH'] = FAIRSEQ_PATH + ':/tmp/:' + original_path
-        
 
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
@@ -76,7 +65,9 @@ class FairseqUnitTests(parameterized.TestCase):
         'fairseq_version': 'v0.10.2',
         'blocked_tests': [
            'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py', 
-           'test_sequence_generator.py', 'test_backtranslation_dataset.py']
+           'test_sequence_generator.py', 'test_backtranslation_dataset.py'
+           'test_multi_corpus_sampled_dataset.py', 'test_train.py',
+           'test_token_block_dataset', 'test_concat_dataset.py']
     })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
         """"run test suites"""
