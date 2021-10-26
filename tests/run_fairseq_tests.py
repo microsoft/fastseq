@@ -31,6 +31,7 @@ class FairseqUnitTests(parameterized.TestCase):
         if FASTSEQ_PATH in sys.path:
             sys.path.remove(FASTSEQ_PATH)
         sys.path.insert(0, FAIRSEQ_PATH)
+        sys.path.insert(0 , '/tmp/')
 
     def clone_and_build_fairseq(self, repo, version):
         """clone and build fairseq repo"""

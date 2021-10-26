@@ -15,6 +15,8 @@ rm ngram_repeat_block_cuda*.so
 which pip
 which python
 pip install --editable .
+pip show fairseq
 USE_EL_ATTN=1 python tests/run_fairseq_tests.py
+pip show fairseq
 #USE_EL_ATTN=0 python tests/run_fairseq_tests.py
 deactivate
