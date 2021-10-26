@@ -40,13 +40,6 @@ class FairseqUnitTests(parameterized.TestCase):
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
         pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
                   version])
-        print("FAIRSEQ_PATH: " + FAIRSEQ_PATH)
-        directory_path = os.getcwd()
-        print("My current directory is : " + directory_path)
-        folder_name = os.path.basename(directory_path)
-        print("My directory name is : " + folder_name)
-        print("Contents: " + "\t".join([item for item in os.scandir(os.getcwd())]))
-        print("PATH": + os.environ['PATH'])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
