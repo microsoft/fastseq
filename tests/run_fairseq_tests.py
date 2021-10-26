@@ -80,6 +80,7 @@ class FairseqUnitTests(parameterized.TestCase):
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
         """"run test suites"""
         self.clone_and_build_fairseq(FAIRSEQ_GIT_URL, fairseq_version)
+        self.prepare_env()
         if not without_fastseq_opt:
             import fastseq  # pylint: disable=import-outside-toplevel
         self.prepare_env()
