@@ -15,13 +15,29 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: adsbrainwestus2.azurecr.io/fastseq:dev-py3
+      image: adsbrainwestus2.azurecr.io/fastseq:dev-py3 
       endpoint: fastseq-acr
       options: --gpus device=3
     steps:
     - script: |
         #install fastseq
-        pip install --editable .[transformers,fairseq]
+        which pip
+        which python 
+
+        echo "******* Installing fairseq *******"
+        pip install fairseq==0.10.2
+        pip show fairseq
+
+        echo "******* Installing transformers *******"
+        pip install transformers
+        pip show transformers
+
+        echo "******* Installing fastseq *******"
+        pip install --editable .
+        pip show fastseq
+
+        echo "******* Adding local bin to path *******"
+        export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0

@@ -15,15 +15,15 @@ FASTSEQ_UNITTEST_LOG_XML_DIR = os.getenv(
 FASTSEQ_LOG_FORMAT = (
     '%(levelname)s %(asctime)s %(pathname)s:%(lineno)d] %(message)s')
 
-FASTSEQ_VERSION = '0.0.4'
+FASTSEQ_VERSION = '0.2.0'
 
 # supported versions of transformers
 MIN_TRANSFORMERS_VERSION = '3.0.2'
 MAX_TRANSFORMER_VERSION = '3.0.2'
 
 # supported versions of fairseq
-MIN_FAIRSEQ_VERSION = '0.9.0'
-MAX_FAIRSEQ_VERSION = '0.9.0'
+MIN_FAIRSEQ_VERSION = '0.10.0'
+MAX_FAIRSEQ_VERSION = '0.10.2'
 
 #Set following variable to use Efficient-Lossless Attention
 USE_EL_ATTN = True if os.getenv('USE_EL_ATTN', '0') == '1' else False

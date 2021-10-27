@@ -17,10 +17,8 @@ from fastseq.logging import get_logger
 from fastseq import config
 from fastseq.utils.file_utils import decompress_file, make_dirs, wget
 from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
-                                      CACHED_BART_MODEL_PATHS,
+                                      CACHED_BART_MODEL_PATHS, CNNDM_RAW_URL, CACHED_CNNDM_RAW_DATA_DIR,
                                       fastseq_test_main, TestCaseBase)
-
-
 
 logger = get_logger(__name__)
 
@@ -49,12 +47,22 @@ class FairseqBeamSearchOptimizerTest(TestCaseBase):
             CACHED_BART_MODEL_PATHS['bart.large.cnn'],
             checkpoint_file='model.pt')
 
-        self.source_path = 'tests/optimizer/fairseq/data/cnndm_128.txt'
+        make_dirs(CACHED_CNNDM_RAW_DATA_DIR, exist_ok=True)
+        self.source_path = os.path.join(CACHED_CNNDM_RAW_DATA_DIR, 'cnndm_128.txt')
+        if not os.path.exists(self.source_path):
+            with open(self.source_path, 'xb') as source_file:
+                wget(os.path.join(CNNDM_RAW_URL, 'cnndm_128.txt'), source_file)
+                source_file.close()
+
+        self.target_path = os.path.join(CACHED_CNNDM_RAW_DATA_DIR, 'expected_output.hypo')
+        if not os.path.exists(self.target_path):
+            with open(self.target_path, 'xb') as target_file:
+                wget(os.path.join(CNNDM_RAW_URL, 'expected_output.hypo'), target_file)
+                target_file.close()
 
         # read the expected output.
-        self.expected_output_path = 'tests/optimizer/fairseq/data/expected_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []
-        with open(self.expected_output_path, 'rt',
+        with open(self.target_path, 'rt',
                   encoding="utf-8") as expected_output_file:
             for line in expected_output_file:
                 self.expected_outputs.append(line.strip())

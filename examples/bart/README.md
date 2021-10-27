@@ -12,8 +12,8 @@ BART is sequence-to-sequence model trained with denoising as pretraining objecti
 
   |     BatchSize    |       32      |        64       |      128       |	320	 |
   |:----------------:|:-------------:|:---------------:|:--------------:|:--------------:|
-  | fairseq-0.9.0    | 2.4 samples/s |       OOM       |      OOM       |      OOM       |
-  | above + fastseq  | 8.1 samples/s | 13.3 samples/s  | 18.4 samples/s | 25.3 samples/s |
+  | fairseq-0.10.2    | 3.3 samples/s |       OOM       |      OOM       |      OOM       |
+  | above + fastseq  | 10.7 samples/s | 17.1 samples/s  | 21.8 samples/s | 25.1 samples/s |
 
 ### Model
 

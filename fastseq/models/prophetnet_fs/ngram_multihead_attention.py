@@ -8,6 +8,7 @@
 """NgramMultiheadAttention"""
 
 import math
+from fairseq.incremental_decoding_utils import with_incremental_state
 import torch
 from torch import nn
 from torch.nn import Parameter
@@ -30,7 +31,7 @@ def ngram_attention_bias(length, num_skip):
         bias_result.append(bias_n_skip)
     return torch.from_numpy(np.array(bias_result, dtype=np.float32))
 
-
+@with_incremental_state
 class NgramMultiheadAttention(nn.Module):
     """Multi-headed attention.
 

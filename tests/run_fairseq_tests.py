@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 """ script for importing fairseq tests """
 
+from fastseq.config import USE_EL_ATTN
 import glob
 import io
 import logging
@@ -36,8 +37,7 @@ class FairseqUnitTests(parameterized.TestCase):
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
-        pipmain(['install', 'git+https://github.com/pytorch/fairseq.git@' +
-                  version])
+        pipmain(['install', '--editable', FAIRSEQ_PATH])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
@@ -57,12 +57,14 @@ class FairseqUnitTests(parameterized.TestCase):
         ]
         return suites
 
-    @parameterized.named_parameters({
+    @parameterized.named_parameters(
+    {
         'testcase_name': 'Normal',
         'without_fastseq_opt': False,
-        'fairseq_version': 'v0.9.0',
+        'fairseq_version': 'v0.10.2',
         'blocked_tests': [
-           'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py']
+           'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py', 
+           'test_sequence_generator.py', 'test_backtranslation_dataset.py']
     })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
         """"run test suites"""

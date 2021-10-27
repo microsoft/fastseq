@@ -112,6 +112,7 @@ for bs in "${bs_list[@]}"; do
             --no-repeat-ngram-size 3 \
             --lenpen 2.0 \
             --use-el-attn \
+            --required-seq-len-multiple 8 \
 	    `#--print-alignment` \
             `#--print-step      # KeyError: steps` \
             --skip-invalid-size-inputs-valid-test $* \
@@ -132,6 +133,7 @@ for bs in "${bs_list[@]}"; do
             --max-len-b 140 \
             --no-repeat-ngram-size 3 \
             --lenpen 2.0 \
+            --required-seq-len-multiple 8 \
 	    `#--print-alignment` \
 	    `#--print-step	# KeyError: steps` \
             --skip-invalid-size-inputs-valid-test $* \
@@ -140,7 +142,7 @@ for bs in "${bs_list[@]}"; do
     ret=$?
     end=`date +%s`
     runtime=$(($end-$start))
-    tail=`tail -2 $STDOUT_FILE`
+    tail=`tail -3 $STDOUT_FILE`
     if [[ $ret -eq 0 &&  $tail == *$mark1* ]]; then
         samples=`echo $tail | sed 's/.*Translated \([0-9]*\) sentences.*/\1/'`
         tokens=`echo $tail | sed 's/.*Translated .* sentences (\([0-9]*\) tokens).*/\1/'`
