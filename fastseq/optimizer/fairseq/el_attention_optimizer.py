@@ -1482,12 +1482,10 @@ class SequenceGenerator(SequenceGenerator):
             
 
             # Update constraints based on which candidates were selected for the next beam
-            
             self.search.update_constraints(active_hypos)
             
 
             # copy attention for active hypotheses
-            
             if attn is not None:
                 attn[:, :, : step + 2] = torch.index_select(
                     attn[:, :, : step + 2], dim=0, index=active_bbsz_idx
@@ -1508,7 +1506,5 @@ class SequenceGenerator(SequenceGenerator):
             finalized[sent] = torch.jit.annotate(
                 List[Dict[str, Tensor]], finalized[sent]
             )
-        
             
         return finalized
-        
