@@ -444,7 +444,6 @@ class MultiheadAttention(MultiheadAttention):
         if beamable_mm_beam_size is not None:
             self.set_beam_size(beamable_mm_beam_size)
 
-
 @replace(SequenceGenerator, USE_OPTIMIZED_CACHE_ATTN)
 class SequenceGenerator(SequenceGenerator):
     """
@@ -915,4 +914,3 @@ class SequenceGenerator(SequenceGenerator):
             )
 
         return finalized
-        

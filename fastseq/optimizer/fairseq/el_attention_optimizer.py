@@ -200,7 +200,6 @@ class TransformerDecoderLayer(TransformerDecoderLayer):
             return x, attn, self_attn_state
         return x, attn, None
 
-
 @replace(TransformerEncoder, USE_EL_ATTN)
 class TransformerEncoder(TransformerEncoder):
     """
@@ -348,7 +347,6 @@ class TransformerEncoder(TransformerEncoder):
             src_lengths=src_lengths,  # B x 1
         )
 
-
 @replace(EnsembleModel, USE_EL_ATTN)
 class EnsembleModel(EnsembleModel):
     """A wrapper around an ensemble of models."""
@@ -368,7 +366,6 @@ class EnsembleModel(EnsembleModel):
                 model.encoder.reorder_encoder_out(encoder_outs[i], new_order, beam_size)
             )
         return new_outs
-
 
 @replace(TransformerDecoder, USE_EL_ATTN)
 class TransformerDecoder(TransformerDecoder):
@@ -529,7 +526,6 @@ class FairseqEncoderDecoderModel(FairseqEncoderDecoderModel):
 
             del self.decoder.layers[i].encoder_attn.k_proj
             del self.decoder.layers[i].encoder_attn.v_proj
-
 
 @replace(TransformerModel, USE_EL_ATTN)
 class TransformerModel(TransformerModel):
@@ -1490,7 +1486,6 @@ class SequenceGenerator(SequenceGenerator):
                 attn[:, :, : step + 2] = torch.index_select(
                     attn[:, :, : step + 2], dim=0, index=active_bbsz_idx
                 )
-            
 
             # reorder incremental state in decoder
             reorder_state = active_bbsz_idx

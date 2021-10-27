@@ -20,8 +20,6 @@ from fastseq.utils.test_utils import (BART_MODEL_URLS, CACHED_BART_MODEL_DIR,
                                       CACHED_BART_MODEL_PATHS, CNNDM_RAW_URL, CACHED_CNNDM_RAW_DATA_DIR,
                                       fastseq_test_main, TestCaseBase)
 
-
-
 logger = get_logger(__name__)
 
 class FairseqBeamSearchOptimizerTest(TestCaseBase):

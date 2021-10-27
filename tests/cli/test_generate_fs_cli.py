@@ -130,6 +130,5 @@ class FairseqGenerateCLITest(TestCaseBase):
         for i, expected_out in enumerate(fairseq_outs):
             self.assertEqual(expected_out[2:], fastseq_outs[i][2:])
 
-
 if __name__ == "__main__":
     fastseq_test_main()
