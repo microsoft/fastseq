@@ -37,15 +37,10 @@ class FairseqUnitTests(parameterized.TestCase):
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
         Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
-        # pipmain(['install', '--editable', 'git+https://github.com/pytorch/fairseq.git@' +
-        #           version + '#egg=fairseq'])
         pipmain(['install', '--editable', FAIRSEQ_PATH])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
-        # original_path = os.environ[
-        #     'PATH'] if 'PATH' in os.environ else ''
-        # os.environ['PATH'] = FAIRSEQ_PATH + ':' + original_path
 
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
@@ -70,8 +65,6 @@ class FairseqUnitTests(parameterized.TestCase):
         'blocked_tests': [
            'test_binaries.py', 'test_bmuf.py', 'test_reproducibility.py', 
            'test_sequence_generator.py', 'test_backtranslation_dataset.py']
-           #'test_multi_corpus_sampled_dataset.py', 'test_train.py',
-           #'test_token_block_dataset.py', 'test_concat_dataset.py']
     })
     def test_suites(self, without_fastseq_opt, fairseq_version, blocked_tests):
         """"run test suites"""
