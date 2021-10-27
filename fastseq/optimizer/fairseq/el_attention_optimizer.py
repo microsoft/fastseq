@@ -1142,7 +1142,6 @@ class SequenceGenerator(SequenceGenerator):
                     split_src_tokens, split_src_lengths):
                 split_input = {'src_tokens': sub_src_tokens,
                                'src_lengths': sub_src_lengths}
-                torch.cuda.nvtx.range_push("forward_encoder")
                 split_output = self.model.forward_encoder(split_input)
                 
                 encoder_out_list.append(split_output[0])
@@ -1150,7 +1149,6 @@ class SequenceGenerator(SequenceGenerator):
             encoder_outs = merge_encoder_out(encoder_out_list)
             
         else:
-            torch.cuda.nvtx.range_push("forward_encoder")
             encoder_outs = self.model.forward_encoder(net_input)
             
 
@@ -1225,15 +1223,12 @@ class SequenceGenerator(SequenceGenerator):
                     )
                     original_batch_idxs = original_batch_idxs[batch_idxs]
                     
-                torch.cuda.nvtx.range_push("reorder_incremental_state")
                 self.model.reorder_incremental_state(incremental_states, reorder_state)
                 
-                torch.cuda.nvtx.range_push("reorder_encoder_out")
                 encoder_outs = self.model.reorder_encoder_out(
                     encoder_outs, reorder_state, beam_size
                 )
                 
-            torch.cuda.nvtx.range_push("forward_decoder")
             lprobs, avg_attn_scores = self.model.forward_decoder(
                 tokens[:, : step + 1],
                 encoder_outs,
@@ -1241,7 +1236,6 @@ class SequenceGenerator(SequenceGenerator):
                 self.temperature,
             )
             
-            torch.cuda.nvtx.range_push("Lm model")
             if self.lm_model is not None:
                 lm_out = self.lm_model(tokens[:, : step + 1])
                 probs = self.lm_model.get_normalized_probs(
@@ -1304,12 +1298,10 @@ class SequenceGenerator(SequenceGenerator):
             
             if self.no_repeat_ngram_size > 0:
                 if (tokens.is_cuda and lprobs.is_cuda):
-                    torch.cuda.nvtx.range_push("no repeat ngram cuda")
                     lprobs = self.no_repeat_ngram_op(tokens,lprobs, bsz, step,
                             beam_size, self.no_repeat_ngram_size)
                     
                 else:
-                    torch.cuda.nvtx.range_push("no repeat ngram cpu")
                     lprobs = self._no_repeat_ngram(tokens, lprobs, bsz, beam_size, step)
                     
 
@@ -1346,7 +1338,6 @@ class SequenceGenerator(SequenceGenerator):
                 eos_scores = torch.masked_select(
                     cand_scores[:, :beam_size], mask=eos_mask[:, :beam_size]
                 )
-                torch.cuda.nvtx.range_push("finalize_hypos")
                 finalized_sents = self.finalize_hypos(
                     step,
                     eos_bbsz_idx,
@@ -1432,7 +1423,6 @@ class SequenceGenerator(SequenceGenerator):
             # {active_hypos} indicates which {beam_size} hypotheses
             # from the list of {2 * beam_size} candidates were
             # selected. Shapes: (batch size, beam size)
-            torch.cuda.nvtx.range_push("generate topk")
             new_cands_to_ignore, active_hypos = torch.topk(
                 active_mask, k=beam_size, dim=1, largest=False
             )
@@ -1491,7 +1481,6 @@ class SequenceGenerator(SequenceGenerator):
             reorder_state = active_bbsz_idx
             
         # sort by score descending
-        torch.cuda.nvtx.range_push("Sort!")
         for sent in range(len(finalized)):
             scores = torch.tensor(
                 [float(elem["score"]) for elem in finalized[sent]]
