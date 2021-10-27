@@ -25,12 +25,10 @@ jobs:
         which python 
 
         echo "******* Installing fairseq *******"
-        sudo pip uninstall fairseq -y
         pip install fairseq==0.10.2
         pip show fairseq
 
         echo "******* Installing transformers *******"
-        sudo pip uninstall transformers -y
         pip install transformers
         pip show transformers
 
