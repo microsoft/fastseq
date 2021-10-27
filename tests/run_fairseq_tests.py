@@ -44,6 +44,9 @@ class FairseqUnitTests(parameterized.TestCase):
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ['PYTHONPATH'] = FAIRSEQ_PATH + ':' + original_pythonpath
+        original_path = os.environ[
+            'PATH'] if 'PATH' in os.environ else ''
+        os.environ['PATH'] = FAIRSEQ_PATH + ':' + original_path
 
     def get_test_suites(self, test_files_path, blocked_tests):
         """prepare test suite"""
