@@ -55,6 +55,11 @@ def collate_tokens(
 
 @replace(FairseqTask, USE_EL_ATTN)
 class FairseqTask(FairseqTask):
+# Fastseq BeamSearch inherits from Fairseq BeamSearch and then replaces it. 
+# Parent and child classes share the same name for compatibility with fairseq 
+# unittests which rely on class name. Same for other replaced classes. 
+# (https://github.com/pytorch/fairseq/blob/265df7144c79446f5ea8d835bda6e727f54dad9d/tests/test_inference_dropout.py#L58)
+
     def transpose_enc_dec_kv_proj(self, models):
         for model in models:
             model.transpose_enc_dec_kv_proj()

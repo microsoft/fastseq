@@ -31,6 +31,10 @@ USE_OPTIMIZED_CACHE_ATTN = not config.USE_EL_ATTN
 
 @replace(BeamSearch)
 class BeamSearch(BeamSearch):
+# Fastseq BeamSearch inherits from Fairseq BeamSearch and then replaces it. 
+# Parent and child classes share the same name for compatibility with fairseq 
+# unittests which rely on class name. Same for other replaced classes. 
+# (https://github.com/pytorch/fairseq/blob/265df7144c79446f5ea8d835bda6e727f54dad9d/tests/test_inference_dropout.py#L58)
 
     @torch.jit.export
     def step(
