@@ -61,7 +61,7 @@ Refer to [file](../../tests/optimizer/fairseq/test_fairseq_optimizer.py).
 
   |      BatchSize      |       32      |       64       |       128      |
   |:-------------------:|:-------------:|:--------------:|:--------------:|
-  | transformers-4.11.3  | 2.5 samples/s |      OOM       |      OOM       |
+  | transformers-4.12.0  | 2.5 samples/s |      OOM       |      OOM       |
   |  above + fastseq    | 7.6 samples/s | 11.3 samples/s  | 12.4 samples/s  |
 
 
@@ -86,7 +86,7 @@ $ fastseq-generate-for-transformers \
     --task summarization
 ```
 
-Baseline speed number is obtained by running [Transformers v4.11.3 code](https://github.com/huggingface/transformers/blob/b0892fa0e8df02d683e05e625b3903209bff362d/examples/seq2seq/run_eval.py).
+Baseline speed number is obtained by running [Transformers v4.12.0 code](https://github.com/huggingface/transformers/blob/b0892fa0e8df02d683e05e625b3903209bff362d/examples/seq2seq/run_eval.py).
 
 ### Code Example
 Refer to [file](../../tests/optimizer/transformers/test_bart_optimizer.py).

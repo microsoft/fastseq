@@ -27,13 +27,13 @@ grep "cnndm-unilm-base-cased cnn_dm/raw val " perf \
 	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
 	| ./range.sh 0.447 0.448
 # Speed on V100 16GB 250W
-grep -E "transformers_v4.11.3\+fastseq_v.* cnndm-unilm-base-cased cnn_dm/raw val 32 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* cnndm-unilm-base-cased cnn_dm/raw val 32 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 7 100
-grep -E "transformers_v4.11.3\+fastseq_v.* cnndm-unilm-base-cased cnn_dm/raw val 64 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* cnndm-unilm-base-cased cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 11 100
-grep -E "transformers_v4.11.3\+fastseq_v.* cnndm-unilm-base-cased cnn_dm/raw val 128 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* cnndm-unilm-base-cased cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 12 100
 

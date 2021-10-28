@@ -29,7 +29,7 @@ class GPT2OptimizerTest(TestCaseBase):
 
         self.source_path = 'tests/optimizer/transformers/data/cnndm_128.txt'
 
-        # The expected output is generated based on transformers-v4.11.3 with
+        # The expected output is generated based on transformers-v4.12.0 with
         # batch_size = 16.
         self.expected_output_path = 'tests/optimizer/transformers/data/expected_gpt2_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []

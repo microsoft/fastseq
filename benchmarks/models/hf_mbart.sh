@@ -28,9 +28,9 @@ grep "facebook/mbart-large-en-ro wmt_en_ro/raw val " perf \
 	| awk '{if($8!="NA"){c+=1;s+=$8}}END{print s/c}' \
 	| ./range.sh 56.1 56.3
 # Speed on V100 16GB 250W
-grep -E "transformers_v4.11.3 facebook/mbart-large-en-ro wmt_en_ro/raw val 64 " perf \
+grep -E "transformers_v4.12.0 facebook/mbart-large-en-ro wmt_en_ro/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
 	| ./range.sh 6.0 100
-grep -E "transformers_v4.11.3\+fastseq_v.* facebook/mbart-large-en-ro wmt_en_ro/raw val 64 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* facebook/mbart-large-en-ro wmt_en_ro/raw val 64 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 9 100

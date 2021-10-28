@@ -39,12 +39,12 @@ grep "gpt2 cnn_dm/raw val " perf \
 	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
 	| ./range.sh 0.155 0.156
 # Speed on V100 16GB 250W
-grep -E "transformers_v4.11.3 gpt2 cnn_dm/raw val 64 " perf \
+grep -E "transformers_v4.12.0 gpt2 cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
 	| ./range.sh 2.9 3.2
-grep -E "transformers_v4.11.3\+fastseq_v.* gpt2 cnn_dm/raw val 64 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 10.8 11.3
-grep -E "transformers_v4.11.3\+fastseq_v.* gpt2 cnn_dm/raw val 128 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 16.4 16.8

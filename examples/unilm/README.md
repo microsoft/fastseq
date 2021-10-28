@@ -11,7 +11,7 @@
 
   |       BatchSize       |        64       |      128       |
   |:---------------------:|:---------------:|:--------------:|
-  |   transformers_v4.11.3 |   1.7 samples/s |      OOM       |
+  |   transformers_v4.12.0 |   1.7 samples/s |      OOM       |
   |   above + fastseq     |  13.8 samples/s | 16.4 samples/s |
 
 ### Model
