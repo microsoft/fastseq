@@ -26,7 +26,7 @@ Below shows the generation speed gain by using FastSeq.
 | [UniLM (`hf`)](examples/unilm/README.md)        | 1.7   | 16.4  | 9.6x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
-- `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.10.2 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 3.0.2 version.
+- `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.10.2 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 4.11.3 version.
 - Optimizations were automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
 
 ## How it works?
@@ -39,7 +39,7 @@ FastSeq develops multiple speedup techniques, including an attention cache optim
 - Python version >= 3.6
 - [torch](http://pytorch.org/) >= 1.4.0
 - [fairseq](https://github.com/pytorch/fairseq) >= 0.10.0
-- [transformers](https://github.com/huggingface/transformers) == 3.0.2
+- [transformers](https://github.com/huggingface/transformers) == 4.11.3
 - [requests](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
 - [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4

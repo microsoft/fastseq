@@ -7,8 +7,8 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 FASTSEQ_VERSION = '0.2.0'
 MIN_FAIRSEQ_VERSION = '0.10.0'
 MAX_FAIRSEQ_VERSION = '0.10.2'
-MIN_TRANSFORMERS_VERSION = '3.0.2'
-MAX_TRANSFORMER_VERSION = '3.0.2'
+MIN_TRANSFORMERS_VERSION = '4.11.3'
+MAX_TRANSFORMER_VERSION = '4.11.3'
 
 def get_fastseq_version():
     return FASTSEQ_VERSION

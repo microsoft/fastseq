@@ -46,7 +46,7 @@ class TransformersUnitTests(parameterized.TestCase):
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
         'without_fastseq_opt': False,
-        'transformers_version': 'v3.0.2',
+        'transformers_version': 'v4.11.3',
         'blocked_tests': ['modeling_reformer',
                           'multigpu',
                           'HfApiEndpoints',
