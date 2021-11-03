@@ -24,6 +24,9 @@ class NGramRepeatBlockFunction(Function):
         beam_size(int): beam size
         no_repeat_ngram_size(int): Ngram size
         """
+        if not lprobs.is_contiguous():
+            lprobs = lprobs.contiguous()
+        assert lprobs.is_contiguous()
         outputs = ngram_repeat_block_cuda.forward(tokens,
         lprobs, bsz, step, beam_size, no_repeat_ngram_size)
         return outputs
