@@ -18,7 +18,7 @@ from fastseq.optimizer.transformers.beam_search_optimizer import \
     GenerationMixinV2
 from torch import nn
 from transformers import PretrainedConfig, PreTrainedModel, WEIGHTS_NAME
-from transformers.modeling_bert import (BertConfig, BertEmbeddings,
+from transformers.models.bert.modeling_bert import (BertConfig, BertEmbeddings,
                                         BertIntermediate, BertOutput,
                                         BertPooler, BertPreTrainingHeads,
                                         BertSelfOutput)

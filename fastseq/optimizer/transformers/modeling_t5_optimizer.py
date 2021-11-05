@@ -6,11 +6,11 @@
 import logging
 
 import torch
-import torch.nn.functional as F
+from torch import nn
 
-from transformers.configuration_t5 import T5Config
-from transformers.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
-from transformers.modeling_t5 import T5Attention, T5ForConditionalGeneration
+from transformers.models.t5.configuration_t5 import T5Config
+from transformers.models.auto.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
+from transformers.models.t5.modeling_t5 import T5Attention, T5ForConditionalGeneration
 
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import replace
@@ -32,140 +32,146 @@ class T5AttentionV2(T5Attention):
 
     def forward(
         self,
-        input,
+        hidden_states,
         mask=None,
-        kv=None,
+        key_value_states=None,
         position_bias=None,
-        past_key_value_state=None,
-        head_mask=None,
+        past_key_value=None,
+        layer_head_mask=None,
         query_length=None,
         use_cache=False,
         output_attentions=False,
     ):
         """
-        Self-attention (if kv is None) or attention over source sentence
-        (provided by kv).
+        Self-attention (if key_value_states is None) or attention over source sentence (provided by key_value_states).
         """
-        # Input is (bs, qlen, dim)
-        # Mask is (bs, klen) (non-causal) or (bs, klen, klen)
-        # past_key_value_state[0] is (bs, n_heads, q_len - 1, dim_per_head)
-        bs, qlen, dim = input.size()
+        # Input is (batch_size, seq_length, dim)
+        # Mask is (batch_size, key_length) (non-causal) or (batch_size, key_length, key_length)
+        # past_key_value[0] is (batch_size, n_heads, q_len - 1, dim_per_head)
+        batch_size, seq_length = hidden_states.shape[:2]
 
-        is_encoder_decoder_attn = kv is not None
+        real_seq_length = seq_length
 
-        if past_key_value_state is not None:
-            assert (self.is_decoder is
-                    True), "Encoder cannot cache past key value states"
+        is_encoder_decoder_attn = key_value_states is not None
+
+        if past_key_value is not None:
             assert (
-                len(past_key_value_state) == 2
-            ), "past_key_value_state should have 2 past states: keys and values"
-            ". Got {} past states".format(len(past_key_value_state))
-            real_qlen = qlen + past_key_value_state[0].shape[
-                2] if query_length is None else query_length
-        else:
-            real_qlen = qlen
+                len(past_key_value) == 2
+            ), f"past_key_value should have 2 past states: keys and values. Got { len(past_key_value)} past states"
+            real_seq_length += past_key_value[0].shape[2] if query_length is None else query_length
 
-        if kv is None:
-            klen = real_qlen
-        else:
-            klen = kv.size(1)
+        key_length = real_seq_length if key_value_states is None else key_value_states.shape[1]
 
-        def shape(x):
-            """  projection """
-            return x.view(bs, -1, self.n_heads, self.d_kv).transpose(1, 2)
+        def shape(states):
+            """projection"""
+            return states.view(batch_size, -1, self.n_heads, self.key_value_proj_dim).transpose(1, 2)
 
-        def unshape(x):
-            """  compute context """
-            return x.transpose(1, 2).contiguous().view(bs, -1, self.inner_dim)
+        def unshape(states):
+            """reshape"""
+            return states.transpose(1, 2).contiguous().view(batch_size, -1, self.inner_dim)
 
-        q = shape(self.q(input))  # (bs, n_heads, qlen, dim_per_head)
+        def project(hidden_states, proj_layer, key_value_states, past_key_value):
+            """projects hidden states correctly to key/query states"""
+            if key_value_states is None:
+                # self-attn
+                # (batch_size, n_heads, seq_length, dim_per_head)
+                hidden_states = shape(proj_layer(hidden_states))
+            elif past_key_value is None:
+                # cross-attn
+                # (batch_size, n_heads, seq_length, dim_per_head)
+                hidden_states = shape(proj_layer(key_value_states))
 
-        if kv is None:
-            k = shape(self.k(input))  # (bs, n_heads, qlen, dim_per_head)
-            v = shape(self.v(input))  # (bs, n_heads, qlen, dim_per_head)
-        elif past_key_value_state is None:
-            k = v = kv
-            k = shape(self.k(k))  # (bs, n_heads, qlen, dim_per_head)
-            v = shape(self.v(v))  # (bs, n_heads, qlen, dim_per_head)
+            if past_key_value is not None:
+                if key_value_states is None:
+                    # self-attn
+                    # (batch_size, n_heads, key_length, dim_per_head)
+                    hidden_states = torch.cat([past_key_value, hidden_states], dim=2)
+                else:
+                    # cross-attn
+                    hidden_states = past_key_value
+            return hidden_states
 
-        if past_key_value_state is not None:
-            if kv is None:
-                k_, v_ = past_key_value_state
-                k = torch.cat(
-                    [k_, k], dim=2)  # (bs, n_heads, klen, dim_per_head)
-                v = torch.cat(
-                    [v_, v], dim=2)  # (bs, n_heads, klen, dim_per_head)
-            else:
-                k, v = past_key_value_state
+        # get query states
+        query_states = shape(self.q(hidden_states))  # (batch_size, n_heads, seq_length, dim_per_head)
+
+        # get key/value states
+        key_states = project(
+            hidden_states, self.k, key_value_states, past_key_value[0] if past_key_value is not None else None
+        )
+        value_states = project(
+            hidden_states, self.v, key_value_states, past_key_value[1] if past_key_value is not None else None
+        )
 
         if self.is_decoder and use_cache is True:
             if is_encoder_decoder_attn:
-                if past_key_value_state is None:
-                    k = k.view(bs // self.num_beams, self.num_beams,
-                               self.n_heads, klen,
-                               self.d_kv)[:, 0:1, :, :, :].contiguous()
-                    v = v.view(bs // self.num_beams, self.num_beams,
-                               self.n_heads, klen,
-                               self.d_kv)[:, 0:1, :, :, :].contiguous()
-            present_key_value_state = ((k, v),)
+                if past_key_value is None:
+                    key_states = key_states.view(batch_size // self.num_beams, self.num_beams,
+                               self.n_heads, key_length,
+                               self.key_value_proj_dim)[:, 0:1, :, :, :].contiguous()
+                    value_states = value_states.view(batch_size // self.num_beams, self.num_beams,
+                               self.n_heads, key_length,
+                               self.key_value_proj_dim)[:, 0:1, :, :, :].contiguous()
+            present_key_value_state = (key_states, value_states)
         else:
-            present_key_value_state = (None,)
+            present_key_value_state = None
 
         if is_encoder_decoder_attn and use_cache:
-            new_q = q.view(bs // self.num_beams, self.num_beams, self.n_heads,
-                           qlen, self.d_kv)
+            new_query_states = query_states.view(batch_size // self.num_beams, self.num_beams, self.n_heads,
+                           seq_length, self.key_value_proj_dim)
             scores = torch.einsum(
-                "bmnqd,bxnkd->bmnqk", new_q, k).reshape(
-                    -1, self.n_heads, qlen, klen)  # (bs, n_heads, qlen, klen)
+                "bmnqd,bxnkd->bmnqk", new_query_states, key_states).reshape(
+                    -1, self.n_heads, seq_length, key_length)  # (bs, n_heads, qlen, klen)
         else:
-            scores = torch.einsum(
-                "bnqd,bnkd->bnqk", q, k)  # (bs, n_heads, qlen, klen)
+            scores = torch.matmul(query_states, key_states.transpose(3, 2))
+            # equivalent of torch.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
 
         if position_bias is None:
             if not self.has_relative_attention_bias:
-                raise ValueError(
-                    "No position_bias provided and no weights to compute"
-                    "position_bias")
-            position_bias = self.compute_bias(real_qlen, klen)
+                position_bias = torch.zeros(
+                    (1, self.n_heads, real_seq_length, key_length), device=scores.device, dtype=scores.dtype
+                )
+                if self.gradient_checkpointing and self.training:
+                    position_bias.requires_grad = True
+            else:
+                position_bias = self.compute_bias(real_seq_length, key_length)
 
             # if key and values are already calculated
             # we want only the last query position bias
-            if past_key_value_state is not None:
-                position_bias = position_bias[:, :, -1:, :]
+            if past_key_value is not None:
+                position_bias = position_bias[:, :, -hidden_states.size(1) :, :]
 
             if mask is not None:
-                position_bias = position_bias + mask # (bs, n_heads, qlen, klen)
+                position_bias = position_bias + mask  # (batch_size, n_heads, seq_length, key_length)
 
-        scores += position_bias
-        weights = F.softmax(scores.float(), dim=-1).type_as(
-            scores)  # (bs, n_heads, qlen, klen)
-        weights = F.dropout(
-            weights, p=self.dropout,
-            training=self.training)  # (bs, n_heads, qlen, klen)
+        scores = scores + position_bias
+        attn_weights = nn.functional.softmax(scores.float(), dim=-1).type_as(
+            scores
+        )  # (batch_size, n_heads, seq_length, key_length)
+        attn_weights = nn.functional.dropout(
+            attn_weights, p=self.dropout, training=self.training
+        )  # (batch_size, n_heads, seq_length, key_length)
 
         # Mask heads if we want to
-        if head_mask is not None:
-            weights = weights * head_mask
+        if layer_head_mask is not None:
+            attn_weights = attn_weights * layer_head_mask
+
         if is_encoder_decoder_attn and use_cache:
-            tmp_weights = weights.view(bs // self.num_beams, self.num_beams,
-                                       self.n_heads, qlen, klen)
-            context = torch.einsum(
-                "bmnqk,bxnkd->bmnqd", tmp_weights, v).reshape(
-                    -1, self.n_heads, qlen, self.d_kv
+            tmp_weights = attn_weights.view(batch_size // self.num_beams, self.num_beams,
+                                       self.n_heads, seq_length, key_length)
+            attn_output = torch.einsum(
+                "bmnqk,bxnkd->bmnqd", tmp_weights, value_states).reshape(
+                    -1, self.n_heads, seq_length, self.key_value_proj_dim
                     )  # (bs, n_heads, qlen, dim_per_head)
         else:
-            context = torch.matmul(
-                weights, v)  # (bs, n_heads, qlen, dim_per_head)
-        context = unshape(context)  # (bs, qlen, dim)
+            attn_output = torch.matmul(attn_weights, value_states)  # (bs, n_heads, qlen, dim_per_head)
+        attn_output = unshape(attn_output)  # (bs, qlen, dim)
 
-        context = self.o(context)
+        attn_output = self.o(attn_output)
 
-        outputs = (context,) + present_key_value_state
+        outputs = (attn_output,) + (present_key_value_state,) + (position_bias,)
 
         if output_attentions:
-            outputs = outputs + (weights,)
-        if self.has_relative_attention_bias:
-            outputs = outputs + (position_bias,)
+            outputs = outputs + (attn_weights,)
         return outputs
 
 
@@ -176,33 +182,27 @@ class T5ForConditionalGenerationV2(T5ForConditionalGeneration):
     def _reorder_cache(self, past, beam_idx):
         # if decoder past is not included in output
         # speedy decoding is disabled and no need to reorder
-        if past[1] is None:
-            logger.warning(
-                "You might want to consider setting `use_cache=True` to speed"
-                "up decoding")
+        if past is None:
+            logger.warning("You might want to consider setting `use_cache=True` to speed up decoding")
             return past
 
-        decoder_past = past[1]
-        past = (past[0],)
         reordered_decoder_past = ()
-        for layer_past_states in decoder_past:
+        for layer_past_states in past:
             # get the correct batch idx from layer past batch dim
             # batch dim of `past` is at 2nd position
             reordered_layer_past_states = ()
             for layer_past_state in layer_past_states[0:2]:
-                # need to set correct `past` for each of the four key / value
-                # states
+                # need to set correct `past` for each of the four key / value states
                 reordered_layer_past_states = reordered_layer_past_states + (
-                    layer_past_state.index_select(0, beam_idx),)
-            reordered_layer_past_states = (
-                reordered_layer_past_states + layer_past_states[2:])
+                    layer_past_state.index_select(0, beam_idx.to(layer_past_state.device)),
+                )
 
-            assert reordered_layer_past_states[0].shape == layer_past_states[
-                0].shape
+            reordered_layer_past_states = (reordered_layer_past_states + layer_past_states[2:])
+
+            assert reordered_layer_past_states[0].shape == layer_past_states[0].shape
             assert len(reordered_layer_past_states) == len(layer_past_states)
 
-            reordered_decoder_past = reordered_decoder_past + (
-                reordered_layer_past_states,)
-        return past + (reordered_decoder_past,)
+            reordered_decoder_past = reordered_decoder_past + (reordered_layer_past_states,)
+        return reordered_decoder_past
 
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[T5Config] = T5ForConditionalGenerationV2  # pylint: disable=line-too-long
