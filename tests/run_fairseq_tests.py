@@ -36,7 +36,7 @@ class FairseqUnitTests(parameterized.TestCase):
         """clone and build fairseq repo"""
         if os.path.isdir(FAIRSEQ_PATH):
             shutil.rmtree(FAIRSEQ_PATH)
-        Repo.clone_from(FAIRSEQ_GIT_URL, FAIRSEQ_PATH, branch=version)
+        Repo.clone_from(repo, FAIRSEQ_PATH, branch=version)
         pipmain(['install', '--editable', FAIRSEQ_PATH])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''

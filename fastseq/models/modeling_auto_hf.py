@@ -10,11 +10,13 @@ from transformers import (CONFIG_MAPPING,
                           MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING,
                           TOKENIZER_MAPPING, AutoConfig, AutoModelForSeq2SeqLM,
                           AutoTokenizer, PretrainedConfig)
+from transformers.models.bert.configuration_bert import BertConfig
 
 CONFIG_MAPPING['unilm'] = UnilmConfig
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING[UnilmConfig] = UnilmForSeq2Seq
 TOKENIZER_MAPPING[UnilmConfig] = (UnilmTokenizer, None)
-TOKENIZER_MAPPING.move_to_end(transformers.configuration_bert.BertConfig)
+
+# TOKENIZER_MAPPING.move_to_end(BertConfig)
 
 
 @replace(AutoModelForSeq2SeqLM)

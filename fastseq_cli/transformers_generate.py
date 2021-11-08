@@ -1,5 +1,7 @@
 """From Huggingface Transformers."""
 
+import sys
+import logging
 import argparse
 import json
 from pathlib import Path
@@ -196,22 +198,40 @@ def generate_summaries_or_translations(
     training_generator = torch.utils.data.DataLoader(dataset,
             batch_size=batch_size, num_workers = preprocess_workers,
             drop_last=False)
-    for ind, batch in tqdm(enumerate(training_generator)):
-        input_ids, attention_mask = batch
-        input_ids = input_ids.view(input_ids.size(0), -1).to(device)
-        attention_mask = attention_mask.view(input_ids.size(0), -1).to(device)
-        input_ids, attention_mask = trim_batch(
-            input_ids, tokenizer.pad_token_id, attention_mask)
-        summaries = model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            decoder_start_token_id=decoder_start_token_id,
-            no_repeat_ngram_size=no_repeat_ngram_size,
-            max_length=max_gen_length,
-            **gen_kwargs,
-        )
-        summaries_cpu = summaries.cpu()
-        data_queue.put((ind, summaries_cpu))
+    try:
+        for ind, batch in tqdm(enumerate(training_generator)):
+            input_ids, attention_mask = batch
+            input_ids = input_ids.view(input_ids.size(0), -1).to(device)
+            attention_mask = attention_mask.view(input_ids.size(0), -1).to(device)
+            input_ids, attention_mask = trim_batch(
+                input_ids, tokenizer.pad_token_id, attention_mask)
+            try:
+                summaries = model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    decoder_start_token_id=decoder_start_token_id,
+                    no_repeat_ngram_size=no_repeat_ngram_size,
+                    max_length=max_gen_length,
+                    **gen_kwargs,
+                )
+            except:
+                logging.exception(sys.exc_info()[0])
+                for p in p_list:
+                    p.terminate()
+                io_process.terminate()
+                data_queue.close()
+                msg_queue.close()
+                sys.exit(1)
+            summaries_cpu = summaries.cpu()
+            data_queue.put((ind, summaries_cpu))
+    except:
+        logging.exception(sys.exc_info()[0])
+        for p in p_list:
+            p.terminate()
+        io_process.terminate()
+        data_queue.close()
+        msg_queue.close()
+        sys.exit(1)
     data_queue.put((-1, GENERATE_FINISHED))
     for p in p_list:
         p.join()

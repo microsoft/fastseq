@@ -33,11 +33,10 @@ class TransformersUnitTests(parameterized.TestCase):
         """clone and build transformers repo"""
         if os.path.isdir(TRANSFORMERS_PATH):
             shutil.rmtree(TRANSFORMERS_PATH)
-        Repo.clone_from(TRANSFORMERS_GIT_URL,
+        Repo.clone_from(repo,
                         TRANSFORMERS_PATH,
                         branch=version)
-        pipmain(['install', 'git+https://github.com/huggingface/transformers.git@' +
-                    version])
+        pipmain(['install', '--editable', TRANSFORMERS_PATH])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ[

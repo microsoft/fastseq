@@ -3,6 +3,7 @@ FASTSEQ_TEST_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && p
 ENV_PATH=/tmp/
 python3 -m venv ${ENV_PATH}/testing_env
 source ${ENV_PATH}/testing_env/bin/activate
+pip install --upgrade pip
 pip install gitpython
 pip install absl-py
 pip install packaging

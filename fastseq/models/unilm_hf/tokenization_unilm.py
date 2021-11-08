@@ -12,7 +12,7 @@ import unicodedata
 from io import open
 
 from fastseq.logging import get_logger
-from transformers.tokenization_bert import BertTokenizer, whitespace_tokenize
+from transformers.models.bert.tokenization_bert import BertTokenizer, whitespace_tokenize
 
 logger = get_logger(__name__, logging.INFO)
 
