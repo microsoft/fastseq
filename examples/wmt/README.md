@@ -12,33 +12,21 @@ https://arxiv.org/abs/1806.00187
 
 ### Training a new model on WMT'16 En-De
 
-First download the [preprocessed WMT'16 En-De data provided by Google](https://drive.google.com/uc?export=download&id=0B_bZck-ksdkpM25jRUN2X2UxMm8).
-
-Then:
-
-##### 1. Extract the WMT'16 En-De data
+##### 1. Preprocess the dataset with a joined dictionary (optional)
 ```bash
-TEXT=wmt16_en_de_bpe32k
-mkdir -p $TEXT
-tar -xzvf wmt16_en_de.tar.gz -C $TEXT
-```
-
-##### 2. Preprocess the dataset with a joined dictionary
-```bash
-RAW=raw
 TOK=tok
 BIN=bin
 rm -rf $TOK $BIN
 mkdir -p $TOK $BIN
 # train
-cp wmt16_en_de_bpe32k/train.tok.clean.bpe.32000.en $TOK/train.bpe.source
-cp wmt16_en_de_bpe32k/train.tok.clean.bpe.32000.de $TOK/train.bpe.target
+wget -O $TOK/train.bpe.source https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/tok/train.bpe.source
+wget -O $TOK/train.bpe.target https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/tok/train.bpe.target
 # val
-cp wmt16_en_de_bpe32k/newstest2013.tok.bpe.32000.en $TOK/val.bpe.source
-cp wmt16_en_de_bpe32k/newstest2013.tok.bpe.32000.de $TOK/val.bpe.target
+wget -O $TOK/val.bpe.source https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/tok/val.bpe.source
+wget -O $TOK/val.bpe.target https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/tok/val.bpe.target
 # test
-cat wmt16_en_de_bpe32k/newstest201[456].tok.bpe.32000.en > $TOK/test.bpe.source
-cat wmt16_en_de_bpe32k/newstest201[456].tok.bpe.32000.de > $TOK/test.bpe.target
+wget -O $TOK/test.bpe.source https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/tok/test.bpe.source
+wget -O $TOK/test.bpe.target https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/tok/test.bpe.target
 fairseq-preprocess \
     --source-lang source --target-lang target \
     --validpref $TOK/val.bpe \
@@ -50,7 +38,21 @@ fairseq-preprocess \
     --workers 20
 ```
 
-##### 3. Train a model (optional)
+Or you can download the preprocessed data directly
+```bash
+TOK=tok
+BIN=bin
+rm -rf $TOK $BIN
+mkdir -p $TOK $BIN
+wget -O $BIN/dict.source.txt https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/bin/dict.source.txt
+wget -O $BIN/dict.target.txt https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/bin/dict.target.txt
+wget -O $BIN/test.source-target.source.bin https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/bin/test.source-target.source.bin
+wget -O $BIN/test.source-target.source.idx https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/bin/test.source-target.source.idx
+wget -O $BIN/test.source-target.target.bin https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/bin/test.source-target.target.bin
+wget -O $BIN/test.source-target.target.idx https://fastseq.blob.core.windows.net/data/tasks/wmt16_en_de_bpe32k/bin/test.source-target.target.idx
+```
+
+##### 2. Train a model (optional)
 ```bash
 fairseq-train \
     bin/ \
