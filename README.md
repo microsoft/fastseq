@@ -23,7 +23,6 @@ Below shows the generation speed gain by using FastSeq.
 | [T5 (`hf`)](examples/t5/README.md)                  | 8.7  | 31.3  | 3.6x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
 | [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.0   | 16.7  | 5.5x  |
-| [UniLM (`hf`)](examples/unilm/README.md)        | 1.7   | 16.4  | 9.6x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
 - `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.10.2 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 4.12.0 version.

@@ -10,7 +10,6 @@ import time
 import torch
 from absl.testing import absltest, parameterized
 
-import fastseq
 from fastseq.logging import get_logger
 from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 from transformers import (T5ForConditionalGeneration, T5Tokenizer)
@@ -28,7 +27,7 @@ class T5OptimizerTest(TestCaseBase):
         self.model = T5ForConditionalGeneration.from_pretrained('t5-base')
 
         self.source_path = 'tests/optimizer/transformers/data/cnndm_128.txt'
-
+        
         # The expected output is generated based on transformers-v4.12.0 with
         # batch_size = 16.
         self.expected_output_path = 'tests/optimizer/transformers/data/expected_t5_output.hypo'  # pylint: disable=line-too-long
@@ -136,6 +135,7 @@ class T5OptimizerTest(TestCaseBase):
             early_stopping (bool, optional): indicate if the beam search will be
                                              early stopped.
         """
+        import fastseq
         self.model.cuda()
         self.model.eval()
         processed_sample_count = 0
