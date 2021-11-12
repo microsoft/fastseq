@@ -18,11 +18,11 @@ Below shows the generation speed gain by using FastSeq.
 |------------------|:--------------------------:|:-------------------------:|:-----:|
 | [ProphetNet](examples/prophetnet/README.md)       | 2.8 | 11.9  | 4.3  |
 | [Bart (`fs`)](examples/bart/README.md)              | 3.3  | 25.1 | 7.7x  |
-| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 2.5 | 12.4 | 5.0x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 4.5 | 13.0 | 2.9x  |
 | [DistilBart (`hf`)](examples/distilbart/README.md)    | 3.4  | 18.5  | 5.4x  |
-| [T5 (`hf`)](examples/t5/README.md)                  | 8.7  | 31.3  | 3.6x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 14.7  | 29.2  | 2.0x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
-| [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.0   | 16.7  | 5.5x  |
+| [GPT2 (`hf`)](examples/gpt2/README.md)        | 4.0   | 20.3  | 5.1x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
 - `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.10.2 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 4.12.0 version.
