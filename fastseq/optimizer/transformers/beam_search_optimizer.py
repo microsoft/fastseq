@@ -25,6 +25,7 @@ from transformers.generation_utils import (
     GreedySearchOutput, SampleOutput, BeamSearchOutput, BeamSampleOutput,
     StoppingCriteriaList, BeamSearchEncoderDecoderOutput, BeamSearchDecoderOnlyOutput)
 from transformers.models.bart.modeling_bart import BartForConditionalGeneration
+from transformers.models.prophetnet.modeling_prophetnet import ProphetNetForConditionalGeneration, ProphetNetModel
 from transformers.models.t5.modeling_t5 import T5ForConditionalGeneration
 from transformers.models.gpt2.modeling_gpt2 import GPT2Model, GPT2LMHeadModel, GPT2DoubleHeadsModel
 from transformers.generation_logits_process import _get_ngrams, _calc_banned_ngram_tokens, _get_generated_ngrams, NoRepeatNGramLogitsProcessor
@@ -172,6 +173,13 @@ class GenerationMixinV2(GenerationMixin):
             isinstance(self, GPT2DoubleHeadsModel)):
             for block in self.transformer.h:
                 block.attn.num_beams = num_beams
+            logger.debug("num_beams has been updated to {}".format(num_beams))
+            return
+
+        if isinstance(self, ProphetNetForConditionalGeneration):
+            for layer in self.prophetnet.decoder.layers:
+                #layer.self_attn.num_beams = num_beams
+                layer.cross_attn.num_beams = num_beams
             logger.debug("num_beams has been updated to {}".format(num_beams))
             return
 

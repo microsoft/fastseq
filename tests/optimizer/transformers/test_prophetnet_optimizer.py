@@ -12,32 +12,38 @@ import fastseq
 import torch
 from absl import logging
 from absl.testing import absltest, parameterized
-from transformers import BartForConditionalGeneration, BartTokenizer
+from transformers import ProphetNetForConditionalGeneration, ProphetNetTokenizer
 
 from fastseq.utils.test_utils import fastseq_test_main, TestCaseBase
 
 
-class BARTOptimizerTest(TestCaseBase):
+class ProphetNetOptimizerTest(TestCaseBase):
     """Test the optimizations on HuggingFace-transformers.
     """
     def setUp(self):
         """Load model, tokenizer and expected output."""
 
-        self.tokenizer = BartTokenizer.from_pretrained(
-            'facebook/bart-large-cnn')
-        self.bart_model = BartForConditionalGeneration.from_pretrained(
-            'facebook/bart-large-cnn')
+        self.tokenizer = ProphetNetTokenizer.from_pretrained(
+            'microsoft/prophetnet-large-uncased')
+        self.prophetnet_model = ProphetNetForConditionalGeneration.from_pretrained(
+            'microsoft/prophetnet-large-uncased')
 
         self.source_path = 'tests/optimizer/transformers/data/cnndm_128.txt'
 
         # The expected output is generated based on transformers-v4.12.0 with
         # batch_size = 16.
-        self.expected_output_path = 'tests/optimizer/transformers/data/expected_bart_output.hypo'  # pylint: disable=line-too-long
+        self.expected_output_path = 'tests/optimizer/transformers/data/expected_prophetnet_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []
         with open(self.expected_output_path, 'rt',
                   encoding="utf-8") as expected_output_file:
             for line in expected_output_file:
                 self.expected_outputs.append(line.strip())
+        self.expected_output_no_cache_path = 'tests/optimizer/transformers/data/expected_prophetnet_output_no_cache.hypo'  # pylint: disable=line-too-long
+        self.expected_outputs_no_cache = []
+        with open(self.expected_output_no_cache_path, 'rt',
+                  encoding="utf-8") as expected_output_no_cache_file:
+            for line in expected_output_no_cache_file:
+                self.expected_outputs_no_cache.append(line.strip())
         self.batch_count = 0
 
     def _generate(self,
@@ -76,7 +82,7 @@ class BARTOptimizerTest(TestCaseBase):
                                     return_tensors='pt')
 
             # Generate Summary
-            summary_ids = self.bart_model.generate(
+            summary_ids = self.prophetnet_model.generate(
                 inputs['input_ids'].cuda(),
                 num_beams=num_beams,
                 min_length=min_gen_length,
@@ -136,8 +142,8 @@ class BARTOptimizerTest(TestCaseBase):
             early_stopping (bool, optional): indicate if the beam search will be
                                              early stopped.
         """
-        self.bart_model.cuda()
-        self.bart_model.eval()
+        self.prophetnet_model.cuda()
+        self.prophetnet_model.eval()
         processed_sample_count = 0
         outputs = []
         slines = []
@@ -158,6 +164,8 @@ class BARTOptimizerTest(TestCaseBase):
                     use_cache))
                 processed_sample_count += len(slines)
                 slines = []
+                if not use_cache:
+                    break
 
             if slines:
                 outputs.extend(self._generate(
@@ -178,9 +186,12 @@ class BARTOptimizerTest(TestCaseBase):
                         processed_sample_count / (end - start)))
 
             for i, output in enumerate(outputs):
-                if output != self.expected_outputs[i]:
-                    self.assertEqual(output, self.expected_outputs[i])
-
+                if use_cache:
+                    if output != self.expected_outputs[i]:
+                        self.assertEqual(output, self.expected_outputs[i])
+                else:
+                    if output != self.expected_outputs_no_cache[i]:
+                        self.assertEqual(output, self.expected_outputs_no_cache[i])
 
 if __name__ == "__main__":
     fastseq_test_main()

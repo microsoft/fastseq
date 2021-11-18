@@ -174,5 +174,3 @@ class BartAttentionV2(BartAttention):
         attn_output = self.out_proj(attn_output)
 
         return attn_output, attn_weights_reshaped, past_key_value
-
-MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING["bart"] = "BartForConditionalGenerationV2" # pylint: disable=line-too-long
