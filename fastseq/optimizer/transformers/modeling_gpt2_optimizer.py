@@ -8,6 +8,7 @@ import torch.nn as nn
 
 from transformers.models.gpt2.modeling_gpt2 import GPT2Attention, GPT2Model
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
+
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import replace
 
@@ -350,4 +351,3 @@ class GPT2ModelV2(GPT2Model):
             attentions=all_self_attentions,
             cross_attentions=all_cross_attentions,
         )
-

@@ -4,7 +4,6 @@
 """Optimization for T5 model"""
 
 import logging
-
 import torch
 from torch import nn
 
@@ -173,7 +172,6 @@ class T5AttentionV2(T5Attention):
         if output_attentions:
             outputs = outputs + (attn_weights,)
         return outputs
-
 
 @replace(T5ForConditionalGeneration)
 class T5ForConditionalGenerationV2(T5ForConditionalGeneration):

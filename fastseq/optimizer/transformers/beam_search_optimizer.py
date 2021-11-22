@@ -5,30 +5,37 @@
 
 import warnings
 import logging
-import numpy as np
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 from collections import UserDict
-from itertools import accumulate
 
 import torch
 from torch import nn
-from torch.nn import functional as F
 import torch.distributed as dist
 
 from transformers.file_utils import ModelOutput
 from transformers.generation_beam_search import BeamScorer, BeamSearchScorer
-from transformers.generation_utils import (GenerationMixin,
-                                           #calc_banned_bad_words_ids, 
-                                           #calc_banned_ngram_tokens,
-                                           top_k_top_p_filtering)
 from transformers.generation_utils import (
-    GreedySearchOutput, SampleOutput, BeamSearchOutput, BeamSampleOutput,
-    StoppingCriteriaList, BeamSearchEncoderDecoderOutput, BeamSearchDecoderOnlyOutput)
+    GenerationMixin,
+    GreedySearchOutput,
+    SampleOutput,
+    BeamSearchOutput,
+    BeamSampleOutput,
+    StoppingCriteriaList,
+    BeamSearchEncoderDecoderOutput,
+    BeamSearchDecoderOnlyOutput
+)
 from transformers.models.bart.modeling_bart import BartForConditionalGeneration
-from transformers.models.prophetnet.modeling_prophetnet import ProphetNetForConditionalGeneration, ProphetNetModel
+from transformers.models.prophetnet.modeling_prophetnet import ProphetNetForConditionalGeneration
 from transformers.models.t5.modeling_t5 import T5ForConditionalGeneration
-from transformers.models.gpt2.modeling_gpt2 import GPT2Model, GPT2LMHeadModel, GPT2DoubleHeadsModel
-from transformers.generation_logits_process import _get_ngrams, _calc_banned_ngram_tokens, _get_generated_ngrams, NoRepeatNGramLogitsProcessor
+from transformers.models.gpt2.modeling_gpt2 import (
+    GPT2Model,
+    GPT2LMHeadModel,
+    GPT2DoubleHeadsModel
+)
+from transformers.generation_logits_process import (
+    _get_ngrams, _calc_banned_ngram_tokens, _get_generated_ngrams,
+    NoRepeatNGramLogitsProcessor
+)
 from transformers.generation_logits_process import (
     EncoderNoRepeatNGramLogitsProcessor,
     ForcedBOSTokenLogitsProcessor,
@@ -42,8 +49,6 @@ from transformers.generation_logits_process import (
     RepetitionPenaltyLogitsProcessor,
 )
 from transformers.generation_stopping_criteria import (
-    MaxLengthCriteria,
-    MaxTimeCriteria,
     StoppingCriteriaList,
     validate_stopping_criteria,
 )
@@ -55,8 +60,6 @@ from fastseq.utils.api_decorator import replace
 logger = get_logger(__name__, logging.INFO)
 
 no_repeat_ngram_op = NGramRepeatBlock()
-
-
 
 @replace(_get_ngrams)
 def _get_ngrams_v2(ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, pad_token_id: int):
@@ -986,7 +989,6 @@ class GenerationMixinV2(GenerationMixin):
             next_indices = (next_tokens / vocab_size).long()
             next_tokens = next_tokens % vocab_size
 
-            # stateless #TO-UPDATE
             beam_outputs = beam_scorer.process(
                 input_ids,
                 next_token_scores,
@@ -1089,31 +1091,6 @@ class BeamSearchScorerV2(BeamSearchScorer):
             eos_mask = torch.zeros_like(next_tokens).bool()
         eos_effective_idx = torch.masked_select(effective_beam_id[:, :self.num_beams], mask=eos_mask[:, :self.num_beams]
         )
-
-        # finished_batch_idxs = []
-        # if eos_effective_idx.numel() > 0:
-        #     eos_effective_scores = torch.masked_select(
-        #         next_scores[:, :self.num_beams], mask=eos_mask[:, :self.num_beams]
-        #     )
-        #     input_clone = input_ids.index_select(0, eos_effective_idx)
-        #     unfin_offset = np.array(list(accumulate(self._done)))[np.array(self._done) == 0]
-        #     for i in range(eos_effective_idx.size(0)):
-        #         eos_idx = eos_effective_idx[i]
-        #         eos_score = eos_effective_scores[i]
-        #         unfin_batch_idx = eos_idx // self.num_beams
-        #         batch_idx = unfin_batch_idx + unfin_offset[unfin_batch_idx]
-        #         if not self._done[batch_idx] :
-        #             self._beam_hyps[batch_idx.item()].add(
-        #                 input_clone[i],
-        #                 eos_score.item())
-        #         is_done = self._done[batch_idx]
-        #         self._done[batch_idx] = (
-        #             self._done[batch_idx] or
-        #             self._beam_hyps[batch_idx].is_done(
-        #             next_scores[unfin_batch_idx].max().item(), cur_len))
-        #         if is_done != self._done[batch_idx]:
-        #             finished_batch_idxs.append(unfin_batch_idx)
-
         
         eos_effective_scores = torch.masked_select(
             next_scores[:, :self.num_beams], mask=eos_mask[:, :self.num_beams]

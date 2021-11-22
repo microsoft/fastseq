@@ -3,16 +3,12 @@
 
 """Optimization for BART model"""
 
-from typing import Dict, Optional, Tuple
-
+from typing import Optional, Tuple
 import torch
 from torch import nn
 from torch import Tensor
-from torch.nn import functional as F
 
-from transformers.models.auto.modeling_auto import MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING
-from transformers.models.bart.modeling_bart import (BartForConditionalGeneration,
-                                        BartAttention)
+from transformers.models.bart.modeling_bart import BartAttention
 
 from fastseq.logging import get_logger
 from fastseq.utils.api_decorator import replace

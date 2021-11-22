@@ -162,3 +162,4 @@ class ProphetNetAttentionV2(ProphetNetAttention):
 
         attn_output = nn.functional.dropout(attn_output, p=self.dropout, training=self.training)
         return attn_output, attn_weights_reshaped, past_key_value
+        
