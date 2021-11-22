@@ -38,12 +38,7 @@ class ProphetNetOptimizerTest(TestCaseBase):
                   encoding="utf-8") as expected_output_file:
             for line in expected_output_file:
                 self.expected_outputs.append(line.strip())
-        self.expected_output_no_cache_path = 'tests/optimizer/transformers/data/expected_prophetnet_output_no_cache.hypo'  # pylint: disable=line-too-long
-        self.expected_outputs_no_cache = []
-        with open(self.expected_output_no_cache_path, 'rt',
-                  encoding="utf-8") as expected_output_no_cache_file:
-            for line in expected_output_no_cache_file:
-                self.expected_outputs_no_cache.append(line.strip())
+        
         self.batch_count = 0
 
     def _generate(self,
@@ -107,16 +102,6 @@ class ProphetNetOptimizerTest(TestCaseBase):
         'no_repeat_ngram_size': 3,
         'early_stopping': True,
         'use_cache': True,
-    }, {
-        'testcase_name': 'FP32_Without_Cache',
-        'batch_size': 16,
-        'max_token_length': 1024,
-        'num_beams': 4,
-        'min_gen_length': 55,
-        'max_gen_length': 199,
-        'no_repeat_ngram_size': 3,
-        'early_stopping': True,
-        'use_cache': False,
     })
     def test_beam_search_optimizer(self,
                                    batch_size,
@@ -186,12 +171,8 @@ class ProphetNetOptimizerTest(TestCaseBase):
                         processed_sample_count / (end - start)))
 
             for i, output in enumerate(outputs):
-                if use_cache:
-                    if output != self.expected_outputs[i]:
-                        self.assertEqual(output, self.expected_outputs[i])
-                else:
-                    if output != self.expected_outputs_no_cache[i]:
-                        self.assertEqual(output, self.expected_outputs_no_cache[i])
-
+                if output != self.expected_outputs[i]:
+                    self.assertEqual(output, self.expected_outputs[i])
+               
 if __name__ == "__main__":
     fastseq_test_main()
