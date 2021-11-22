@@ -162,7 +162,6 @@ def generate_summaries_or_translations(
         import fastseq  #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    print(model_name)
     if model_name == 'prophetnet':
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name, from_tf=True).to(device)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
