@@ -23,6 +23,7 @@ Below shows the generation speed gain by using FastSeq.
 | [T5 (`hf`)](examples/t5/README.md)                  | 14.7  | 29.2  | 2.0x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
 | [GPT2 (`hf`)](examples/gpt2/README.md)        | 4.0   | 20.3  | 5.1x  |
+| [ProphetNet (`hf`)](examples/prophetnet/README.md)        | 3.4   | 6.3  | 1.9x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
 - The baseline (W/O Fastseq) for [ProphetNet (`fs`)](examples/prophetnet/README.md) is run with fairseq 0.9.0, as it has not yet been updated for compatibility with version 0.10.2

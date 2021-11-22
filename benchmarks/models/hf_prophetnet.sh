@@ -10,21 +10,21 @@ source hf.sh
 
 # MODEL - prophetnet from transformer
 # TASK - cnn dm val full set
-# ./benchmark.sh \
-#     transformers \
-#     microsoft/prophetnet-large-uncased \
-#     cnn_dm_bert/raw \
-#     val \
-#     256/320/512 \
-#     --task translation \
-#     --no_repeat_ngram_size 3
+./benchmark.sh \
+    transformers \
+    microsoft/prophetnet-large-uncased \
+    cnn_dm_bert/raw \
+    val \
+    128 \
+    --task summarization \
+    --no_repeat_ngram_size 3
 ./benchmark.sh \
     transformers+fastseq \
     microsoft/prophetnet-large-uncased \
     cnn_dm_bert/raw \
     val \
-    256/320/512 \
-    --task translation \
+    128 \
+    --task summarization \
     --no_repeat_ngram_size 3
 
 # # Accuracy
