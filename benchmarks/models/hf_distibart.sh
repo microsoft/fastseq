@@ -22,7 +22,7 @@ source hf.sh
     hf.sshleifer.distilbart-cnn-12-6.tar.gz \
     cnn_dm/raw \
     val \
-    64/128 \
+    128 \
     --task summarization \
     --postprocess_workers 3
 
@@ -32,12 +32,9 @@ grep "hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val " perf \
 	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
 	| ./range.sh 0.45 0.452
 # Speed on V100 16GB 250W
-grep -E "transformers_v4.12.0 hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val 64 " perf \
+grep -E "transformers_v4.12.0 hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
-	| ./range.sh 3 4
-grep -E "transformers_v4.12.0\+fastseq_v.* hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val 64 " perf \
-	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 16.5 100
+	| ./range.sh 5 6
 grep -E "transformers_v4.12.0\+fastseq_v.* hf.sshleifer.distilbart-cnn-12-6.tar.gz cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 18.3 100
+	| ./range.sh 18.5 100
