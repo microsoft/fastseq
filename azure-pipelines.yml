@@ -21,9 +21,13 @@ jobs:
     steps:
     - script: |
         #install fastseq
-        which pip
+
         pip install --upgrade pip
+
+        which pip
         which python 
+
+        pip install sentencepiece==0.1.90
 
         echo "******* Installing fairseq *******"
         pip install fairseq==0.10.2

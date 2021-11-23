@@ -51,7 +51,8 @@ RUN pip install --upgrade pip && \
 	pip install rouge_score==v0.0.4 && \
 	pip install fairseq==v0.10.2 && \
 	pip install transformers==v4.12.0 && \
-	pip install pytorch-transformers==1.0.0
+	pip install pytorch-transformers==1.0.0 && \
+    pip install sentencepiece==0.1.90
 
 
 ##############################################################################
