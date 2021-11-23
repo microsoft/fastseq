@@ -181,7 +181,6 @@ class GenerationMixinV2(GenerationMixin):
 
         if isinstance(self, ProphetNetForConditionalGeneration):
             for layer in self.prophetnet.decoder.layers:
-                #layer.self_attn.num_beams = num_beams
                 layer.cross_attn.num_beams = num_beams
             logger.debug("num_beams has been updated to {}".format(num_beams))
             return
