@@ -20,7 +20,7 @@ Below shows the generation speed gain by using FastSeq.
 | [Bart (`fs`)](examples/bart/README.md)              | 3.3  | 25.1 | 7.7x  |
 | [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 4.5 | 12.4 | 2.8x  |
 | [DistilBart (`hf`)](examples/distilbart/README.md)    | 5.5  | 19.1  | 3.5x  |
-| [T5 (`hf`)](examples/t5/README.md)                  | 17.3  | 31.3  | 1.8x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 9.5  | 31.7  | 3.3x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
 | [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.9   | 21.8  | 5.6x  |
 | [ProphetNet (`hf`)](examples/prophetnet/README.md)        | 3.4   | 6.2  | 1.8x  |

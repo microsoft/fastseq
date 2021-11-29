@@ -14,7 +14,8 @@ source hf.sh
     wmt_en_ro/raw \
     val \
     64 \
-    --task translation_en_to_ro 
+    --task translation_en_to_ro \
+    --no_repeat_ngram_size 3
 
 ./benchmark.sh \
     transformers+fastseq \
@@ -23,7 +24,8 @@ source hf.sh
     val \
     64/128 \
     --task translation_en_to_ro \
-    --postprocess_workers 3
+    --postprocess_workers 3 \
+    --no_repeat_ngram_size 3
 
 # # Accuracy
 grep "t5-base wmt_en_ro/raw val " perf \
