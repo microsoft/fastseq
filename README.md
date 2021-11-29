@@ -18,12 +18,12 @@ Below shows the generation speed gain by using FastSeq.
 |------------------|:--------------------------:|:-------------------------:|:-----:|
 | [ProphetNet (`fs`)](examples/prophetnet/README.md)       | 2.8 | 11.9  | 4.3  |
 | [Bart (`fs`)](examples/bart/README.md)              | 3.3  | 25.1 | 7.7x  |
-| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 4.5 | 13.0 | 2.9x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 4.5 | 12.4 | 2.8x  |
 | [DistilBart (`hf`)](examples/distilbart/README.md)    | 5.5  | 19.1  | 3.5x  |
-| [T5 (`hf`)](examples/t5/README.md)                  | 14.7  | 29.2  | 2.0x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 17.3  | 31.3  | 1.8x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
-| [GPT2 (`hf`)](examples/gpt2/README.md)        | 4.0   | 20.3  | 5.1x  |
-| [ProphetNet (`hf`)](examples/prophetnet/README.md)        | 3.4   | 6.3  | 1.9x  |
+| [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.9   | 21.8  | 5.6x  |
+| [ProphetNet (`hf`)](examples/prophetnet/README.md)        | 3.4   | 6.2  | 1.8x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
 - The baseline (W/O Fastseq) for [ProphetNet (`fs`)](examples/prophetnet/README.md) is run with fairseq 0.9.0, as it has not yet been updated for compatibility with version 0.10.2

@@ -15,7 +15,7 @@ source hf.sh
     facebook/bart-large-cnn \
     cnn_dm/raw \
     val \
-    64 \
+    32/64 \
     --task summarization \
     --no_repeat_ngram_size 3
 ./benchmark.sh \
@@ -23,7 +23,7 @@ source hf.sh
     facebook/bart-large-cnn \
     cnn_dm/raw \
     val \
-    128 \
+    32/64/128 \
     --task summarization \
     --no_repeat_ngram_size 3
 
@@ -36,6 +36,12 @@ grep "facebook/bart-large-cnn cnn_dm/raw val " perf \
 grep -E "transformers_v4.12.0 facebook/bart-large-cnn cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
 	| ./range.sh 4 5
+grep -E "transformers_v4.12.0\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 32 " perf \
+	| awk '{s+=$13}END{print s/NR}' \
+	| ./range.sh 10 100
+grep -E "transformers_v4.12.0\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 64 " perf \
+	| awk '{s+=$13}END{print s/NR}' \
+	| ./range.sh 11 100
 grep -E "transformers_v4.12.0\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 12 100
