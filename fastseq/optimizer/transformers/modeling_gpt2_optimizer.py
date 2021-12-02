@@ -26,13 +26,15 @@ class GPT2AttentionV2(GPT2Attention):
         self.num_beams = num_beams
 
     def _attn(self, query, key, value, attention_mask=None, head_mask=None):
-        w1 = torch.einsum(
-            "bmhtd,bnhsd->bmhts",
-            query.view((query.size(0) // self.num_beams, self.num_beams) + query.shape[1:]),
-            self.cache_input_key)
-        w1 = w1.reshape((-1,) + w1.shape[2:])
-        w2 = torch.matmul(query, key.transpose(-1, -2))
-        attn_weights = torch.cat([w1, w2], dim=-1)
+        if self.cache_input_key is not None:
+            w1 = torch.einsum("bmhtd,bnhsd->bmhts", 
+                            query.view((query.size(0) // self.num_beams, self.num_beams) + query.shape[1:]),
+                            self.cache_input_key)
+            w1 = w1.reshape((-1,) + w1.shape[2:])
+            w2 = torch.matmul(query, key.transpose(-1, -2))
+            attn_weights = torch.cat([w1, w2], dim=-1)
+        else:
+            attn_weights = torch.matmul(query, key.transpose(-1, -2))
 
         if self.scale_attn_weights:
             attn_weights = attn_weights / (float(value.size(-1)) ** 0.5)
@@ -43,9 +45,14 @@ class GPT2AttentionV2(GPT2Attention):
 
         if not self.is_cross_attention:
             # if only "normal" attention layer implements causal mask
-            query_length, key_length = query.size(-2), self.cache_input_len + key.size(-2)
-            causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
-            attn_weights = torch.where(causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype))
+            if self.cache_input_key is not None:
+                query_length, key_length = query.size(-2), self.cache_input_len + key.size(-2)
+                causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
+                attn_weights = torch.where(causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype))
+            else:
+                query_length, key_length = query.size(-2), key.size(-2)
+                causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
+                attn_weights = torch.where(causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype))
 
         if attention_mask is not None:
             # Apply the attention mask
@@ -60,6 +67,10 @@ class GPT2AttentionV2(GPT2Attention):
         # Mask heads if we want to
         if head_mask is not None:
             attn_weights = attn_weights * head_mask
+
+        if self.cache_input_key is None:
+            attn_output = torch.matmul(attn_weights, value)
+            return attn_output, attn_weights
 
         split_weights = attn_weights.split(self.cache_input_len, dim=-1)
         w1 = split_weights[0]
@@ -109,7 +120,8 @@ class GPT2AttentionV2(GPT2Attention):
             value = torch.cat((past_value, value), dim=-2)
 
         if use_cache is True:
-            if layer_past is None:
+            if layer_past is None and not self.reorder_and_upcast_attn:
+                assert not self.reorder_and_upcast_attn
                 if self.cache_input_key is not None:
                     logger.debug(
                         "The previous cached key and value in GPT2 "
@@ -132,7 +144,6 @@ class GPT2AttentionV2(GPT2Attention):
 
                 key = key[:, :, self.cache_input_len:, :]
                 value = value[:, :, self.cache_input_len:, :]
-            # transpose to have same shapes for stacking
             present = ((key, value))
         else:
             present = (None,)

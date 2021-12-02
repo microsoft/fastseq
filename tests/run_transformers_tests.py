@@ -51,11 +51,15 @@ class TransformersUnitTests(parameterized.TestCase):
                           'HfApiEndpoints',
                           'HfApiPublicTest',
                           "test_gpt2_model_att_mask_past",
-                          "test_gpt2_model_past"
-        ]
+                          "test_gpt2_model_past",
+                          "test_model_parallelization",
+                          "test_beam_scorer_update",
+                          "test_model_outputs_equivalence",
+        ],
+        'models': ['t5', 'prophetnet', 'gpt2']
     })
     def test_suites(self, without_fastseq_opt, transformers_version,
-                    blocked_tests):
+                    blocked_tests, models):
         """run test suites"""
         self.clone_and_build_transformers(TRANSFORMERS_GIT_URL,
                                           transformers_version)
@@ -64,10 +68,11 @@ class TransformersUnitTests(parameterized.TestCase):
         import pytest #pylint: disable=import-outside-toplevel
         self.prepare_env()
         os.chdir(TRANSFORMERS_PATH)
-        blocked_tests_string = (
-            ' and '.join([' not '+ test for test in blocked_tests]))
+        blocked_tests_string = (' and '.join([' not '+ test for test in blocked_tests]))
+        models_string = " (" + (' or '.join(['_' + model for model in models])) + ") "
+        tests_to_run = models_string + "and" + blocked_tests_string
         exit_code = pytest.main(
-            ['-sv', '-k' + blocked_tests_string,  './tests/'])
+            ['-sv', '-k' + tests_to_run, './tests/'])
         assert str(exit_code).strip() == 'ExitCode.OK'
 
 if __name__ == "__main__":

@@ -100,12 +100,13 @@ class NoRepeatNGramLogitsProcessorV2(NoRepeatNGramLogitsProcessor):
             All ngrams of size :obj:`ngram_size` can only occur once.
     """
 
-    def __init__(self, ngram_size: int, num_beams: int, batch_size: int):
+    def __init__(self, ngram_size: int, num_beams: int = None, batch_size: int = None, pad_token_id: int = None):
         if not isinstance(ngram_size, int) or ngram_size <= 0:
             raise ValueError(f"`ngram_size` has to be a strictly positive integer, but is {ngram_size}")
         self.ngram_size = ngram_size
         self.num_beams = num_beams
         self.batch_size = batch_size
+        self.pad_token_id = pad_token_id
         
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         def _update_scores(banned_tokens):
@@ -118,15 +119,16 @@ class NoRepeatNGramLogitsProcessorV2(NoRepeatNGramLogitsProcessor):
                     banned_2d_idx,
                     scores.new_tensor(
                         [-float("inf") * banned_2d_idx[0].nelement()]))
-        
+
         cpu_input_ids = input_ids.cpu()
         cur_len = input_ids.shape[-1]
-        if input_ids.is_cuda and scores.is_cuda:
+        if input_ids.is_cuda and scores.is_cuda and (self.num_beams is not None and self.batch_size is not None and self.pad_token_id is not None):
             scores = no_repeat_ngram_op(input_ids, scores.float(), self.batch_size, cur_len-1, self.num_beams, self.ngram_size)
         else:
             num_batch_hypotheses = scores.shape[0]
-            banned_batch_tokens = _calc_banned_ngram_tokens_v2(self.ngram_size, cpu_input_ids, num_batch_hypotheses, cur_len, self.config.pad_token_id)
-            _update_scores(banned_batch_tokens)   
+            banned_batch_tokens = _calc_banned_ngram_tokens_v2(self.ngram_size, cpu_input_ids, num_batch_hypotheses, cur_len, self.pad_token_id)
+            _update_scores(banned_batch_tokens)
+        
 
         return scores
 
@@ -251,7 +253,7 @@ class GenerationMixinV2(GenerationMixin):
         if repetition_penalty is not None and repetition_penalty != 1.0:
             processors.append(RepetitionPenaltyLogitsProcessor(penalty=repetition_penalty))
         if no_repeat_ngram_size is not None and no_repeat_ngram_size > 0:
-            processors.append(NoRepeatNGramLogitsProcessorV2(no_repeat_ngram_size, num_beams, batch_size))
+            processors.append(NoRepeatNGramLogitsProcessorV2(no_repeat_ngram_size, num_beams, batch_size, self.config.pad_token_id))
         if encoder_no_repeat_ngram_size is not None and encoder_no_repeat_ngram_size > 0:
             if self.config.is_encoder_decoder:
                 processors.append(EncoderNoRepeatNGramLogitsProcessor(encoder_no_repeat_ngram_size, encoder_input_ids))
@@ -520,8 +522,22 @@ class GenerationMixinV2(GenerationMixin):
             logger.warning(f"Setting `pad_token_id` to `eos_token_id`:{eos_token_id} for open-end generation.")
             pad_token_id = eos_token_id
 
+        # determine generation mode
+        is_greedy_gen_mode = (num_beams == 1) and (num_beam_groups == 1) and do_sample is False
+        is_sample_gen_mode = (num_beams == 1) and (num_beam_groups == 1) and do_sample is True
+        is_beam_gen_mode = (num_beams > 1) and (num_beam_groups == 1) and do_sample is False
+        is_beam_sample_gen_mode = (num_beams > 1) and (num_beam_groups == 1) and do_sample is True
+        is_group_beam_gen_mode = (num_beams > 1) and (num_beam_groups > 1)
+        if num_beam_groups > num_beams:
+            raise ValueError("`num_beam_groups` has to be smaller or equal to `num_beams`")
+        if is_group_beam_gen_mode and do_sample is True:
+            raise ValueError(
+                "Diverse beam search cannot be used in sampling mode. Make sure that `do_sample` is set to `False`."
+            )
+
         # update beam size
-        self._update_beam_size(num_beams)
+        if is_beam_gen_mode:
+            self._update_beam_size(num_beams)
 
         # Storing encoder_input_ids for logits_processor that could use them
         encoder_input_ids = input_ids if self.config.is_encoder_decoder else None
@@ -565,19 +581,6 @@ class GenerationMixinV2(GenerationMixin):
             logger.warning(
                 f"Input length of {input_ids_string} is {input_ids.shape[-1]}, but ``max_length`` is set to {max_length}. "
                 "This can lead to unexpected behavior. You should consider increasing ``config.max_length`` or ``max_length``."
-            )
-
-        # determine generation mode
-        is_greedy_gen_mode = (num_beams == 1) and (num_beam_groups == 1) and do_sample is False
-        is_sample_gen_mode = (num_beams == 1) and (num_beam_groups == 1) and do_sample is True
-        is_beam_gen_mode = (num_beams > 1) and (num_beam_groups == 1) and do_sample is False
-        is_beam_sample_gen_mode = (num_beams > 1) and (num_beam_groups == 1) and do_sample is True
-        is_group_beam_gen_mode = (num_beams > 1) and (num_beam_groups > 1)
-        if num_beam_groups > num_beams:
-            raise ValueError("`num_beam_groups` has to be smaller or equal to `num_beams`")
-        if is_group_beam_gen_mode and do_sample is True:
-            raise ValueError(
-                "Diverse beam search cannot be used in sampling mode. Make sure that `do_sample` is set to `False`."
             )
 
         # set model_kwargs
@@ -664,7 +667,7 @@ class GenerationMixinV2(GenerationMixin):
             if stopping_criteria.max_length is None:
                 raise ValueError("`max_length` needs to be a stopping_criteria for now.")
 
-            beam_scorer = BeamSearchScorer(
+            beam_scorer = BeamSearchScorerV2(
                 batch_size=batch_size,
                 num_beams=num_beams,
                 device=self.device,
@@ -917,11 +920,6 @@ class GenerationMixinV2(GenerationMixin):
         beam_scores[:, 1:] = -1e9
         beam_scores = beam_scores.view((batch_size * num_beams,))
 
-        #NEW
-        beams_offset = (torch.arange(0, batch_size) * num_beams).unsqueeze(1).type_as(input_ids)
-        cand_size = 2 * num_beams
-        cand_offsets = torch.arange(0, cand_size).type_as(input_ids)
-
         this_peer_finished = False  # used by synced_gpus only
         while True:
 
@@ -993,9 +991,6 @@ class GenerationMixinV2(GenerationMixin):
                 next_token_scores,
                 next_tokens,
                 next_indices,
-                beams_offset,
-                cand_offsets,
-                cand_size,
                 eos_token_id=eos_token_id
             )
             beam_scores = beam_outputs["next_beam_scores"]
@@ -1054,7 +1049,6 @@ class GenerationMixinV2(GenerationMixin):
         else:
             return sequence_outputs["sequences"]
 
-@replace(BeamSearchScorer)
 class BeamSearchScorerV2(BeamSearchScorer):
 
     def process(
@@ -1063,14 +1057,15 @@ class BeamSearchScorerV2(BeamSearchScorer):
         next_scores: torch.FloatTensor,
         next_tokens: torch.LongTensor,
         next_indices: torch.LongTensor,
-        beams_offset: torch.Tensor,
-        cand_offsets: torch.LongTensor,
-        cand_size: int,
+        pad_token_id: Optional[int] = None,
         eos_token_id: Optional[int] = None
     ) -> Tuple[torch.Tensor]:
 
         cur_len = input_ids.shape[-1]
         batch_size = len(self._beam_hyps)
+        beams_offset = (torch.arange(0, batch_size) * self.num_beams).unsqueeze(1).type_as(input_ids)
+        cand_size = 2 * self.num_beams
+        cand_offsets = torch.arange(0, cand_size).type_as(input_ids)
         if not (batch_size == (input_ids.shape[0] // self.group_size)):
             if self.num_beam_groups > 1:
                 raise ValueError(
