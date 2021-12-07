@@ -62,13 +62,13 @@ logger = get_logger(__name__, logging.INFO)
 no_repeat_ngram_op = NGramRepeatBlock()
 
 @replace(_get_ngrams)
-def _get_ngrams_v2(ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, pad_token_id: int):
+def _get_ngrams_v2(ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, pad_token_id: int = None):
     generated_ngrams = [{} for _ in range(num_hypos)]
     for idx in range(num_hypos):
         gen_tokens = prev_input_ids[idx].tolist()
         generated_ngram = generated_ngrams[idx]
         for ngram in zip(*[gen_tokens[i:] for i in range(ngram_size)]):
-            if ngram[-1] != pad_token_id:
+            if pad_token_id is None or ngram[-1] != pad_token_id:
                 prev_ngram_tuple = tuple(ngram[:-1])
                 generated_ngram[prev_ngram_tuple] = generated_ngram.get(prev_ngram_tuple, []) + [ngram[-1]]
     return generated_ngrams
@@ -122,14 +122,16 @@ class NoRepeatNGramLogitsProcessorV2(NoRepeatNGramLogitsProcessor):
 
         cpu_input_ids = input_ids.cpu()
         cur_len = input_ids.shape[-1]
-        if input_ids.is_cuda and scores.is_cuda and (self.num_beams is not None and self.batch_size is not None and self.pad_token_id is not None):
-            scores = no_repeat_ngram_op(input_ids, scores.float(), self.batch_size, cur_len-1, self.num_beams, self.ngram_size)
-        else:
-            num_batch_hypotheses = scores.shape[0]
-            banned_batch_tokens = _calc_banned_ngram_tokens_v2(self.ngram_size, cpu_input_ids, num_batch_hypotheses, cur_len, self.pad_token_id)
-            _update_scores(banned_batch_tokens)
-        
+        if input_ids.is_cuda and scores.is_cuda:
+            if self.num_beams is not None and self.batch_size is not None:
+                x = self.num_beams * self.batch_size
+                if x == input_ids.size(0) and x == scores.size(0):
+                    scores = no_repeat_ngram_op(input_ids, scores.float(), self.batch_size, cur_len-1, self.num_beams, self.ngram_size)
+                    return scores
 
+        num_batch_hypotheses = scores.shape[0]
+        banned_batch_tokens = _calc_banned_ngram_tokens_v2(self.ngram_size, cpu_input_ids, num_batch_hypotheses, cur_len, self.pad_token_id)
+        _update_scores(banned_batch_tokens)
         return scores
 
 @replace(GenerationMixin)

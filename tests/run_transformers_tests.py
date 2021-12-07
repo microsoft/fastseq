@@ -56,7 +56,7 @@ class TransformersUnitTests(parameterized.TestCase):
                           "test_beam_scorer_update",
                           "test_model_outputs_equivalence",
         ],
-        'models': ['t5', 'prophetnet', 'gpt2']
+        'models': ['bart', 't5', 'prophetnet', 'gpt2']
     })
     def test_suites(self, without_fastseq_opt, transformers_version,
                     blocked_tests, models):
