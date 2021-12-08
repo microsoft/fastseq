@@ -15,7 +15,7 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: adsbrainwestus2.azurecr.io/fastseq:dev-py3 
+      image: huggingface/transformers-pytorch-gpu 
       endpoint: fastseq-acr
       options: --gpus device=3
     steps:
