@@ -4,6 +4,10 @@ ENV_PATH=/tmp/
 python3 -m venv ${ENV_PATH}/testing_env
 source ${ENV_PATH}/testing_env/bin/activate
 pip install --upgrade pip
+pip install parameterized
+pip install pandas
+pip install datasets
+pip install black
 pip install protobuf
 pip install gitpython
 pip install absl-py

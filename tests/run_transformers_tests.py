@@ -55,6 +55,11 @@ class TransformersUnitTests(parameterized.TestCase):
                           "test_model_parallelization",
                           "test_beam_scorer_update",
                           "test_model_outputs_equivalence",
+                          "parallel",
+                          "train",
+                          "(PhobertTokenizationTest and test_full_tokenizer)",
+                          "(OfflineTests and test_offline_mode)"
+
         ],
         'models': ['bart', 't5', 'prophetnet', 'gpt2']
     })
@@ -69,10 +74,8 @@ class TransformersUnitTests(parameterized.TestCase):
         self.prepare_env()
         os.chdir(TRANSFORMERS_PATH)
         blocked_tests_string = (' and '.join([' not '+ test for test in blocked_tests]))
-        models_string = " (" + (' or '.join(['_' + model for model in models])) + ") "
-        tests_to_run = models_string + "and" + blocked_tests_string
         exit_code = pytest.main(
-            ['-sv', '-k' + tests_to_run, './tests/'])
+            ['-sv', '-k' + blocked_tests_string, './tests/'])
         assert str(exit_code).strip() == 'ExitCode.OK'
 
 if __name__ == "__main__":
