@@ -20,10 +20,10 @@ jobs:
     steps:
     - script: |
         #install python
-        echo "installing python"
-        apt-get update -y
-        apt-get install -y python
+        mv python3 python
+        echo "python"
         which python
+        echo "python3"
         which python3
         # apt-get update
         # apt-get install python3-venv
