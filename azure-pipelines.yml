@@ -58,16 +58,15 @@ jobs:
         # bash tests/run_transformers_tests.sh
 
         echo "******* Running fairseq unittests *******"
-        echo "uninstall apex"
-        pip uninstall apex -y
-        echo "install apex"
         pip install apex==0.9.10.dev0
-        pip show apex
+        export LC_ALL="en_US.UTF-8"
+        export LC_CTYPE="en_US.UTF-8"
+        dpkg-reconfigure locales
         bash tests/run_fairseq_tests.sh
 
         echo "******* Running fastseq unittests *******"
-        pip install pytorch-transformers==1.0.0
-        bash tests/run_fastseq_tests.sh
+        # pip install pytorch-transformers==1.0.0
+        # bash tests/run_fastseq_tests.sh
 
       displayName: 'run fastseq unit tests'
     - task: PublishTestResults@2
