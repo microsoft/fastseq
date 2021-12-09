@@ -21,8 +21,8 @@ jobs:
     - script: |
         #install python
         echo "installing python"
-        apt-get update
-        apt-get install python
+        apt-get update -y
+        apt-get install python -y
         which python
         which python3
         # apt-get update
