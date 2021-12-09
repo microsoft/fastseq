@@ -16,7 +16,6 @@ jobs:
         - agent.name -equals gpu3
     container:
       image: huggingface/transformers-pytorch-gpu:latest
-      endpoint: fastseq-acr
       options: --gpus device=3
     steps:
     - script: |
