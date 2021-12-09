@@ -63,7 +63,7 @@ jobs:
         echo "install apex"
         pip install apex==0.9.10.dev0
         pip show apex
-        # bash tests/run_fairseq_tests.sh
+        bash tests/run_fairseq_tests.sh
 
         echo "******* Running fastseq unittests *******"
         pip install pytorch-transformers==1.0.0
