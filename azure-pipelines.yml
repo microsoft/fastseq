@@ -52,14 +52,14 @@ jobs:
         echo "******* Running transformers unittests *******"
         # bash tests/run_transformers_tests.sh
 
-        echo "******* Running fastseq unittests *******"
-        pip install pytorch-transformers==1.0.0
-        bash tests/run_fastseq_tests.sh
-
         echo "******* Running fairseq unittests *******"
         pip uninstall apex -y
         pip install apex
         bash tests/run_fairseq_tests.sh
+
+        echo "******* Running fastseq unittests *******"
+        pip install pytorch-transformers==1.0.0
+        bash tests/run_fastseq_tests.sh
 
       displayName: 'run fastseq unit tests'
     - task: PublishTestResults@2
