@@ -19,25 +19,9 @@ jobs:
       options: --gpus device=3
     steps:
     - script: |
-        #install python
-        mv python3 python
-        echo "python"
-        which python
-        echo "python3"
-        which python3
-        # apt-get update
-        # apt-get install python3-venv
-        # alias python=python3
-        # which python3
-        echo "python installed"
         #install fastseq
-
         pip install --upgrade pip
-
-        which pip
-        which python 
-
-        pip install sentencepiece==0.1.90
+        pip install sentencepiece==0.1.96
         pip install torch==1.10.0
 
         echo "******* Installing fairseq *******"
@@ -69,11 +53,13 @@ jobs:
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 
-        echo "******* Running fairseq unittests *******"
-        # bash tests/run_fairseq_tests.sh
-
         echo "******* Running transformers unittests *******"
         # bash tests/run_transformers_tests.sh
+
+        echo "******* Running fairseq unittests *******"
+        pip uninstall apex -y
+        pip install apex
+        bash tests/run_fairseq_tests.sh
 
       displayName: 'run fastseq unit tests'
     - task: PublishTestResults@2
