@@ -1,5 +1,7 @@
 #!/bin/bash
-
+rm -rf build/
+rm ngram_repeat_block_cuda*.so
+pip install --editable .
 for fastseq_py_test_file in $(find tests/ -name "test_*.py")
 do 
   if [[ $fastseq_py_test_file == *"test_fairseq_optimizer"* ]]; then

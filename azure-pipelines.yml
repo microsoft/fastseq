@@ -19,6 +19,8 @@ jobs:
       options: --gpus device=3
     steps:
     - script: |
+        echo "whoami"
+        whoami
         echo "apt-get update"
         apt-get update
         echo "installing python3-venv"
