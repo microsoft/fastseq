@@ -22,6 +22,7 @@ jobs:
         #install python
         apt-get update
         apt-get install python3-venv
+        alias python=python3
         which python3
         #install fastseq
 
