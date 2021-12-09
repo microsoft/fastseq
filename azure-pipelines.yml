@@ -20,10 +20,15 @@ jobs:
     steps:
     - script: |
         #install python
-        apt-get update
-        apt-get install python3-venv
-        alias python=python3
+        echo "installing python"
+        sudo apt install python-is-python3
+        which python
         which python3
+        # apt-get update
+        # apt-get install python3-venv
+        # alias python=python3
+        # which python3
+        echo "python installed"
         #install fastseq
 
         pip install --upgrade pip
@@ -67,7 +72,7 @@ jobs:
         # bash tests/run_fairseq_tests.sh
 
         echo "******* Running transformers unittests *******"
-        bash tests/run_transformers_tests.sh
+        # bash tests/run_transformers_tests.sh
 
       displayName: 'run fastseq unit tests'
     - task: PublishTestResults@2
