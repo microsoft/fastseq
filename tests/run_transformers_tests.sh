@@ -21,5 +21,5 @@ cd ${FASTSEQ_TEST_PATH}/../
 rm -rf build/
 rm ngram_repeat_block_cuda*.so
 pip install --editable .
-python tests/run_transformers_tests.py
+python3 tests/run_transformers_tests.py
 deactivate
