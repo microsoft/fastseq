@@ -64,8 +64,8 @@ jobs:
         bash tests/run_fairseq_tests.sh
 
         echo "******* Running fastseq unittests *******"
-        # pip install pytorch-transformers==1.0.0
-        # bash tests/run_fastseq_tests.sh
+        pip install pytorch-transformers==1.0.0
+        bash tests/run_fastseq_tests.sh
 
       displayName: 'run fastseq unit tests'
     - task: PublishTestResults@2
