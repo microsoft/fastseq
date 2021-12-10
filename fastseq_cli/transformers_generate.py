@@ -172,7 +172,7 @@ def generate_summaries_or_translations(
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        
+
     if fp16:
         model = model.half()
     if decoder_start_token_id is None:
@@ -318,7 +318,7 @@ def run_generate():
                         default=-1,
                         required=False,
                         help="min length for decode")
-    
+
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -348,7 +348,7 @@ def run_generate():
         max_tokenizer_length=args.max_tokenizer_length,
         max_gen_length=args.max_gen_length
         )
-    
+
     if args.reference_path is None:
         return
     # Compute scores

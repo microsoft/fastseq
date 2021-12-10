@@ -39,5 +39,3 @@ grep -E "transformers_v4.12.0 microsoft/prophetnet-large-uncased cnn_dm_bert/raw
 grep -E "transformers_v4.12.0+fastseq_v.* microsoft/prophetnet-large-uncased cnn_dm_bert/raw val 128 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
 	| ./range.sh 6 100
-
-

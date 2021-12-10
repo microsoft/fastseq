@@ -50,3 +50,4 @@ grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 128 " perf \
 grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 256 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 21 100
+    

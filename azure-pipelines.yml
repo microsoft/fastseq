@@ -19,13 +19,6 @@ jobs:
       options: --gpus device=3
     steps:
     - script: |
-        echo "whoami"
-        whoami
-        echo "apt-get update"
-        apt-get update
-        echo "installing python3-venv"
-        apt-get install python3-venv
-
         #install fastseq
         pip install --upgrade pip
         pip install sentencepiece==0.1.96

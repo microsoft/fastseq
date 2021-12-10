@@ -62,11 +62,10 @@ class TransformersUnitTests(parameterized.TestCase):
                           "special_tokens",
                           "(BigBirdPegasusTokenizationTest and test_compare_pretokenized_inputs)"
 
-        ],
-        'models': ['bart', 't5', 'prophetnet', 'gpt2']
+        ]
     })
     def test_suites(self, without_fastseq_opt, transformers_version,
-                    blocked_tests, models):
+                    blocked_tests):
         """run test suites"""
         self.clone_and_build_transformers(TRANSFORMERS_GIT_URL,
                                           transformers_version)
@@ -75,9 +74,10 @@ class TransformersUnitTests(parameterized.TestCase):
         import pytest #pylint: disable=import-outside-toplevel
         self.prepare_env()
         os.chdir(TRANSFORMERS_PATH)
-        blocked_tests_string = (' and '.join([' not '+ test for test in blocked_tests]))
+        blocked_tests_string = (
+            ' and '.join([' not '+ test for test in blocked_tests]))
         exit_code = pytest.main(
-            ['-sv', '-k' + blocked_tests_string, './tests/'])
+            ['-sv', '-k' + blocked_tests_string,  './tests/'])
         assert str(exit_code).strip() == 'ExitCode.OK'
 
 if __name__ == "__main__":

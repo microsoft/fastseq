@@ -7,13 +7,15 @@ import warnings
 import logging
 from typing import Callable, Iterable, List, Optional, Tuple, Union
 from collections import UserDict
-
 import torch
 from torch import nn
 import torch.distributed as dist
 
 from transformers.file_utils import ModelOutput
-from transformers.generation_beam_search import BeamScorer, BeamSearchScorer
+from transformers.generation_beam_search import (
+    BeamScorer, 
+    BeamSearchScorer
+)
 from transformers.generation_utils import (
     GenerationMixin,
     GreedySearchOutput,
@@ -33,10 +35,10 @@ from transformers.models.gpt2.modeling_gpt2 import (
     GPT2DoubleHeadsModel
 )
 from transformers.generation_logits_process import (
-    _get_ngrams, _calc_banned_ngram_tokens, _get_generated_ngrams,
-    NoRepeatNGramLogitsProcessor
-)
-from transformers.generation_logits_process import (
+    _get_ngrams, 
+    _calc_banned_ngram_tokens, 
+    _get_generated_ngrams,
+    NoRepeatNGramLogitsProcessor,
     EncoderNoRepeatNGramLogitsProcessor,
     ForcedBOSTokenLogitsProcessor,
     ForcedEOSTokenLogitsProcessor,
@@ -192,7 +194,6 @@ class GenerationMixinV2(GenerationMixin):
         logger.debug(
             "The num_beams optimization in self_attn and encoder_decoder_attn "
             "does not support {} yet.".format(self.__class__))
-
 
     def _get_logits_processor(
         self,
