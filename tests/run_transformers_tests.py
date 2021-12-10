@@ -58,7 +58,9 @@ class TransformersUnitTests(parameterized.TestCase):
                           "parallel",
                           "train",
                           "(PhobertTokenizationTest and test_full_tokenizer)",
-                          "(OfflineTests and test_offline_mode)"
+                          "(OfflineTests and test_offline_mode)",
+                          "special_tokens",
+                          "(BigBirdPegasusTokenizationTest and test_compare_pretokenized_inputs)"
 
         ],
         'models': ['bart', 't5', 'prophetnet', 'gpt2']
