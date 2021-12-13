@@ -43,15 +43,15 @@ RUN cd ${STAGE_DIR} && \
 # Installation/NLP Utilities
 ##############################################################################
 RUN pip install --upgrade pip && \
-	pip install yapf>=v0.30.0 && \
-	pip install absl-py>=v0.9.0 && \
-	pip install filelock>=v3.0.12 && \
-	pip install requests>=v2.24.0 && \
-	pip install gitpython>=v3.1.7 && \
-	pip install rouge_score==v0.0.4 && \
-	pip install fairseq==v0.10.2 && \
-	pip install transformers==v4.12.0 && \
-	pip install pytorch-transformers==1.0.0 && \
+    pip install yapf>=v0.30.0 && \
+    pip install absl-py>=v0.9.0 && \
+    pip install filelock>=v3.0.12 && \
+    pip install requests>=v2.24.0 && \
+    pip install gitpython>=v3.1.7 && \
+    pip install rouge_score==v0.0.4 && \
+    pip install fairseq==v0.10.2 && \
+    pip install transformers==v4.12.0 && \
+    pip install pytorch-transformers==1.0.0 && \
     pip install sentencepiece==0.1.90
 
 

@@ -1,14 +1,14 @@
-# #!/bin/bash
-# # Run it at its parent folder, and check result at ../perf. 
-# # USAGE - ./benchmark.sh 
-# #   [fairseq|fairseq+fastseq|transformers|transformers+fastseq]
-# #   <model>
-# #   <task>
-# #   <split> # train/val/test (text) or train/valid/test (binary)
-# #   <batch-sizes>
+#!/bin/bash
+# Run it at its parent folder, and check result at ../perf. 
+# USAGE - ./benchmark.sh 
+#   [fairseq|fairseq+fastseq|transformers|transformers+fastseq]
+#   <model>
+#   <task>
+#   <split> # train/val/test (text) or train/valid/test (binary)
+#   <batch-sizes>
 source hf.sh
 
-# # MODEL - mbart
+# MODEL - mbart
 ./benchmark.sh \
     transformers \
     facebook/mbart-large-en-ro \
