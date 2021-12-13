@@ -5,7 +5,7 @@
 
 import warnings
 import logging
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 from collections import UserDict
 import torch
 from torch import nn
@@ -64,7 +64,9 @@ logger = get_logger(__name__, logging.INFO)
 no_repeat_ngram_op = NGramRepeatBlock()
 
 @replace(_get_ngrams)
-def _get_ngrams_v2(ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, pad_token_id: int = None):
+def _get_ngrams_v2(
+    ngram_size: int, prev_input_ids: torch.Tensor, num_hypos: int, pad_token_id: int = None
+) -> List[Dict]:
     generated_ngrams = [{} for _ in range(num_hypos)]
     for idx in range(num_hypos):
         gen_tokens = prev_input_ids[idx].tolist()
