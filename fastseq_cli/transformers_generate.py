@@ -12,6 +12,9 @@ from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer,
                           AutoModelForCausalLM)
 from fastseq_cli.transformers_utils import (
     use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score)
+from fastseq.logging import get_logger
+
+logger = get_logger(__name__, logging.INFO)
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -162,9 +165,6 @@ def generate_summaries_or_translations(
         import fastseq  #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    if model_name == 'prophetnet':
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_name, from_tf=True).to(device)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
     if model_name == 'gpt2':
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -218,7 +218,7 @@ def generate_summaries_or_translations(
                     **gen_kwargs,
                 )
             except:
-                logging.exception(sys.exc_info()[0])
+                logger.exception(sys.exc_info()[0])
                 for p in p_list:
                     p.terminate()
                 io_process.terminate()
@@ -228,7 +228,7 @@ def generate_summaries_or_translations(
             summaries_cpu = summaries.cpu()
             data_queue.put((ind, summaries_cpu))
     except:
-        logging.exception(sys.exc_info()[0])
+        logger.exception(sys.exc_info()[0])
         for p in p_list:
             p.terminate()
         io_process.terminate()
