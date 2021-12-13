@@ -19,7 +19,7 @@ FASTSEQ_VERSION = '0.2.0'
 
 # supported versions of transformers
 MIN_TRANSFORMERS_VERSION = '4.12.0'
-MAX_TRANSFORMER_VERSION = '4.12.0'
+MAX_TRANSFORMER_VERSION = '4.12.5'
 
 # supported versions of fairseq
 MIN_FAIRSEQ_VERSION = '0.10.0'

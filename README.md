@@ -40,7 +40,7 @@ FastSeq develops multiple speedup techniques, including an attention cache optim
 - Python version >= 3.6
 - [torch](http://pytorch.org/) >= 1.4.0
 - [fairseq](https://github.com/pytorch/fairseq) >= 0.10.0
-- [transformers](https://github.com/huggingface/transformers) == 4.12.0
+- [transformers](https://github.com/huggingface/transformers) >= 4.12.0
 - [requests](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
 - [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4
