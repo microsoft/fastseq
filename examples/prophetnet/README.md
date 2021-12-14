@@ -53,7 +53,7 @@ bash generate_binary_data_for_prophetnet.sh INPUT_DATA_DIR
 
 - CNN daily mail validation data, NVIDIA-V100-16GB
 
-  |      BatchSize      |       128      |       128      |       128      |
+  |      BatchSize      |       32      |       64      |       128      |
   |:-------------------:|:--------------:|:--------------:|:--------------:|
   | transformers-4.12.0 | 2.8 samples/s  | 3.2 samples/s  | 3.4 samples/s  |
   |  above + fastseq    | 4.4 samples/s  | 5.6 samples/s  | 6.3 samples/s  |
