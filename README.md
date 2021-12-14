@@ -16,17 +16,18 @@ Below shows the generation speed gain by using FastSeq.
 
 | Model            | W/O FastSeq (in samples/s) | W/ FastSeq (in samples/s) | Speedup |
 |------------------|:--------------------------:|:-------------------------:|:-----:|
-| [ProphetNet](examples/prophetnet/README.md)       | 2.8 | 11.9  | 4.3  |
+| [ProphetNet (`fs`)](examples/prophetnet/README.md)       | 2.8 | 11.9  | 4.3  |
 | [Bart (`fs`)](examples/bart/README.md)              | 3.3  | 25.1 | 7.7x  |
-| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 2.5 | 12.4 | 5.0x  |
-| [DistilBart (`hf`)](examples/distilbart/README.md)    | 3.4  | 18.5  | 5.4x  |
-| [T5 (`hf`)](examples/t5/README.md)                  | 8.7  | 31.3  | 3.6x  |
+| [Bart (`hf`)](examples/bart/README.md#speedup-bart-huggingface-transformers-version-by-using-fastseq) | 4.5 | 12.4 | 2.8x  |
+| [DistilBart (`hf`)](examples/distilbart/README.md)    | 5.5  | 19.1  | 3.5x  |
+| [T5 (`hf`)](examples/t5/README.md)                  | 9.5  | 31.7  | 3.3x  |
 | [WMT16 En-De (`fs`)](examples/wmt/README.md)        | 144.5   | 422.8  | 2.9x  |
-| [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.0   | 16.7  | 5.5x  |
-| [UniLM (`hf`)](examples/unilm/README.md)        | 1.7   | 16.4  | 9.6x  |
+| [GPT2 (`hf`)](examples/gpt2/README.md)        | 3.9   | 21.8  | 5.6x  |
+| [ProphetNet (`hf`)](examples/prophetnet/README.md)        | 3.4   | 6.2  | 1.8x  |
 
 - All benchmarking experiments run on NVIDIA-V100-16GB with [docker](docker/Dockerfile). Highest speed recorded for each model by tuning batch size. For parameter setting details, click link of corresponding model.
-- `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.10.2 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 3.0.2 version.
+- The baseline (W/O Fastseq) for [ProphetNet (`fs`)](examples/prophetnet/README.md) is run with fairseq 0.9.0, as it has not yet been updated for compatibility with version 0.10.2
+- `fs` stands for [Fairseq](https://github.com/pytorch/fairseq) 0.10.2 version, `hf` stands for [Huggingface Transformers](https://github.com/huggingface/transformers) 4.12.0 version.
 - Optimizations were automatically applied to all generation/sequence models in Fairseq & Huggingface Transformers. Above only lists a subset of them.
 
 ## How it works?
@@ -39,7 +40,7 @@ FastSeq develops multiple speedup techniques, including an attention cache optim
 - Python version >= 3.6
 - [torch](http://pytorch.org/) >= 1.4.0
 - [fairseq](https://github.com/pytorch/fairseq) >= 0.10.0
-- [transformers](https://github.com/huggingface/transformers) == 3.0.2
+- [transformers](https://github.com/huggingface/transformers) >= 4.12.0
 - [requests](https://pypi.org/project/requests/) >= 2.24.0
 - [absl-py](https://pypi.org/project/absl-py/) >= 0.9.0
 - [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4

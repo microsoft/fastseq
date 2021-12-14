@@ -33,11 +33,10 @@ class TransformersUnitTests(parameterized.TestCase):
         """clone and build transformers repo"""
         if os.path.isdir(TRANSFORMERS_PATH):
             shutil.rmtree(TRANSFORMERS_PATH)
-        Repo.clone_from(TRANSFORMERS_GIT_URL,
+        Repo.clone_from(repo,
                         TRANSFORMERS_PATH,
                         branch=version)
-        pipmain(['install', 'git+https://github.com/huggingface/transformers.git@' +
-                    version])
+        pipmain(['install', '--editable', TRANSFORMERS_PATH])
         original_pythonpath = os.environ[
             'PYTHONPATH'] if 'PYTHONPATH' in os.environ else ''
         os.environ[
@@ -46,13 +45,23 @@ class TransformersUnitTests(parameterized.TestCase):
     @parameterized.named_parameters({
         'testcase_name': 'Normal',
         'without_fastseq_opt': False,
-        'transformers_version': 'v3.0.2',
+        'transformers_version': 'v4.12.0',
         'blocked_tests': ['modeling_reformer',
                           'multigpu',
                           'HfApiEndpoints',
                           'HfApiPublicTest',
                           "test_gpt2_model_att_mask_past",
-                          "test_gpt2_model_past"
+                          "test_gpt2_model_past",
+                          "test_model_parallelization",
+                          "test_beam_scorer_update",
+                          "test_model_outputs_equivalence",
+                          "parallel",
+                          "train",
+                          "(PhobertTokenizationTest and test_full_tokenizer)",
+                          "(OfflineTests and test_offline_mode)",
+                          "special_tokens",
+                          "(BigBirdPegasusTokenizationTest and test_compare_pretokenized_inputs)"
+
         ]
     })
     def test_suites(self, without_fastseq_opt, transformers_version,

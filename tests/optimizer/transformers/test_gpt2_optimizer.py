@@ -29,7 +29,7 @@ class GPT2OptimizerTest(TestCaseBase):
 
         self.source_path = 'tests/optimizer/transformers/data/cnndm_128.txt'
 
-        # The expected output is generated based on transformers-v3.0.2 with
+        # The expected output is generated based on transformers-v4.12.0 with
         # batch_size = 16.
         self.expected_output_path = 'tests/optimizer/transformers/data/expected_gpt2_output.hypo'  # pylint: disable=line-too-long
         self.expected_outputs = []
@@ -95,8 +95,8 @@ class GPT2OptimizerTest(TestCaseBase):
         'batch_size': 8,
         'max_token_length': 256,
         'num_beams': 4,
-        'min_gen_length': 256 + 55,
-        'max_gen_length': 256 + 199,
+        'min_gen_length': 256 + 50,
+        'max_gen_length': 256 + 190,
         'no_repeat_ngram_size': 3,
         'early_stopping': True,
         'use_cache': True,
@@ -167,9 +167,11 @@ class GPT2OptimizerTest(TestCaseBase):
                     processed_sample_count,
                     processed_sample_count / (end - start)))
 
+        # with open(self.expected_output_path, 'wt',
+        #           encoding="utf-8") as expected_output_file:
+        #     expected_output_file.write('\n'.join([output.replace('\n', ' ') for output in outputs]))
         for i, output in enumerate(outputs):
-            self.assertEqual(
-                output.replace('\n', ' '), self.expected_outputs[i])
+            self.assertEqual(output.replace('\n', ' ').strip(), self.expected_outputs[i].strip())
 
 if __name__ == "__main__":
     fastseq_test_main()

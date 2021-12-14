@@ -15,21 +15,21 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: adsbrainwestus2.azurecr.io/fastseq:dev-py3 
-      endpoint: fastseq-acr
+      image: huggingface/transformers-pytorch-gpu:latest
       options: --gpus device=3
     steps:
     - script: |
         #install fastseq
-        which pip
-        which python 
+        pip install --upgrade pip
+        pip install sentencepiece==0.1.96
+        pip install torch==1.10.0
 
         echo "******* Installing fairseq *******"
         pip install fairseq==0.10.2
         pip show fairseq
 
         echo "******* Installing transformers *******"
-        pip install transformers
+        pip install transformers==4.12.0
         pip show transformers
 
         echo "******* Installing fastseq *******"
@@ -38,10 +38,6 @@ jobs:
 
         echo "******* Adding local bin to path *******"
         export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
-
-        echo "******* Running fastseq unittests *******"
-        pip install pytorch-transformers==1.0.0
-        bash tests/run_fastseq_tests.sh
 
         #cd benchmarks/
         #bash run_all_benchmarks.sh
@@ -53,11 +49,16 @@ jobs:
         python -c "import torch; print('torch:', torch.__version__, torch)"
         python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 
-        echo "******* Running fairseq unittests *******"
-        bash tests/run_fairseq_tests.sh
-
         echo "******* Running transformers unittests *******"
         bash tests/run_transformers_tests.sh
+
+        echo "******* Running fairseq unittests *******"
+        pip install apex==0.9.10.dev0
+        bash tests/run_fairseq_tests.sh
+
+        echo "******* Running fastseq unittests *******"
+        pip install pytorch-transformers==1.0.0
+        bash tests/run_fastseq_tests.sh
 
       displayName: 'run fastseq unit tests'
     - task: PublishTestResults@2

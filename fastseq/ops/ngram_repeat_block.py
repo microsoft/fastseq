@@ -51,8 +51,9 @@ class NGramRepeatBlock(nn.Module):
         beam_size(int): beam size
         no_repeat_ngram_size(int): Ngram size
         """
-        assert tokens.size(0)== bsz*beam_size
-        assert lprobs.size(0)== bsz*beam_size
-
+        assert tokens.size(0) == bsz*beam_size
+        assert lprobs.size(0) == bsz*beam_size
+        tokens = tokens.contiguous()
+        lprobs = lprobs.contiguous()
         return NGramRepeatBlockFunction.apply(tokens, lprobs,
                bsz, step, beam_size, no_repeat_ngram_size)

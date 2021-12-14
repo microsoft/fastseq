@@ -6,10 +6,10 @@ OpenAI GPT-2 model was proposed in [Language Models are Unsupervised Multitask L
 
 - Speed on single NVIDIA-V100-16GB
 
-  |       BatchSize       |        64       |      128       |
-  |:---------------------:|:---------------:|:--------------:|
-  |   transformers_v3.0.2 |   3.0 samples/s |      OOM       |
-  |   above + fastseq     |  11.2 samples/s | 16.5 samples/s |
+  |       BatchSize       |        64       |      128       |      256       |
+  |:---------------------:|:---------------:|:--------------:|:--------------:|
+  |   transformers_v4.12.0 |   3.9 samples/s |      3.8 samples/s       |      OOM       |
+  |   above + fastseq     |  16.4 samples/s | 20.5 samples/s | 21.8 samples/s |
 
 
 ### Model
@@ -37,7 +37,7 @@ $ fastseq-generate-for-transformers \
     --max_gen_length 711 \
     --postprocess_workers 3
 ```
-Baseline speed number is obtained by running [Transformers v3.0.2 code](../../benchmarks/run_eval_hf.py).
+Baseline speed number is obtained by running [Transformers v4.12.0 code](../../benchmarks/run_eval_hf.py).
 
 ### Code Example
 Refer to [file](../../tests/optimizer/transformers/test_gpt2_optimizer.py).

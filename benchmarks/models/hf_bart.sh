@@ -15,7 +15,7 @@ source hf.sh
     facebook/bart-large-cnn \
     cnn_dm/raw \
     val \
-    32 \
+    32/64 \
     --task summarization \
     --no_repeat_ngram_size 3
 ./benchmark.sh \
@@ -33,16 +33,16 @@ grep "facebook/bart-large-cnn cnn_dm/raw val " perf \
 	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
 	| ./range.sh 0.447 0.448
 # Speed on V100 16GB 250W
-grep -E "transformers_v3.0.2 facebook/bart-large-cnn cnn_dm/raw val 32 " perf \
+grep -E "transformers_v4.12.0 facebook/bart-large-cnn cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
-	| ./range.sh 2 3
-grep -E "transformers_v3.0.2\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 32 " perf \
+	| ./range.sh 4 5
+grep -E "transformers_v4.12.0\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 32 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 7 100
-grep -E "transformers_v3.0.2\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 64 " perf \
+	| ./range.sh 10 100
+grep -E "transformers_v4.12.0\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 11 100
-grep -E "transformers_v3.0.2\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 128 " perf \
+grep -E "transformers_v4.12.0\+fastseq_v.* facebook/bart-large-cnn cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
 	| ./range.sh 12 100
 

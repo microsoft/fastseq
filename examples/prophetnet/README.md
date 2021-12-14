@@ -48,3 +48,40 @@ Refer to [file](../../tests/models/test_prophetnet_fs.py).
 ```bash
 bash generate_binary_data_for_prophetnet.sh INPUT_DATA_DIR
 ```
+
+## Speedup ProphetNet (Huggingface Transformers version) by using FastSeq
+
+- CNN daily mail validation data, NVIDIA-V100-16GB
+
+  |      BatchSize      |       32      |       64      |       128      |
+  |:-------------------:|:--------------:|:--------------:|:--------------:|
+  | transformers-4.12.0 | 2.8 samples/s  | 3.2 samples/s  | 3.4 samples/s  |
+  |  above + fastseq    | 4.4 samples/s  | 5.6 samples/s  | 6.3 samples/s  |
+
+
+### Model
+`microsoft/prophetnet-large-uncased` from model hub.
+
+### Task
+[CNN/DM](https://github.com/harvardnlp/sent-summary) validation data
+
+### Setting
+
+```bash
+$ fastseq-generate-for-transformers \
+    microsoft/prophetnet-large-uncased \
+    cnn_dm_bert/raw/val.source \
+    out.summary \
+    --reference_path cnn_dm_bert/raw/val.target \
+    --device cuda \
+    --bs BATCH_SIZE \
+    --fp16 \
+    --score_path out.score \
+    --task summarization \
+    --no_repeat_ngram_size 3
+```
+
+Baseline speed number is obtained by running [Transformers v4.12.0 code](https://github.com/huggingface/transformers/blob/b0892fa0e8df02d683e05e625b3903209bff362d/examples/seq2seq/run_eval.py).
+
+### Code Example
+Refer to [file](../../tests/optimizer/transformers/test_prophetnet_optimizer.py).

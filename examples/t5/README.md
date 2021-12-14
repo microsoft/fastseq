@@ -9,8 +9,8 @@ The T5 model was presented in [Exploring the Limits of Transfer Learning with a 
 
   |       BatchSize      |        64       |      128       |
   |:--------------------:|:---------------:|:--------------:|
-  |   transformers_v3.0.2 |  8.7 samples/s  |      OOM       |
-  |   above + fastseq    |  19.5 samples/s | 31.3 samples/s  |
+  |   transformers_v4.12.0 |  9.5 samples/s  |      OOM       |
+  |   above + fastseq    |  23.3 samples/s | 31.7 samples/s  |
 
 
 ### Model
@@ -39,9 +39,10 @@ $ fastseq-generate-for-transformers \
     --fp16 \
     --score_path out.score \
     --task translation_en_to_ro \
-    --postprocess_workers 3
+    --postprocess_workers 3 \
+    --no_repeat_ngram_size 3
 ```
-Baseline speed number is obtained by running [Transformers v3.0.2 code](https://github.com/huggingface/transformers/blob/b0892fa0e8df02d683e05e625b3903209bff362d/examples/seq2seq/run_eval.py).
+Baseline speed number is obtained by running [Transformers v4.12.0 code](https://github.com/huggingface/transformers/blob/b0892fa0e8df02d683e05e625b3903209bff362d/examples/seq2seq/run_eval.py).
 
 ### Code Example
 Refer to [file](../../tests/optimizer/transformers/test_t5_optimizer.py).

@@ -7,7 +7,6 @@
 #   <split> # train/val/test (text) or train/valid/test (binary)
 #   <batch-sizes>
 source hf.sh
-
 # MODEL - bart large cnn from transformer
 # TASK - cnn dm val full set
 
@@ -16,7 +15,7 @@ source hf.sh
     gpt2 \
     cnn_dm/raw \
     val \
-    64/128 \
+    64/128/256 \
     --task summarization \
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
@@ -27,7 +26,7 @@ source hf.sh
     gpt2 \
     cnn_dm/raw \
     val \
-    64 \
+    64/128 \
     --task summarization \
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
@@ -37,14 +36,18 @@ source hf.sh
 grep "gpt2 cnn_dm/raw val " perf \
 	| awk '{print $9}' \
 	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
-	| ./range.sh 0.155 0.156
+	| ./range.sh 0.160 0.162
 # Speed on V100 16GB 250W
-grep -E "transformers_v3.0.2 gpt2 cnn_dm/raw val 64 " perf \
+grep -E "transformers_v4.12.0 gpt2 cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
-	| ./range.sh 2.9 3.2
-grep -E "transformers_v3.0.2\+fastseq_v.* gpt2 cnn_dm/raw val 64 " perf \
+	| ./range.sh 3.5 4.5
+grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 64 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 10.8 11.3
-grep -E "transformers_v3.0.2\+fastseq_v.* gpt2 cnn_dm/raw val 128 " perf \
+	| ./range.sh 16 100
+grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 128 " perf \
 	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 16.4 16.8
+	| ./range.sh 20 100
+grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 256 " perf \
+	| awk '{s+=$13}END{print s/NR}' \
+	| ./range.sh 21 100
+    
