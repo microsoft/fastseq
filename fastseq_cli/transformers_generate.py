@@ -158,6 +158,7 @@ def generate_summaries_or_translations(
     padding="max_length",
     max_tokenizer_length=None,
     max_gen_length=None,
+    use_causal_lm=False,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -165,7 +166,7 @@ def generate_summaries_or_translations(
         import fastseq  #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    if model_name == 'gpt2':
+    if use_causal_lm:
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         tokenizer.pad_token = tokenizer.eos_token
@@ -318,7 +319,7 @@ def run_generate():
                         default=-1,
                         required=False,
                         help="min length for decode")
-
+    parser.add_argument("--causal_lm", action="store_true")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -346,7 +347,8 @@ def run_generate():
         truncation=not args.no_truncation,
         padding=args.padding,
         max_tokenizer_length=args.max_tokenizer_length,
-        max_gen_length=args.max_gen_length
+        max_gen_length=args.max_gen_length,
+        use_causal_lm=args.causal_lm
         )
 
     if args.reference_path is None:
