@@ -159,6 +159,7 @@ def generate_summaries_or_translations(
     max_tokenizer_length=None,
     max_gen_length=None,
     use_causal_lm=False,
+    output_summaries_only=False,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -226,6 +227,8 @@ def generate_summaries_or_translations(
                 data_queue.close()
                 msg_queue.close()
                 sys.exit(1)
+            if output_summaries_only:
+                summaries = summaries[:, input_ids.size(1):]
             summaries_cpu = summaries.cpu()
             data_queue.put((ind, summaries_cpu))
     except:
@@ -320,6 +323,7 @@ def run_generate():
                         required=False,
                         help="min length for decode")
     parser.add_argument("--causal_lm", action="store_true")
+    parser.add_argument("--output_summaries_only", action="store_true")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -348,7 +352,8 @@ def run_generate():
         padding=args.padding,
         max_tokenizer_length=args.max_tokenizer_length,
         max_gen_length=args.max_gen_length,
-        use_causal_lm=args.causal_lm
+        use_causal_lm=args.causal_lm,
+        output_summaries_only=args.output_summaries_only,
         )
 
     if args.reference_path is None:
