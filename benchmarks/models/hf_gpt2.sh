@@ -19,7 +19,8 @@ source hf.sh
     --task summarization \
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
-    --max_gen_length 711
+    --max_gen_length 711 \
+    --causal_lm
 
 ./benchmark.sh \
     transformers \
