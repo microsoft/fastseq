@@ -988,7 +988,7 @@ class GenerationMixinV2(GenerationMixin):
                 next_token_scores, 2 * num_beams, dim=1, largest=True, sorted=True
             )
 
-            next_indices = (next_tokens / vocab_size).long()
+            next_indices = (next_tokens // vocab_size).long()
             next_tokens = next_tokens % vocab_size
 
             beam_outputs = beam_scorer.process(
@@ -1153,10 +1153,6 @@ class BeamSearchScorerV2(BeamSearchScorer):
                 final_score = final_beam_scores[batch_beam_idx].item()
                 final_tokens = input_ids[batch_beam_idx]
                 beam_hyp.add(final_tokens, final_score)
-                print()
-                print(len(final_tokens))
-                print(final_score)
-                print()
 
         batch_size = len(self._done)
 
