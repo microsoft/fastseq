@@ -35,7 +35,8 @@ $ fastseq-generate-for-transformers \
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
     --max_gen_length 711 \
-    --postprocess_workers 3
+    --postprocess_workers 3 \
+    --causal_lm
 ```
 Baseline speed number is obtained by running [Transformers v4.12.0 code](../../benchmarks/run_eval_hf.py).
 

@@ -14,6 +14,17 @@ from fastseq_cli.transformers_utils import (
     use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score)
 from fastseq.logging import get_logger
 
+from transformers.generation_utils import (
+    BeamSearchEncoderDecoderOutput,
+    BeamSearchDecoderOnlyOutput,
+    GreedySearchDecoderOnlyOutput,
+    GreedySearchEncoderDecoderOutput,
+    SampleDecoderOnlyOutput,
+    SampleEncoderDecoderOutput,
+    BeamSampleDecoderOnlyOutput,
+    BeamSampleEncoderDecoderOutput,
+)
+
 logger = get_logger(__name__, logging.INFO)
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -70,10 +81,21 @@ class IOProcess (Process):
         self.waiting_for=0
         self.dec_buf = {}
 
-    def process_dec(self, dec):
-        for hypothesis in dec:
+    def process_dec(self, dec_scores):
+        """ Process and write detokenized hypotheses and scores
+        Args:
+            dec_scores (tuple(Tensor, Tensor or List)): tuple of (hypotheses, scores)
+        """
+        dec, scores = dec_scores
+        for i, hypothesis in enumerate(dec):
+            score = ''
+            if scores is not None:
+                if isinstance(scores[i], str):
+                    score = scores[i] + '\t'
+                else:
+                    score = "%f\t" %scores[i].item()
             hypothesis = hypothesis.replace('\n', ' ')
-            self.fout.write(hypothesis + "\n")
+            self.fout.write(score + hypothesis + "\n")
             self.fout.flush()
 
     def process_buffer(self):
@@ -84,13 +106,13 @@ class IOProcess (Process):
 
     def run(self):
         while True:
-            ind, dec = self.msg_queue.get()
+            ind, dec, scores = self.msg_queue.get()
             if dec == GENERATE_FINISHED:
                 break
             elif ind != self.waiting_for:
-                self.dec_buf[ind] = dec
+                self.dec_buf[ind] = (dec, scores)
             else:
-                self.process_dec(dec)
+                self.process_dec((dec, scores))
                 self.waiting_for+=1
                 self.process_buffer()
         self.process_buffer()
@@ -119,19 +141,19 @@ class PostProcess(Process):
 
     def run(self):
         while True:
-            ind, summaries = self.data_queue.get()
+            ind, summaries, scores = self.data_queue.get()
             if summaries == GENERATE_FINISHED:
-                self.data_queue.put((-1, POSTPROCESS_FINISHED))
+                self.data_queue.put((-1, POSTPROCESS_FINISHED, None))
                 break
             elif summaries == POSTPROCESS_FINISHED:
-                self.data_queue.put((-1, POSTPROCESS_FINISHED))
+                self.data_queue.put((-1, POSTPROCESS_FINISHED, None))
                 break
             else:
                 dec = self.tokenizer.batch_decode(summaries,
                         skip_special_tokens = self.skip_special_tokens,
                         clean_up_tokenization_spaces =
                         self.clean_up_tokenization_spaces)
-                self.msg_queue.put((ind, dec))
+                self.msg_queue.put((ind, dec, scores))
 
         self.data_queue.close()
         self.data_queue.join_thread()
@@ -158,6 +180,10 @@ def generate_summaries_or_translations(
     padding="max_length",
     max_tokenizer_length=None,
     max_gen_length=None,
+    use_causal_lm=False,
+    output_summaries_only=False,
+    output_sequence_scores=False,
+    num_beams=1,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -165,7 +191,7 @@ def generate_summaries_or_translations(
         import fastseq  #pylint: disable=import-outside-toplevel
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
-    if model_name == 'gpt2':
+    if use_causal_lm:
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         tokenizer.pad_token = tokenizer.eos_token
@@ -215,6 +241,9 @@ def generate_summaries_or_translations(
                     decoder_start_token_id=decoder_start_token_id,
                     no_repeat_ngram_size=no_repeat_ngram_size,
                     max_length=max_gen_length,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    num_beams=num_beams,
                     **gen_kwargs,
                 )
             except:
@@ -225,8 +254,21 @@ def generate_summaries_or_translations(
                 data_queue.close()
                 msg_queue.close()
                 sys.exit(1)
-            summaries_cpu = summaries.cpu()
-            data_queue.put((ind, summaries_cpu))
+            scores = summaries.scores
+            sequences = summaries.sequences
+            scores_cpu = None
+            if output_sequence_scores:
+                if (type(summaries) in [BeamSearchEncoderDecoderOutput, 
+                                        BeamSearchDecoderOnlyOutput, 
+                                        BeamSampleDecoderOnlyOutput, 
+                                        BeamSampleEncoderDecoderOutput]):
+                        scores_cpu = summaries.sequences_scores.cpu()
+                else: 
+                    scores_cpu = ['NA'] * sequences.shape[0]
+            if output_summaries_only:
+                sequences = sequences[:, input_ids.shape[-1]:] 
+            sequences_cpu = sequences.cpu()
+            data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
         logger.exception(sys.exc_info()[0])
         for p in p_list:
@@ -235,10 +277,10 @@ def generate_summaries_or_translations(
         data_queue.close()
         msg_queue.close()
         sys.exit(1)
-    data_queue.put((-1, GENERATE_FINISHED))
+    data_queue.put((-1, GENERATE_FINISHED, None))
     for p in p_list:
         p.join()
-    msg_queue.put((-1, GENERATE_FINISHED))
+    msg_queue.put((-1, GENERATE_FINISHED, None))
     io_process.join()
     fout.close()
 
@@ -318,7 +360,14 @@ def run_generate():
                         default=-1,
                         required=False,
                         help="min length for decode")
-
+    parser.add_argument("--causal_lm", action="store_true")
+    parser.add_argument("--output_summaries_only", action="store_true")
+    parser.add_argument("--output_sequence_scores", action="store_true")
+    parser.add_argument("--beam",
+                        type=int,
+                        default=1,
+                        required=False,
+                        help="beam size for generation")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -346,7 +395,11 @@ def run_generate():
         truncation=not args.no_truncation,
         padding=args.padding,
         max_tokenizer_length=args.max_tokenizer_length,
-        max_gen_length=args.max_gen_length
+        max_gen_length=args.max_gen_length,
+        use_causal_lm=args.causal_lm,
+        output_summaries_only=args.output_summaries_only,
+        output_sequence_scores=args.output_sequence_scores,
+        num_beams=args.beam,
         )
 
     if args.reference_path is None:
