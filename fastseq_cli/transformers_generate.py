@@ -82,10 +82,14 @@ class IOProcess (Process):
         self.dec_buf = {}
 
     def process_dec(self, dec_scores):
+        """ Process and write detokenized hypotheses and scores
+        Args:
+            dec_scores (tuple(Tensor, Tensor or List)): tuple of (hypotheses, scores)
+        """
         dec, scores = dec_scores
         for i, hypothesis in enumerate(dec):
             score = ''
-            if not scores is None:
+            if scores is not None:
                 if isinstance(scores[i], str):
                     score = scores[i] + '\t'
                 else:
@@ -254,10 +258,10 @@ def generate_summaries_or_translations(
             sequences = summaries.sequences
             scores_cpu = None
             if output_sequence_scores:
-                if (type(summaries) == BeamSearchEncoderDecoderOutput or \
-                    type(summaries) == BeamSearchDecoderOnlyOutput or \
-                    type(summaries) == BeamSampleDecoderOnlyOutput or \
-                    type(summaries) == BeamSampleEncoderDecoderOutput):
+                if (type(summaries) in [BeamSearchEncoderDecoderOutput, 
+                                        BeamSearchDecoderOnlyOutput, 
+                                        BeamSampleDecoderOnlyOutput, 
+                                        BeamSampleEncoderDecoderOutput]):
                         scores_cpu = summaries.sequences_scores.cpu()
                 else: 
                     scores_cpu = ['NA'] * sequences.shape[0]
