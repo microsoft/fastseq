@@ -391,14 +391,21 @@ def run_generate():
                         default=None, required=False,
                         help="id fo the end-of-sequence token")
     parser.add_argument("--temperature", type=float,
-                        default=None, required=False)
+                        default=None, required=False,
+                        help="The value used to module the next token probabilities.")
     parser.add_argument("--top_k", type=int,
-                        default=None, required=False)
+                        default=None, required=False,
+                        help="The number of highest probability vocabulary tokens to "
+                        "keep for top-k-filtering.")
     parser.add_argument("--top_p", type=float, 
-                        default=None, required=False)
+                        default=None, required=False,
+                        help="If set to float < 1, only the most probable tokens with "
+                        "probabilities that add up to `top_p` or higher are kept for generation.")
     parser.add_argument("--repetition_penalty", type=float,
-                        default=None, required=False)
-    parser.add_argument("--do_sample", action="store_true")
+                        default=None, required=False,
+                        help="The parameter for repetition penalty. 1.0 means no penalty.")
+    parser.add_argument("--do_sample", action="store_true",
+                        help="Whether or not to use sampling ; use greedy decoding otherwise.")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
