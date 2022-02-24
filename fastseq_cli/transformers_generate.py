@@ -180,10 +180,17 @@ def generate_summaries_or_translations(
     padding="max_length",
     max_tokenizer_length=None,
     max_gen_length=None,
+    max_new_tokens=None,
     use_causal_lm=False,
     output_summaries_only=False,
     output_sequence_scores=False,
     num_beams=1,
+    eos_token_id=None,
+    temperature=None,
+    top_k=None,
+    top_p=None,
+    do_sample=None,
+    repetition_penalty=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -241,9 +248,16 @@ def generate_summaries_or_translations(
                     decoder_start_token_id=decoder_start_token_id,
                     no_repeat_ngram_size=no_repeat_ngram_size,
                     max_length=max_gen_length,
+                    max_new_tokens=max_new_tokens,
                     output_scores=True,
                     return_dict_in_generate=True,
                     num_beams=num_beams,
+                    eos_token_id=eos_token_id,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    do_sample=do_sample,
+                    repetition_penalty=repetition_penalty,
                     **gen_kwargs,
                 )
             except:
@@ -354,7 +368,12 @@ def run_generate():
                         default=None, required=False)
     parser.add_argument("--max_gen_length", type=int,
                         help="max length for generation",
-                        default=None, required=False)
+                        default=None, required=False),
+    parser.add_argument("--max_new_tokens", type=int,
+                        help="max tokens to generate, ignoring the number of "
+                        "current tokens. Use either max_gen_length or "
+                        "max_new_tokens, but not both - they serve the same purpose.",
+                        default=None, required=False),
     parser.add_argument("--min_gen_length",
                         type=int,
                         default=-1,
@@ -368,6 +387,25 @@ def run_generate():
                         default=1,
                         required=False,
                         help="beam size for generation")
+    parser.add_argument("--eos_token_id", type=int,
+                        default=None, required=False,
+                        help="id fo the end-of-sequence token")
+    parser.add_argument("--temperature", type=float,
+                        default=None, required=False,
+                        help="The value used to module the next token probabilities.")
+    parser.add_argument("--top_k", type=int,
+                        default=None, required=False,
+                        help="The number of highest probability vocabulary tokens to "
+                        "keep for top-k-filtering.")
+    parser.add_argument("--top_p", type=float, 
+                        default=None, required=False,
+                        help="If set to float < 1, only the most probable tokens with "
+                        "probabilities that add up to `top_p` or higher are kept for generation.")
+    parser.add_argument("--repetition_penalty", type=float,
+                        default=None, required=False,
+                        help="The parameter for repetition penalty. 1.0 means no penalty.")
+    parser.add_argument("--do_sample", action="store_true",
+                        help="Whether or not to use sampling ; use greedy decoding otherwise.")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -396,10 +434,17 @@ def run_generate():
         padding=args.padding,
         max_tokenizer_length=args.max_tokenizer_length,
         max_gen_length=args.max_gen_length,
+        max_new_tokens=args.max_new_tokens,
         use_causal_lm=args.causal_lm,
         output_summaries_only=args.output_summaries_only,
         output_sequence_scores=args.output_sequence_scores,
         num_beams=args.beam,
+        eos_token_id=args.eos_token_id,
+        temperature=args.temperature,
+        top_k=args.top_k,
+        top_p=args.top_p,
+        repetition_penalty=args.repetition_penalty,
+        do_sample=args.do_sample,
         )
 
     if args.reference_path is None:
