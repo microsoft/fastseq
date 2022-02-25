@@ -12,7 +12,6 @@ from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer,
                           AutoModelForCausalLM)
 from fastseq_cli.transformers_utils import (
     use_task_specific_params, trim_batch, calculate_rouge, calculate_bleu_score)
-from fastseq.logging import get_logger
 
 from transformers.generation_utils import (
     BeamSearchEncoderDecoderOutput,
@@ -25,7 +24,7 @@ from transformers.generation_utils import (
     BeamSampleEncoderDecoderOutput,
 )
 
-logger = get_logger(__name__, logging.INFO)
+logger = logging.getLogger(__name__)
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -196,7 +195,11 @@ def generate_summaries_or_translations(
     """Run generation"""
     if fastseq_opt:
         import fastseq  #pylint: disable=import-outside-toplevel
+        from fastseq.logging import get_logger #pylint: disable=import-outside-toplevel
+        global logger
+        logger = get_logger(__name__, logging.INFO)
     else:
+        assert 'fastseq' not in sys.modules, "Running with --without_fastseq_opt, Fastseq should not be imported."
         preprocess_workers = 0
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
@@ -253,8 +256,8 @@ def generate_summaries_or_translations(
                     no_repeat_ngram_size=no_repeat_ngram_size,
                     max_length=max_gen_length,
                     max_new_tokens=max_new_tokens,
-                    output_scores=True,
-                    return_dict_in_generate=True,
+                    output_scores=output_sequence_scores,
+                    return_dict_in_generate=output_sequence_scores,
                     num_beams=num_beams,
                     eos_token_id=eos_token_id,
                     temperature=temperature,
@@ -266,13 +269,17 @@ def generate_summaries_or_translations(
                 )
             except:
                 logger.exception(sys.exc_info()[0])
-                for p in p_list:
-                    p.terminate()
-                io_process.terminate()
-                data_queue.close()
-                msg_queue.close()
+                if fastseq_opt:
+                    for p in p_list:
+                        p.terminate()
+                    io_process.terminate()
+                    data_queue.close()
+                    msg_queue.close()
                 sys.exit(1)
-            sequences = summaries.sequences
+            if output_sequence_scores:
+                sequences = summaries.sequences
+            else:
+                sequences = summaries
             scores_cpu = None
             if output_sequence_scores:
                 if (type(summaries) in [BeamSearchEncoderDecoderOutput, 
