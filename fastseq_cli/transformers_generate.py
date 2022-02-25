@@ -196,6 +196,8 @@ def generate_summaries_or_translations(
     """Run generation"""
     if fastseq_opt:
         import fastseq  #pylint: disable=import-outside-toplevel
+    else:
+        preprocess_workers = 0
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     if use_causal_lm:
@@ -207,30 +209,32 @@ def generate_summaries_or_translations(
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     if fp16:
-        model = model.half()
+        model = model.half()  
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
-
     if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
         tokenizer.model_max_length = max_tokenizer_length
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
-    data_queue = Queue()
-    msg_queue =  Queue()
-    p_list = []
 
-    for _ in range(postprocess_workers):
-        p = PostProcess(tokenizer, data_queue, msg_queue,
-            skip_special_tokens, clean_up_tokenization_spaces)
-        p_list.append(p)
-        p.start()
+    if fastseq_opt:
+        data_queue = Queue()
+        msg_queue =  Queue()
+        p_list = []
 
-    io_process = IOProcess( msg_queue, fout)
-    io_process.start()
+        for _ in range(postprocess_workers):
+            p = PostProcess(tokenizer, data_queue, msg_queue,
+                skip_special_tokens, clean_up_tokenization_spaces)
+            p_list.append(p)
+            p.start()
+
+        io_process = IOProcess( msg_queue, fout)
+        io_process.start()
+
     dataset = TokenizeDataset(examples, tokenizer, model_name,
-        model.config.prefix, return_tensors, truncation, padding,
-        max_tokenizer_length)
+            model.config.prefix, return_tensors, truncation, padding,
+            max_tokenizer_length)
     training_generator = torch.utils.data.DataLoader(dataset,
             batch_size=batch_size, num_workers = preprocess_workers,
             drop_last=False)
@@ -268,7 +272,6 @@ def generate_summaries_or_translations(
                 data_queue.close()
                 msg_queue.close()
                 sys.exit(1)
-            scores = summaries.scores
             sequences = summaries.sequences
             scores_cpu = None
             if output_sequence_scores:
@@ -282,20 +285,37 @@ def generate_summaries_or_translations(
             if output_summaries_only:
                 sequences = sequences[:, input_ids.shape[-1]:] 
             sequences_cpu = sequences.cpu()
-            data_queue.put((ind, sequences_cpu, scores_cpu))
+            if fastseq_opt:
+                data_queue.put((ind, sequences_cpu, scores_cpu))
+            else: 
+                dec = tokenizer.batch_decode(
+                    sequences_cpu, skip_special_tokens=True,
+                    clean_up_tokenization_spaces=False)
+                for i, hypothesis in enumerate(dec):
+                    hypothesis = hypothesis.replace('\n', ' ')
+                    score = ''
+                    if scores_cpu is not None:
+                        if isinstance(scores_cpu[i], str):
+                            score = scores_cpu[i] + '\t'
+                        else:
+                            score = "%f\t" %scores_cpu[i].item()
+                    fout.write(score + hypothesis + "\n")
+                    fout.flush()
     except:
         logger.exception(sys.exc_info()[0])
-        for p in p_list:
-            p.terminate()
-        io_process.terminate()
-        data_queue.close()
-        msg_queue.close()
+        if fastseq_opt:
+            for p in p_list:
+                p.terminate()
+            io_process.terminate()
+            data_queue.close()
+            msg_queue.close()
         sys.exit(1)
-    data_queue.put((-1, GENERATE_FINISHED, None))
-    for p in p_list:
-        p.join()
-    msg_queue.put((-1, GENERATE_FINISHED, None))
-    io_process.join()
+    if fastseq_opt:
+        data_queue.put((-1, GENERATE_FINISHED, None))
+        for p in p_list:
+            p.join()
+        msg_queue.put((-1, GENERATE_FINISHED, None))
+        io_process.join()
     fout.close()
 
 def run_generate():
