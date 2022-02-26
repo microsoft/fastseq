@@ -212,7 +212,7 @@ def generate_summaries_or_translations(
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     if fp16:
-        model = model.half()  
+        model = model.half()
     if decoder_start_token_id is None:
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
     if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
@@ -236,8 +236,8 @@ def generate_summaries_or_translations(
         io_process.start()
 
     dataset = TokenizeDataset(examples, tokenizer, model_name,
-            model.config.prefix, return_tensors, truncation, padding,
-            max_tokenizer_length)
+        model.config.prefix, return_tensors, truncation, padding,
+        max_tokenizer_length)
     training_generator = torch.utils.data.DataLoader(dataset,
             batch_size=batch_size, num_workers = preprocess_workers,
             drop_last=False)

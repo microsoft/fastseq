@@ -38,7 +38,7 @@ $ fastseq-generate-for-transformers \
     --postprocess_workers 3 \
     --causal_lm
 ```
-Baseline speed number is obtained using --without_fastseq_opt flag.
+Baseline speed number is obtained using the above comment with "--without_fastseq_opt" flag.
 
 ### Code Example
 Refer to [file](../../tests/optimizer/transformers/test_gpt2_optimizer.py).
