@@ -159,7 +159,7 @@ class PostProcess(Process):
         self.msg_queue.close()
         self.msg_queue.join_thread()
 
-def generate_summaries_or_translations(
+def generate_summaries_or_translations_baseline(
     examples: list,
     out_file: str,
     model_name: str,
@@ -168,7 +168,6 @@ def generate_summaries_or_translations(
     fp16=False,
     task="summarization",
     decoder_start_token_id=None,
-    fastseq_opt=True,
     no_repeat_ngram_size=None,
     skip_special_tokens=True,
     clean_up_tokenization_spaces=False,
@@ -193,14 +192,7 @@ def generate_summaries_or_translations(
     **gen_kwargs,
 ) -> None:
     """Run generation"""
-    if fastseq_opt:
-        import fastseq  #pylint: disable=import-outside-toplevel
-        from fastseq.logging import get_logger #pylint: disable=import-outside-toplevel
-        global logger
-        logger = get_logger(__name__, logging.INFO)
-    else:
-        assert 'fastseq' not in sys.modules, "Running with --without_fastseq_opt, Fastseq should not be imported."
-        preprocess_workers = 0
+    assert 'fastseq' not in sys.modules, "Running with --without_fastseq_opt, Fastseq should not be imported."
     fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     if use_causal_lm:
@@ -221,19 +213,144 @@ def generate_summaries_or_translations(
     # update config with summarization specific params
     use_task_specific_params(model, task)
 
-    if fastseq_opt:
-        data_queue = Queue()
-        msg_queue =  Queue()
-        p_list = []
+    dataset = TokenizeDataset(examples, tokenizer, model_name,
+        model.config.prefix, return_tensors, truncation, padding,
+        max_tokenizer_length)
+    training_generator = torch.utils.data.DataLoader(dataset,
+            batch_size=batch_size, num_workers = 0,
+            drop_last=False)
+    try:
+        for ind, batch in tqdm(enumerate(training_generator)):
+            input_ids, attention_mask = batch
+            input_ids = input_ids.view(input_ids.size(0), -1).to(device)
+            attention_mask = attention_mask.view(input_ids.size(0), -1).to(device)
+            input_ids, attention_mask = trim_batch(
+              input_ids, tokenizer.pad_token_id, attention_mask)
+            try:
+                summaries = model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    decoder_start_token_id=decoder_start_token_id,
+                    no_repeat_ngram_size=no_repeat_ngram_size,
+                    max_length=max_gen_length,
+                    max_new_tokens=max_new_tokens,
+                    output_scores=output_sequence_scores,
+                    return_dict_in_generate=output_sequence_scores,
+                    num_beams=num_beams,
+                    eos_token_id=eos_token_id,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    do_sample=do_sample,
+                    repetition_penalty=repetition_penalty,
+                    **gen_kwargs,
+                )
+            except:
+                logger.exception(sys.exc_info()[0])
+                sys.exit(1)
+            if output_sequence_scores:
+                sequences = summaries.sequences
+            else:
+                sequences = summaries
+            scores_cpu = None
+            if output_sequence_scores:
+                if (type(summaries) in [BeamSearchEncoderDecoderOutput, 
+                                        BeamSearchDecoderOnlyOutput, 
+                                        BeamSampleDecoderOnlyOutput, 
+                                        BeamSampleEncoderDecoderOutput]):
+                        scores_cpu = summaries.sequences_scores.cpu()
+                else: 
+                    scores_cpu = ['NA'] * sequences.shape[0]
+            if output_summaries_only:
+                sequences = sequences[:, input_ids.shape[-1]:] 
+            sequences_cpu = sequences.cpu()
+            dec = tokenizer.batch_decode(
+                sequences_cpu, skip_special_tokens=True,
+                clean_up_tokenization_spaces=False)
+            for i, hypothesis in enumerate(dec):
+                hypothesis = hypothesis.replace('\n', ' ')
+                score = ''
+                if scores_cpu is not None:
+                    if isinstance(scores_cpu[i], str):
+                        score = scores_cpu[i] + '\t'
+                    else:
+                        score = "%f\t" %scores_cpu[i].item()
+                fout.write(score + hypothesis + "\n")
+                fout.flush()
+    except:
+        logger.exception(sys.exc_info()[0])
+        sys.exit(1)
+    fout.close()
 
-        for _ in range(postprocess_workers):
-            p = PostProcess(tokenizer, data_queue, msg_queue,
-                skip_special_tokens, clean_up_tokenization_spaces)
-            p_list.append(p)
-            p.start()
+def generate_summaries_or_translations_fast(
+    examples: list,
+    out_file: str,
+    model_name: str,
+    batch_size: int = 8,
+    device: str = DEFAULT_DEVICE,
+    fp16=False,
+    task="summarization",
+    decoder_start_token_id=None,
+    no_repeat_ngram_size=None,
+    skip_special_tokens=True,
+    clean_up_tokenization_spaces=False,
+    preprocess_workers=2,
+    postprocess_workers=2,
+    return_tensors="pt",
+    truncation=True,
+    padding="max_length",
+    max_tokenizer_length=None,
+    max_gen_length=None,
+    max_new_tokens=None,
+    use_causal_lm=False,
+    output_summaries_only=False,
+    output_sequence_scores=False,
+    num_beams=1,
+    eos_token_id=None,
+    temperature=None,
+    top_k=None,
+    top_p=None,
+    do_sample=None,
+    repetition_penalty=None,
+    **gen_kwargs,
+) -> None:
+    """Run generation"""
+    import fastseq  #pylint: disable=import-outside-toplevel
+    from fastseq.logging import get_logger #pylint: disable=import-outside-toplevel
+    global logger
+    logger = get_logger(__name__, logging.INFO)
+    fout = Path(out_file).open("w", encoding="utf-8")
+    model_name = str(model_name)
+    if use_causal_lm:
+        model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer.pad_token = tokenizer.eos_token
+    else:
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        io_process = IOProcess( msg_queue, fout)
-        io_process.start()
+    if fp16:
+        model = model.half()
+    if decoder_start_token_id is None:
+        decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
+    if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
+        tokenizer.model_max_length = max_tokenizer_length
+
+    # update config with summarization specific params
+    use_task_specific_params(model, task)
+
+    data_queue = Queue()
+    msg_queue =  Queue()
+    p_list = []
+
+    for _ in range(postprocess_workers):
+        p = PostProcess(tokenizer, data_queue, msg_queue,
+            skip_special_tokens, clean_up_tokenization_spaces)
+        p_list.append(p)
+        p.start()
+
+    io_process = IOProcess( msg_queue, fout)
+    io_process.start()
 
     dataset = TokenizeDataset(examples, tokenizer, model_name,
         model.config.prefix, return_tensors, truncation, padding,
@@ -269,12 +386,11 @@ def generate_summaries_or_translations(
                 )
             except:
                 logger.exception(sys.exc_info()[0])
-                if fastseq_opt:
-                    for p in p_list:
-                        p.terminate()
-                    io_process.terminate()
-                    data_queue.close()
-                    msg_queue.close()
+                for p in p_list:
+                    p.terminate()
+                io_process.terminate()
+                data_queue.close()
+                msg_queue.close()
                 sys.exit(1)
             if output_sequence_scores:
                 sequences = summaries.sequences
@@ -292,37 +408,21 @@ def generate_summaries_or_translations(
             if output_summaries_only:
                 sequences = sequences[:, input_ids.shape[-1]:] 
             sequences_cpu = sequences.cpu()
-            if fastseq_opt:
-                data_queue.put((ind, sequences_cpu, scores_cpu))
-            else: 
-                dec = tokenizer.batch_decode(
-                    sequences_cpu, skip_special_tokens=True,
-                    clean_up_tokenization_spaces=False)
-                for i, hypothesis in enumerate(dec):
-                    hypothesis = hypothesis.replace('\n', ' ')
-                    score = ''
-                    if scores_cpu is not None:
-                        if isinstance(scores_cpu[i], str):
-                            score = scores_cpu[i] + '\t'
-                        else:
-                            score = "%f\t" %scores_cpu[i].item()
-                    fout.write(score + hypothesis + "\n")
-                    fout.flush()
+            data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
         logger.exception(sys.exc_info()[0])
-        if fastseq_opt:
-            for p in p_list:
-                p.terminate()
-            io_process.terminate()
-            data_queue.close()
-            msg_queue.close()
-        sys.exit(1)
-    if fastseq_opt:
-        data_queue.put((-1, GENERATE_FINISHED, None))
         for p in p_list:
-            p.join()
-        msg_queue.put((-1, GENERATE_FINISHED, None))
-        io_process.join()
+            p.terminate()
+        io_process.terminate()
+        data_queue.close()
+        msg_queue.close()
+        sys.exit(1)
+
+    data_queue.put((-1, GENERATE_FINISHED, None))
+    for p in p_list:
+        p.join()
+    msg_queue.put((-1, GENERATE_FINISHED, None))
+    io_process.join()
     fout.close()
 
 def run_generate():
@@ -441,38 +541,70 @@ def run_generate():
     if args.n_obs > 0:
         examples = examples[:args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
-    generate_summaries_or_translations(
-        examples,
-        args.save_path,
-        args.model_name,
-        batch_size=args.bs,
-        device=args.device,
-        fp16=args.fp16,
-        task=args.task,
-        decoder_start_token_id=args.decoder_start_token_id,
-        fastseq_opt=not args.without_fastseq_opt,
-        no_repeat_ngram_size=args.no_repeat_ngram_size,
-        skip_special_tokens=not args.include_special_tokens,
-        clean_up_tokenization_spaces=args.clean_up_tokenization_spaces,
-        preprocess_workers=args.preprocess_workers,
-        postprocess_workers=args.postprocess_workers,
-        return_tensors=args.return_tensors,
-        truncation=not args.no_truncation,
-        padding=args.padding,
-        max_tokenizer_length=args.max_tokenizer_length,
-        max_gen_length=args.max_gen_length,
-        max_new_tokens=args.max_new_tokens,
-        use_causal_lm=args.causal_lm,
-        output_summaries_only=args.output_summaries_only,
-        output_sequence_scores=args.output_sequence_scores,
-        num_beams=args.beam,
-        eos_token_id=args.eos_token_id,
-        temperature=args.temperature,
-        top_k=args.top_k,
-        top_p=args.top_p,
-        repetition_penalty=args.repetition_penalty,
-        do_sample=args.do_sample,
-        )
+    if args.without_fastseq_opt:
+        generate_summaries_or_translations_baseline(
+            examples,
+            args.save_path,
+            args.model_name,
+            batch_size=args.bs,
+            device=args.device,
+            fp16=args.fp16,
+            task=args.task,
+            decoder_start_token_id=args.decoder_start_token_id,
+            no_repeat_ngram_size=args.no_repeat_ngram_size,
+            skip_special_tokens=not args.include_special_tokens,
+            clean_up_tokenization_spaces=args.clean_up_tokenization_spaces,
+            preprocess_workers=args.preprocess_workers,
+            postprocess_workers=args.postprocess_workers,
+            return_tensors=args.return_tensors,
+            truncation=not args.no_truncation,
+            padding=args.padding,
+            max_tokenizer_length=args.max_tokenizer_length,
+            max_gen_length=args.max_gen_length,
+            max_new_tokens=args.max_new_tokens,
+            use_causal_lm=args.causal_lm,
+            output_summaries_only=args.output_summaries_only,
+            output_sequence_scores=args.output_sequence_scores,
+            num_beams=args.beam,
+            eos_token_id=args.eos_token_id,
+            temperature=args.temperature,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            repetition_penalty=args.repetition_penalty,
+            do_sample=args.do_sample,
+            )
+    else:
+        generate_summaries_or_translations_fast(
+            examples,
+            args.save_path,
+            args.model_name,
+            batch_size=args.bs,
+            device=args.device,
+            fp16=args.fp16,
+            task=args.task,
+            decoder_start_token_id=args.decoder_start_token_id,
+            no_repeat_ngram_size=args.no_repeat_ngram_size,
+            skip_special_tokens=not args.include_special_tokens,
+            clean_up_tokenization_spaces=args.clean_up_tokenization_spaces,
+            preprocess_workers=args.preprocess_workers,
+            postprocess_workers=args.postprocess_workers,
+            return_tensors=args.return_tensors,
+            truncation=not args.no_truncation,
+            padding=args.padding,
+            max_tokenizer_length=args.max_tokenizer_length,
+            max_gen_length=args.max_gen_length,
+            max_new_tokens=args.max_new_tokens,
+            use_causal_lm=args.causal_lm,
+            output_summaries_only=args.output_summaries_only,
+            output_sequence_scores=args.output_sequence_scores,
+            num_beams=args.beam,
+            eos_token_id=args.eos_token_id,
+            temperature=args.temperature,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            repetition_penalty=args.repetition_penalty,
+            do_sample=args.do_sample,
+            )
 
     if args.reference_path is None:
         return
