@@ -189,6 +189,7 @@ def generate_summaries_or_translations_baseline(
     top_p=None,
     do_sample=None,
     repetition_penalty=None,
+    num_return_sequences=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -243,6 +244,7 @@ def generate_summaries_or_translations_baseline(
                     top_p=top_p,
                     do_sample=do_sample,
                     repetition_penalty=repetition_penalty,
+                    num_return_sequences=num_return_sequences,
                     **gen_kwargs,
                 )
             except:
@@ -312,6 +314,7 @@ def generate_summaries_or_translations_fast(
     top_p=None,
     do_sample=None,
     repetition_penalty=None,
+    num_return_sequences=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -382,6 +385,7 @@ def generate_summaries_or_translations_fast(
                     top_p=top_p,
                     do_sample=do_sample,
                     repetition_penalty=repetition_penalty,
+                    num_return_sequences=num_return_sequences,
                     **gen_kwargs,
                 )
             except:
@@ -533,6 +537,9 @@ def run_generate():
                         help="The parameter for repetition penalty. 1.0 means no penalty.")
     parser.add_argument("--do_sample", action="store_true",
                         help="Whether or not to use sampling ; use greedy decoding otherwise.")
+    parser.add_argument("--num_return_sequences", type=int,
+                        default=None, required=False, 
+                        help="The number of independently computed returned sequences for each element in the batch.")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -572,6 +579,7 @@ def run_generate():
             top_p=args.top_p,
             repetition_penalty=args.repetition_penalty,
             do_sample=args.do_sample,
+            num_return_sequences=args.num_return_sequences,
             )
     else:
         generate_summaries_or_translations_fast(
@@ -604,6 +612,7 @@ def run_generate():
             top_p=args.top_p,
             repetition_penalty=args.repetition_penalty,
             do_sample=args.do_sample,
+            num_return_sequences=args.num_return_sequences,
             )
 
     if args.reference_path is None:
