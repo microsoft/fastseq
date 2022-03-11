@@ -1,11 +1,12 @@
 """From Huggingface Transformers."""
 
+import numpy as np
 import sys
 import logging
 import argparse
 import json
 from pathlib import Path
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, JoinableQueue
 from tqdm import tqdm
 import torch
 from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer,
@@ -89,10 +90,7 @@ class IOProcess (Process):
         for i, hypothesis in enumerate(dec):
             score = ''
             if scores is not None:
-                if isinstance(scores[i], str):
-                    score = scores[i] + '\t'
-                else:
-                    score = "%f\t" %scores[i].item()
+                score = scores[i] + '\t'
             hypothesis = hypothesis.replace('\n', ' ')
             self.fout.write(score + hypothesis + "\n")
             self.fout.flush()
@@ -114,6 +112,7 @@ class IOProcess (Process):
                 self.process_dec((dec, scores))
                 self.waiting_for+=1
                 self.process_buffer()
+            self.msg_queue.task_done()
         self.process_buffer()
         assert not self.dec_buf, "IO Buffer not empty"
         self.msg_queue.close()
@@ -137,6 +136,7 @@ class PostProcess(Process):
         self.tokenizer = tokenizer
         self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
         self.skip_special_tokens = skip_special_tokens
+        self.delimeter = "####"
 
     def run(self):
         while True:
@@ -148,16 +148,48 @@ class PostProcess(Process):
                 self.data_queue.put((-1, POSTPROCESS_FINISHED, None))
                 break
             else:
-                dec = self.tokenizer.batch_decode(summaries,
-                        skip_special_tokens = self.skip_special_tokens,
-                        clean_up_tokenization_spaces =
-                        self.clean_up_tokenization_spaces)
+                no_scores = scores is not None and np.all(np.isnan(scores))
+                if (len(summaries.shape) == 3):
+                    bsz, num_ret_seq, seq_len = summaries.shape
+                    dec = []
+                    new_scores = []
+                    for i in range(bsz):
+                        current = summaries[i,:,:].reshape([num_ret_seq, seq_len])
+                        cur_dec = []
+                        for j in range(num_ret_seq):
+                            cur_dec += [self.tokenizer.decode(summaries[i,j,:],
+                                skip_special_tokens = self.skip_special_tokens,
+                                clean_up_tokenization_spaces =
+                                self.clean_up_tokenization_spaces)]
+                        dec += [self.delimeter.join(cur_dec)]
+                        if scores is not None:
+                            current_scores = ""
+                            for s in range(num_ret_seq):
+                                x = scores[i][s]
+                                if no_scores:
+                                    x = 'NA'
+                                current_scores += str(x) 
+                                if s < num_ret_seq - 1:
+                                    current_scores += self.delimeter
+                            new_scores += [current_scores]
+                    if scores is not None:
+                        scores = new_scores
+                else:
+                    assert len(summaries.shape) == 2
+                    dec = self.tokenizer.batch_decode(summaries,
+                            skip_special_tokens = self.skip_special_tokens,
+                            clean_up_tokenization_spaces =
+                            self.clean_up_tokenization_spaces)
+                    if no_scores:
+                        scores = ['NA'] * len(scores)
+                    elif scores is not None:
+                        scores = ["%f\t" %s.item() for s in scores]
                 self.msg_queue.put((ind, dec, scores))
-
         self.data_queue.close()
         self.data_queue.join_thread()
         self.msg_queue.close()
         self.msg_queue.join_thread()
+        self.msg_queue.join()
 
 def generate_summaries_or_translations_baseline(
     examples: list,
@@ -343,7 +375,7 @@ def generate_summaries_or_translations_fast(
     use_task_specific_params(model, task)
 
     data_queue = Queue()
-    msg_queue =  Queue()
+    msg_queue =  JoinableQueue()
     p_list = []
 
     for _ in range(postprocess_workers):
@@ -408,10 +440,15 @@ def generate_summaries_or_translations_fast(
                                         BeamSampleEncoderDecoderOutput]):
                         scores_cpu = summaries.sequences_scores.cpu()
                 else: 
-                    scores_cpu = ['NA'] * sequences.shape[0]
+                    scores_cpu = torch.Tensor([float('nan')] * sequences.shape[0])
             if output_summaries_only:
                 sequences = sequences[:, input_ids.shape[-1]:] 
             sequences_cpu = sequences.cpu()
+            if (num_return_sequences is not None and num_return_sequences > 1):
+                sequences_cpu = sequences_cpu.reshape([batch_size, num_return_sequences, sequences_cpu.shape[-1]])
+                if (scores_cpu is not None):
+                    scores_cpu = scores_cpu.reshape([batch_size, num_return_sequences])
+            scores_cpu = np.array(scores_cpu)
             data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
         logger.exception(sys.exc_info()[0])
@@ -625,7 +662,6 @@ def run_generate():
         x.rstrip() for x in open(args.reference_path).readlines()
     ][:len(output_lns)]
     scores: dict = score_fn(output_lns, reference_lns)
-    print(scores)
     if args.score_path is not None:
         json.dump(scores, open(args.score_path, "w+"))
     return
