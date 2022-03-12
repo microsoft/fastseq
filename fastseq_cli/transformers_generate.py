@@ -445,9 +445,9 @@ def generate_summaries_or_translations_fast(
                 sequences = sequences[:, input_ids.shape[-1]:] 
             sequences_cpu = sequences.cpu()
             if (num_return_sequences is not None and num_return_sequences > 1):
-                sequences_cpu = sequences_cpu.reshape([batch_size, num_return_sequences, sequences_cpu.shape[-1]])
+                sequences_cpu = sequences_cpu.reshape([-1, num_return_sequences, sequences_cpu.shape[-1]])
                 if (scores_cpu is not None):
-                    scores_cpu = scores_cpu.reshape([batch_size, num_return_sequences])
+                    scores_cpu = scores_cpu.reshape([-1, num_return_sequences])
             scores_cpu = np.array(scores_cpu)
             data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
