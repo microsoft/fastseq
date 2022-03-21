@@ -6,7 +6,7 @@ import logging
 import argparse
 import json
 from pathlib import Path
-from multiprocessing import Process, Queue, JoinableQueue
+from multiprocessing import Process, Queue
 from tqdm import tqdm
 import torch
 from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer,
@@ -112,7 +112,6 @@ class IOProcess (Process):
                 self.process_dec((dec, scores))
                 self.waiting_for+=1
                 self.process_buffer()
-            self.msg_queue.task_done()
         self.process_buffer()
         assert not self.dec_buf, "IO Buffer not empty"
         self.msg_queue.close()
@@ -158,9 +157,8 @@ class PostProcess(Process):
                         cur_dec = []
                         for j in range(num_ret_seq):
                             cur_dec += [self.tokenizer.decode(summaries[i,j,:],
-                                skip_special_tokens = self.skip_special_tokens,
-                                clean_up_tokenization_spaces =
-                                self.clean_up_tokenization_spaces)]
+                                                        skip_special_tokens=self.skip_special_tokens,
+                                                        clean_up_tokenization_spaces=self.clean_up_tokenization_spaces).strip()]
                         dec += [self.delimeter.join(cur_dec)]
                         if scores is not None:
                             current_scores = ""
@@ -175,11 +173,10 @@ class PostProcess(Process):
                     if scores is not None:
                         scores = new_scores
                 else:
-                    assert len(summaries.shape) == 2
+                    assert len(summaries.shape) == 2, "Summaries must have 2 or 3 dimensions"
                     dec = self.tokenizer.batch_decode(summaries,
-                            skip_special_tokens = self.skip_special_tokens,
-                            clean_up_tokenization_spaces =
-                            self.clean_up_tokenization_spaces)
+                                                    skip_special_tokens=self.skip_special_tokens,
+                                                    clean_up_tokenization_spaces=self.clean_up_tokenization_spaces)
                     if no_scores:
                         scores = ['NA'] * len(scores)
                     elif scores is not None:
@@ -189,7 +186,6 @@ class PostProcess(Process):
         self.data_queue.join_thread()
         self.msg_queue.close()
         self.msg_queue.join_thread()
-        self.msg_queue.join()
 
 def generate_summaries_or_translations_baseline(
     examples: list,
@@ -375,7 +371,7 @@ def generate_summaries_or_translations_fast(
     use_task_specific_params(model, task)
 
     data_queue = Queue()
-    msg_queue =  JoinableQueue()
+    msg_queue =  Queue()
     p_list = []
 
     for _ in range(postprocess_workers):
@@ -448,6 +444,8 @@ def generate_summaries_or_translations_fast(
                 sequences_cpu = sequences_cpu.reshape([-1, num_return_sequences, sequences_cpu.shape[-1]])
                 if (scores_cpu is not None):
                     scores_cpu = scores_cpu.reshape([-1, num_return_sequences])
+            # This line is required as a workaround to a bug with pytorch and multiprocessing.
+            # Without it, the subprocesses will hang infinitely when trying to access scores_cpu
             scores_cpu = np.array(scores_cpu)
             data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
