@@ -147,7 +147,7 @@ class PostProcess(Process):
                 self.data_queue.put((-1, POSTPROCESS_FINISHED, None))
                 break
             else:
-                no_scores = scores is not None and np.all(np.isnan(scores))
+                no_scores = scores is not None and torch.all(torch.isnan(scores))
                 if (len(summaries.shape) == 3):
                     bsz, num_ret_seq, seq_len = summaries.shape
                     dec = []
@@ -444,9 +444,6 @@ def generate_summaries_or_translations_fast(
                 sequences_cpu = sequences_cpu.reshape([-1, num_return_sequences, sequences_cpu.shape[-1]])
                 if (scores_cpu is not None):
                     scores_cpu = scores_cpu.reshape([-1, num_return_sequences])
-            # This line is required as a workaround to a bug with pytorch and multiprocessing.
-            # Without it, the subprocesses will hang infinitely when trying to access scores_cpu
-            scores_cpu = np.array(scores_cpu)
             data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
         logger.exception(sys.exc_info()[0])
