@@ -1,6 +1,5 @@
 """From Huggingface Transformers."""
 
-import numpy as np
 import sys
 import logging
 import argparse
@@ -572,6 +571,8 @@ def run_generate():
     parser.add_argument("--num_return_sequences", type=int,
                         default=None, required=False, 
                         help="The number of independently computed returned sequences for each element in the batch.")
+    parser.add_argument("--seed", type=int, default=None, required=False,
+                        help="Specify a random seed for initialization")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -580,6 +581,8 @@ def run_generate():
     if args.n_obs > 0:
         examples = examples[:args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
     if args.without_fastseq_opt:
         generate_summaries_or_translations_baseline(
             examples,
