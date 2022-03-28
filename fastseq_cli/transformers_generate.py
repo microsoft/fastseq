@@ -156,8 +156,8 @@ class PostProcess(Process):
                         cur_dec = []
                         for j in range(num_ret_seq):
                             cur_dec += [self.tokenizer.decode(summaries[i,j,:],
-                                                        skip_special_tokens=self.skip_special_tokens,
-                                                        clean_up_tokenization_spaces=self.clean_up_tokenization_spaces).strip()]
+                                                                            skip_special_tokens=self.skip_special_tokens,
+                                                                            clean_up_tokenization_spaces=self.clean_up_tokenization_spaces).strip()]
                         dec += [self.delimeter.join(cur_dec)]
                         if scores is not None:
                             current_scores = ""
@@ -174,8 +174,8 @@ class PostProcess(Process):
                 else:
                     assert len(summaries.shape) == 2, "Summaries must have 2 or 3 dimensions"
                     dec = self.tokenizer.batch_decode(summaries,
-                                                    skip_special_tokens=self.skip_special_tokens,
-                                                    clean_up_tokenization_spaces=self.clean_up_tokenization_spaces)
+                                                            skip_special_tokens=self.skip_special_tokens,
+                                                            clean_up_tokenization_spaces=self.clean_up_tokenization_spaces)
                     if no_scores:
                         scores = ['NA'] * len(scores)
                     elif scores is not None:
