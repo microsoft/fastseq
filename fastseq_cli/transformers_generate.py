@@ -209,7 +209,7 @@ def generate_summaries_or_translations_baseline(
     use_causal_lm=False,
     output_summaries_only=False,
     output_sequence_scores=False,
-    num_beams=1,
+    num_beams=None,
     eos_token_id=None,
     temperature=None,
     top_k=None,
@@ -334,7 +334,7 @@ def generate_summaries_or_translations_fast(
     use_causal_lm=False,
     output_summaries_only=False,
     output_sequence_scores=False,
-    num_beams=1,
+    num_beams=None,
     eos_token_id=None,
     temperature=None,
     top_k=None,
@@ -546,7 +546,7 @@ def run_generate():
     parser.add_argument("--output_sequence_scores", action="store_true")
     parser.add_argument("--beam",
                         type=int,
-                        default=1,
+                        default=None,
                         required=False,
                         help="beam size for generation")
     parser.add_argument("--eos_token_id", type=int,
