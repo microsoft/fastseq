@@ -89,10 +89,7 @@ class IOProcess (Process):
         for i, hypothesis in enumerate(dec):
             score = ''
             if scores is not None:
-                if isinstance(scores[i], str):
-                    score = scores[i] + '\t'
-                else:
-                    score = "%f\t" %scores[i].item()
+                score = scores[i] + '\t'
             hypothesis = hypothesis.replace('\n', ' ')
             self.fout.write(score + hypothesis + "\n")
             self.fout.flush()
@@ -137,6 +134,7 @@ class PostProcess(Process):
         self.tokenizer = tokenizer
         self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
         self.skip_special_tokens = skip_special_tokens
+        self.delimeter = "####"
 
     def run(self):
         while True:
@@ -148,12 +146,41 @@ class PostProcess(Process):
                 self.data_queue.put((-1, POSTPROCESS_FINISHED, None))
                 break
             else:
-                dec = self.tokenizer.batch_decode(summaries,
-                        skip_special_tokens = self.skip_special_tokens,
-                        clean_up_tokenization_spaces =
-                        self.clean_up_tokenization_spaces)
+                no_scores = scores is not None and torch.all(torch.isnan(scores))
+                if (len(summaries.shape) == 3):
+                    bsz, num_ret_seq, seq_len = summaries.shape
+                    dec = []
+                    new_scores = []
+                    for i in range(bsz):
+                        current = summaries[i,:,:].reshape([num_ret_seq, seq_len])
+                        cur_dec = []
+                        for j in range(num_ret_seq):
+                            cur_dec += [self.tokenizer.decode(summaries[i,j,:],
+                                                              skip_special_tokens=self.skip_special_tokens,
+                                                              clean_up_tokenization_spaces=self.clean_up_tokenization_spaces).strip()]
+                        dec += [self.delimeter.join(cur_dec)]
+                        if scores is not None:
+                            current_scores = ""
+                            for s in range(num_ret_seq):
+                                x = scores[i][s]
+                                if no_scores:
+                                    x = 'NA'
+                                current_scores += str(x) 
+                                if s < num_ret_seq - 1:
+                                    current_scores += self.delimeter
+                            new_scores += [current_scores]
+                    if scores is not None:
+                        scores = new_scores
+                else:
+                    assert len(summaries.shape) == 2, "Summaries must have 2 or 3 dimensions"
+                    dec = self.tokenizer.batch_decode(summaries,
+                                                      skip_special_tokens=self.skip_special_tokens,
+                                                      clean_up_tokenization_spaces=self.clean_up_tokenization_spaces)
+                    if no_scores:
+                        scores = ['NA'] * len(scores)
+                    elif scores is not None:
+                        scores = ["%f\t" %s.item() for s in scores]
                 self.msg_queue.put((ind, dec, scores))
-
         self.data_queue.close()
         self.data_queue.join_thread()
         self.msg_queue.close()
@@ -182,13 +209,14 @@ def generate_summaries_or_translations_baseline(
     use_causal_lm=False,
     output_summaries_only=False,
     output_sequence_scores=False,
-    num_beams=1,
+    num_beams=None,
     eos_token_id=None,
     temperature=None,
     top_k=None,
     top_p=None,
     do_sample=None,
     repetition_penalty=None,
+    num_return_sequences=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -243,6 +271,7 @@ def generate_summaries_or_translations_baseline(
                     top_p=top_p,
                     do_sample=do_sample,
                     repetition_penalty=repetition_penalty,
+                    num_return_sequences=num_return_sequences,
                     **gen_kwargs,
                 )
             except:
@@ -305,13 +334,14 @@ def generate_summaries_or_translations_fast(
     use_causal_lm=False,
     output_summaries_only=False,
     output_sequence_scores=False,
-    num_beams=1,
+    num_beams=None,
     eos_token_id=None,
     temperature=None,
     top_k=None,
     top_p=None,
     do_sample=None,
     repetition_penalty=None,
+    num_return_sequences=None,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -382,6 +412,7 @@ def generate_summaries_or_translations_fast(
                     top_p=top_p,
                     do_sample=do_sample,
                     repetition_penalty=repetition_penalty,
+                    num_return_sequences=num_return_sequences,
                     **gen_kwargs,
                 )
             except:
@@ -404,10 +435,14 @@ def generate_summaries_or_translations_fast(
                                         BeamSampleEncoderDecoderOutput]):
                         scores_cpu = summaries.sequences_scores.cpu()
                 else: 
-                    scores_cpu = ['NA'] * sequences.shape[0]
+                    scores_cpu = torch.Tensor([float('nan')] * sequences.shape[0])
             if output_summaries_only:
                 sequences = sequences[:, input_ids.shape[-1]:] 
             sequences_cpu = sequences.cpu()
+            if (num_return_sequences is not None and num_return_sequences > 1):
+                sequences_cpu = sequences_cpu.reshape([-1, num_return_sequences, sequences_cpu.shape[-1]])
+                if (scores_cpu is not None):
+                    scores_cpu = scores_cpu.reshape([-1, num_return_sequences])
             data_queue.put((ind, sequences_cpu, scores_cpu))
     except:
         logger.exception(sys.exc_info()[0])
@@ -511,9 +546,9 @@ def run_generate():
     parser.add_argument("--output_sequence_scores", action="store_true")
     parser.add_argument("--beam",
                         type=int,
-                        default=1,
+                        default=None,
                         required=False,
-                        help="beam size for generation")
+                        help="beam size for generation. If None, beam size will be loaded from the model configuration file (the parameter name is num_beams). If the model configuration file does not have this parameter, beam size will be set as 1")
     parser.add_argument("--eos_token_id", type=int,
                         default=None, required=False,
                         help="id fo the end-of-sequence token")
@@ -533,6 +568,11 @@ def run_generate():
                         help="The parameter for repetition penalty. 1.0 means no penalty.")
     parser.add_argument("--do_sample", action="store_true",
                         help="Whether or not to use sampling ; use greedy decoding otherwise.")
+    parser.add_argument("--num_return_sequences", type=int,
+                        default=None, required=False, 
+                        help="The number of independently computed returned sequences for each element in the batch.")
+    parser.add_argument("--seed", type=int, default=None, required=False,
+                        help="Specify a random seed for initialization")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -541,6 +581,8 @@ def run_generate():
     if args.n_obs > 0:
         examples = examples[:args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
     if args.without_fastseq_opt:
         generate_summaries_or_translations_baseline(
             examples,
@@ -572,6 +614,7 @@ def run_generate():
             top_p=args.top_p,
             repetition_penalty=args.repetition_penalty,
             do_sample=args.do_sample,
+            num_return_sequences=args.num_return_sequences,
             )
     else:
         generate_summaries_or_translations_fast(
@@ -604,6 +647,7 @@ def run_generate():
             top_p=args.top_p,
             repetition_penalty=args.repetition_penalty,
             do_sample=args.do_sample,
+            num_return_sequences=args.num_return_sequences,
             )
 
     if args.reference_path is None:
@@ -616,7 +660,6 @@ def run_generate():
         x.rstrip() for x in open(args.reference_path).readlines()
     ][:len(output_lns)]
     scores: dict = score_fn(output_lns, reference_lns)
-    print(scores)
     if args.score_path is not None:
         json.dump(scores, open(args.score_path, "w+"))
     return

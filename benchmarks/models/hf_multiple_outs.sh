@@ -20,11 +20,11 @@ source hf.sh
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
     --max_gen_length 711 \
-    --beam 4 \
-    --causal_lm
+    --causal_lm \
+    --beam 4
 
 ./benchmark.sh \
-    transformers \
+    transformers+fastseq \
     gpt2 \
     cnn_dm/raw \
     val \
@@ -33,25 +33,22 @@ source hf.sh
     --no_repeat_ngram_size 3 \
     --max_tokenizer_length 512 \
     --max_gen_length 711 \
+    --causal_lm \
     --beam 4 \
-    --causal_lm
+    --num_return_sequences 2
 
-# Accuracy
-grep "gpt2 cnn_dm/raw val " perf \
-	| awk '{print $9}' \
-	| awk -F'|' '{if($1!="NA"){c+=1;s+=$1}}END{print s/c}' \
-	| ./range.sh 0.160 0.162
-# Speed on V100 16GB 250W
-grep -E "transformers_v4.12.0 gpt2 cnn_dm/raw val 64 " perf \
-	| awk '{s+=$13}END{if(NR==0) print -1; else print s/NR}' \
-	| ./range.sh 3.5 4.5
-grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 64 " perf \
-	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 16 100
-grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 128 " perf \
-	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 20 100
-grep -E "transformers_v4.12.0\+fastseq_v.* gpt2 cnn_dm/raw val 256 " perf \
-	| awk '{s+=$13}END{print s/NR}' \
-	| ./range.sh 21 100
+./benchmark.sh \
+    transformers+fastseq \
+    gpt2 \
+    cnn_dm/raw \
+    val \
+    64 \
+    --task summarization \
+    --no_repeat_ngram_size 3 \
+    --max_tokenizer_length 512 \
+    --max_gen_length 711 \
+    --causal_lm \
+    --beam 4 \
+    --num_return_sequences 4
+
     
