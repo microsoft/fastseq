@@ -548,7 +548,7 @@ def run_generate():
                         type=int,
                         default=None,
                         required=False,
-                        help="beam size for generation")
+                        help="beam size for generation. If None, beam size will be loaded from the model configuration file (the parameter name is num_beams). If the model configuration file does not have this parameter, beam size will be set as 1")
     parser.add_argument("--eos_token_id", type=int,
                         default=None, required=False,
                         help="id fo the end-of-sequence token")
