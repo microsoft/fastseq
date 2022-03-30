@@ -6,10 +6,10 @@ OpenAI GPT-2 model was proposed in [Language Models are Unsupervised Multitask L
 
 - Speed on single NVIDIA-V100-16GB
 
-  |       BatchSize       |        32       |      64       |
-  |:---------------------:|:---------------:|:--------------:|
-  |   transformers_v4.12.0 |   0.9 samples/s |   0.9 samples/s       |
-  |   above + fastseq     |  6.0 samples/s | 7.1 samples/s |
+  |       BatchSize       |        32       |      64       |      128       |
+  |:---------------------:|:---------------:|:--------------:|:--------------:|
+  |   transformers_v4.12.0 |   0.9 samples/s |   0.9 samples/s       |   OOM  |
+  |   above + fastseq     |  6.0 samples/s | 7.1 samples/s |   OOM  |
 
 
 ### Model
