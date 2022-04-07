@@ -60,7 +60,8 @@ class TransformersUnitTests(parameterized.TestCase):
                           "(PhobertTokenizationTest and test_full_tokenizer)",
                           "(OfflineTests and test_offline_mode)",
                           "special_tokens",
-                          "(BigBirdPegasusTokenizationTest and test_compare_pretokenized_inputs)"
+                          "(BigBirdPegasusTokenizationTest and test_compare_pretokenized_inputs)",
+                          "(CopyCheckTester and test_is_copy_consistent)"
 
         ]
     })
