@@ -582,7 +582,7 @@ def run_generate():
     parser.add_argument("--seed", type=int, default=None, required=False,
                         help="Specify a random seed for initialization")
     parser.add_argument("--padding_side", type=str, default=None, required=False,
-                        help="Specify which side the tokenizer should pad")
+                        help="Specify which side the tokenizer should pad. Options are 'left' or 'right'.")
     parser.add_argument("--use_slow_tokenizer", action="store_true",
                         help="Try to load regular <model>Tokenizer instead of <model>TokenizerFast (default)")
     args = parser.parse_args()
