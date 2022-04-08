@@ -217,6 +217,8 @@ def generate_summaries_or_translations_baseline(
     do_sample=None,
     repetition_penalty=None,
     num_return_sequences=None,
+    padding_side=None,
+    use_slow_tokenizer=False,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -225,11 +227,11 @@ def generate_summaries_or_translations_baseline(
     model_name = str(model_name)
     if use_causal_lm:
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast = not use_slow_tokenizer)
         tokenizer.pad_token = tokenizer.eos_token
     else:
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device) 
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast = not use_slow_tokenizer)
 
     if fp16:
         model = model.half()
@@ -237,6 +239,8 @@ def generate_summaries_or_translations_baseline(
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
     if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
         tokenizer.model_max_length = max_tokenizer_length
+    if padding_side is not None:
+        tokenizer.padding_side = padding_side
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
@@ -342,6 +346,8 @@ def generate_summaries_or_translations_fast(
     do_sample=None,
     repetition_penalty=None,
     num_return_sequences=None,
+    padding_side=None,
+    use_slow_tokenizer=False,
     **gen_kwargs,
 ) -> None:
     """Run generation"""
@@ -353,11 +359,11 @@ def generate_summaries_or_translations_fast(
     model_name = str(model_name)
     if use_causal_lm:
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast = not use_slow_tokenizer)
         tokenizer.pad_token = tokenizer.eos_token
     else:
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(device)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast = not use_slow_tokenizer)
 
     if fp16:
         model = model.half()
@@ -365,6 +371,8 @@ def generate_summaries_or_translations_fast(
         decoder_start_token_id = gen_kwargs.pop("decoder_start_token_id", None)
     if hasattr(tokenizer, 'model_max_length') and max_tokenizer_length is not None:
         tokenizer.model_max_length = max_tokenizer_length
+    if padding_side is not None:
+        tokenizer.padding_side = padding_side
 
     # update config with summarization specific params
     use_task_specific_params(model, task)
@@ -573,6 +581,10 @@ def run_generate():
                         help="The number of independently computed returned sequences for each element in the batch.")
     parser.add_argument("--seed", type=int, default=None, required=False,
                         help="Specify a random seed for initialization")
+    parser.add_argument("--padding_side", type=str, default=None, required=False,
+                        help="Specify which side the tokenizer should pad")
+    parser.add_argument("--use_slow_tokenizer", action="store_true",
+                        help="Try to load regular <model>Tokenizer instead of <model>TokenizerFast (default)")
     args = parser.parse_args()
     examples = [
         " " + x.rstrip() if "t5" in args.model_name else x.rstrip()
@@ -615,6 +627,8 @@ def run_generate():
             repetition_penalty=args.repetition_penalty,
             do_sample=args.do_sample,
             num_return_sequences=args.num_return_sequences,
+            padding_side=args.padding_side,
+            use_slow_tokenizer=args.use_slow_tokenizer,
             )
     else:
         generate_summaries_or_translations_fast(
@@ -648,6 +662,8 @@ def run_generate():
             repetition_penalty=args.repetition_penalty,
             do_sample=args.do_sample,
             num_return_sequences=args.num_return_sequences,
+            padding_side=args.padding_side,
+            use_slow_tokenizer=args.use_slow_tokenizer,
             )
 
     if args.reference_path is None:
