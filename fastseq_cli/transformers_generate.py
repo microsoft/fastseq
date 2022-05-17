@@ -655,7 +655,7 @@ def run_generate():
         max_new_tokens = args.max_new_tokens
         if not args.max_new_tokens:
             max_new_tokens = 5
-        max_tokenizer_length
+        max_tokenizer_length = args.max_tokenizer_length
         if not args.max_tokenizer_length:
             max_tokenizer_length = 8
             
