@@ -655,6 +655,10 @@ def run_generate():
         max_new_tokens = args.max_new_tokens
         if not args.max_new_tokens:
             max_new_tokens = 5
+        max_tokenizer_length
+        if not args.max_tokenizer_length:
+            max_tokenizer_length = 8
+            
         generate_summaries_or_translations_fast(
             args.input_path,
             args.save_path,
@@ -672,8 +676,8 @@ def run_generate():
             return_tensors=args.return_tensors,
             truncation=not args.no_truncation,
             padding=args.padding,
-            max_tokenizer_length=args.max_tokenizer_length,
-            max_new_tokens=args.max_new_tokens,
+            max_tokenizer_length=max_tokenizer_length,
+            max_new_tokens=max_new_tokens,
             use_causal_lm=args.causal_lm,
             output_summaries_only=args.output_summaries_only,
             output_sequence_scores=args.output_sequence_scores,
