@@ -1,6 +1,7 @@
 """From Huggingface Transformers."""
 
 import sys
+import csv
 import logging
 import argparse
 import json
@@ -8,6 +9,8 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from tqdm import tqdm
 import torch
+import pandas as pd
+import numpy as np
 from transformers import (AutoModelForSeq2SeqLM, AutoTokenizer,
                           AutoModelForCausalLM)
 from fastseq_cli.transformers_utils import (
@@ -60,15 +63,16 @@ class TokenizeDataset(torch.utils.data.Dataset):
             batch = self.prefix + batch
         batch = self.tokenizer(
             batch,
-            max_length=self.max_length,
-            return_tensors=self.return_tensors,
-            truncation=self.truncation,
-            padding=self.padding)
+            return_tensors= "pt", #self.return_tensors,
+            padding=True, #self.padding
+            # max_length=self.max_length,
+            # truncation=self.truncation,
+            )
         return batch['input_ids'], batch['attention_mask']
 
 class IOProcess (Process):
     """ Write detokenized output to file in order."""
-    def __init__(self, msg_queue, fout):
+    def __init__(self, msg_queue, out_file):
         """Async output writer.
         Args:
             msg_queue : Multiprocess message Queue
@@ -76,11 +80,11 @@ class IOProcess (Process):
         """
         super(IOProcess, self).__init__()
         self.msg_queue = msg_queue
-        self.fout = fout
+        self.out_file = out_file
         self.waiting_for=0
         self.dec_buf = {}
 
-    def process_dec(self, dec_scores):
+    def process_dec(self, dec_scores, tsv_writer):
         """ Process and write detokenized hypotheses and scores
         Args:
             dec_scores (tuple(Tensor, Tensor or List)): tuple of (hypotheses, scores)
@@ -89,32 +93,34 @@ class IOProcess (Process):
         for i, hypothesis in enumerate(dec):
             score = ''
             if scores is not None:
-                score = scores[i] + '\t'
+                score = scores[i]
+            hypothesis = hypothesis[: hypothesis.find('<|endoftext|>')] # add param for this?
             hypothesis = hypothesis.replace('\n', ' ')
-            self.fout.write(score + hypothesis + "\n")
-            self.fout.flush()
+            tsv_writer.writerow([score, hypothesis])
 
-    def process_buffer(self):
+    def process_buffer(self, tsv_writer):
         while self.waiting_for in self.dec_buf:
-            self.process_dec(self.dec_buf[self.waiting_for])
+            self.process_dec(self.dec_buf[self.waiting_for], tsv_writer)
             del self.dec_buf[self.waiting_for]
             self.waiting_for+=1
 
     def run(self):
-        while True:
-            ind, dec, scores = self.msg_queue.get()
-            if dec == GENERATE_FINISHED:
-                break
-            elif ind != self.waiting_for:
-                self.dec_buf[ind] = (dec, scores)
-            else:
-                self.process_dec((dec, scores))
-                self.waiting_for+=1
-                self.process_buffer()
-        self.process_buffer()
-        assert not self.dec_buf, "IO Buffer not empty"
-        self.msg_queue.close()
-        self.msg_queue.join_thread()
+        with open(self.out_file, "w", encoding="utf-8", newline='') as fout:
+            tsv_writer = csv.writer(fout, delimiter='\t')
+            while True:
+                ind, dec, scores = self.msg_queue.get()
+                if dec == GENERATE_FINISHED:
+                    break
+                elif ind != self.waiting_for:
+                    self.dec_buf[ind] = (dec, scores)
+                else:
+                    self.process_dec((dec, scores), tsv_writer)
+                    self.waiting_for+=1
+                    self.process_buffer(tsv_writer)
+            self.process_buffer(tsv_writer)
+            assert not self.dec_buf, "IO Buffer not empty"
+            self.msg_queue.close()
+            self.msg_queue.join_thread()
 
 class PostProcess(Process):
     """ Parallel detokenization """
@@ -355,7 +361,6 @@ def generate_summaries_or_translations_fast(
     from fastseq.logging import get_logger #pylint: disable=import-outside-toplevel
     global logger
     logger = get_logger(__name__, logging.INFO)
-    fout = Path(out_file).open("w", encoding="utf-8")
     model_name = str(model_name)
     if use_causal_lm:
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
@@ -387,41 +392,53 @@ def generate_summaries_or_translations_fast(
         p_list.append(p)
         p.start()
 
-    io_process = IOProcess( msg_queue, fout)
+    io_process = IOProcess( msg_queue, out_file)
     io_process.start()
 
-    dataset = TokenizeDataset(examples, tokenizer, model_name,
-        model.config.prefix, return_tensors, truncation, padding,
-        max_tokenizer_length)
-    training_generator = torch.utils.data.DataLoader(dataset,
-            batch_size=batch_size, num_workers = preprocess_workers,
-            drop_last=False)
+    loader = pd.read_csv(examples, sep='\t', header=None, iterator=True, chunksize=batch_size)
+
     try:
-        for ind, batch in tqdm(enumerate(training_generator)):
-            input_ids, attention_mask = batch
+        for ind, prompt_batch in enumerate(loader):    
+            prompt_batch = [str(x[0]).strip() for x in prompt_batch.values.tolist()]
+            inputs_batch = tokenizer(prompt_batch, return_tensors="pt", padding=True) # CHANGE IN FASTSEQ
+
+            if len(inputs_batch['input_ids'][0]) > max_tokenizer_length:
+                tmp_input_ids = []
+                tmp_attention_mask = []
+                for id, mask in zip(inputs_batch['input_ids'], inputs_batch['attention_mask']):
+                    if id[0] == tokenizer.pad_token_id:
+                        tmp_input_ids.append(id[-max_tokenizer_length:].tolist())
+                        tmp_attention_mask.append(mask[-max_tokenizer_length:].tolist())
+                    else:
+                        tmp_input_ids.append(id[:max_tokenizer_length].tolist())
+                        tmp_attention_mask.append(mask[:max_tokenizer_length].tolist())
+                inputs_batch['input_ids'] = torch.as_tensor(tmp_input_ids)
+                inputs_batch['attention_mask'] = torch.as_tensor(tmp_attention_mask)
+            
+            input_ids = inputs_batch['input_ids']
+            attention_mask = inputs_batch['attention_mask']
+            
             input_ids = input_ids.view(input_ids.size(0), -1).to(device)
             attention_mask = attention_mask.view(input_ids.size(0), -1).to(device)
-            input_ids, attention_mask = trim_batch(
-              input_ids, tokenizer.pad_token_id, attention_mask)
             try:
                 summaries = model.generate(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
-                    decoder_start_token_id=decoder_start_token_id,
-                    no_repeat_ngram_size=no_repeat_ngram_size,
-                    max_length=max_gen_length,
-                    max_new_tokens=max_new_tokens,
-                    output_scores=output_sequence_scores,
-                    return_dict_in_generate=output_sequence_scores,
-                    num_beams=num_beams,
-                    eos_token_id=eos_token_id,
-                    temperature=temperature,
-                    top_k=top_k,
-                    top_p=top_p,
+                    # decoder_start_token_id=decoder_start_token_id,
+                    # no_repeat_ngram_size=no_repeat_ngram_size,
+                    max_length=max_new_tokens + len(input_ids[0]), #max_gen_length,
+                    #max_new_tokens=max_new_tokens,
+                    # output_scores=output_sequence_scores,
+                    # return_dict_in_generate=output_sequence_scores,
+                    # num_beams=num_beams,
+                    # eos_token_id=eos_token_id,
+                    # temperature=temperature,
+                    # top_k=top_k,
+                    # top_p=top_p,
                     do_sample=do_sample,
-                    repetition_penalty=repetition_penalty,
-                    num_return_sequences=num_return_sequences,
-                    **gen_kwargs,
+                    # repetition_penalty=repetition_penalty,
+                    # num_return_sequences=num_return_sequences,
+                    # **gen_kwargs,
                 )
             except:
                 logger.exception(sys.exc_info()[0])
@@ -466,7 +483,6 @@ def generate_summaries_or_translations_fast(
         p.join()
     msg_queue.put((-1, GENERATE_FINISHED, None))
     io_process.join()
-    fout.close()
 
 def run_generate():
     """Entrance is here."""
@@ -594,6 +610,7 @@ def run_generate():
         examples = examples[:args.n_obs]
     Path(args.save_path).parent.mkdir(exist_ok=True)
     if args.seed is not None:
+        np.random.seed(args.seed)
         torch.manual_seed(args.seed)
     if args.without_fastseq_opt:
         generate_summaries_or_translations_baseline(
@@ -632,7 +649,7 @@ def run_generate():
             )
     else:
         generate_summaries_or_translations_fast(
-            examples,
+            args.input_path,
             args.save_path,
             args.model_name,
             batch_size=args.bs,
