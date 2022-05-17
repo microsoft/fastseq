@@ -63,16 +63,16 @@ class TokenizeDataset(torch.utils.data.Dataset):
             batch = self.prefix + batch
         batch = self.tokenizer(
             batch,
-            return_tensors= "pt", #self.return_tensors,
-            padding=True, #self.padding
-            # max_length=self.max_length,
-            # truncation=self.truncation,
+            return_tensors= self.return_tensors,
+            padding=self.padding,
+            max_length=self.max_length,
+            truncation=self.truncation,
             )
         return batch['input_ids'], batch['attention_mask']
 
 class IOProcess (Process):
     """ Write detokenized output to file in order."""
-    def __init__(self, msg_queue, out_file):
+    def __init__(self, msg_queue, out_file, stop_token):
         """Async output writer.
         Args:
             msg_queue : Multiprocess message Queue
@@ -81,6 +81,7 @@ class IOProcess (Process):
         super(IOProcess, self).__init__()
         self.msg_queue = msg_queue
         self.out_file = out_file
+        self.stop_token = stop_token
         self.waiting_for=0
         self.dec_buf = {}
 
@@ -94,7 +95,8 @@ class IOProcess (Process):
             score = ''
             if scores is not None:
                 score = scores[i]
-            hypothesis = hypothesis[: hypothesis.find('<|endoftext|>')] # add param for this?
+            if self.stop_token:
+                hypothesis = hypothesis[: hypothesis.find(self.stop_token)]
             hypothesis = hypothesis.replace('\n', ' ')
             tsv_writer.writerow([score, hypothesis])
 
@@ -339,13 +341,13 @@ def generate_summaries_or_translations_fast(
     truncation=True,
     padding="max_length",
     max_tokenizer_length=None,
-    max_gen_length=None,
     max_new_tokens=None,
     use_causal_lm=False,
     output_summaries_only=False,
     output_sequence_scores=False,
     num_beams=None,
     eos_token_id=None,
+    stop_token=None,
     temperature=None,
     top_k=None,
     top_p=None,
@@ -392,7 +394,7 @@ def generate_summaries_or_translations_fast(
         p_list.append(p)
         p.start()
 
-    io_process = IOProcess( msg_queue, out_file)
+    io_process = IOProcess(msg_queue, out_file, stop_token)
     io_process.start()
 
     loader = pd.read_csv(examples, sep='\t', header=None, iterator=True, chunksize=batch_size)
@@ -424,21 +426,20 @@ def generate_summaries_or_translations_fast(
                 summaries = model.generate(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
-                    # decoder_start_token_id=decoder_start_token_id,
-                    # no_repeat_ngram_size=no_repeat_ngram_size,
-                    max_length=max_new_tokens + len(input_ids[0]), #max_gen_length,
-                    #max_new_tokens=max_new_tokens,
-                    # output_scores=output_sequence_scores,
-                    # return_dict_in_generate=output_sequence_scores,
-                    # num_beams=num_beams,
-                    # eos_token_id=eos_token_id,
-                    # temperature=temperature,
-                    # top_k=top_k,
-                    # top_p=top_p,
+                    decoder_start_token_id=decoder_start_token_id,
+                    no_repeat_ngram_size=no_repeat_ngram_size,
+                    max_length=max_new_tokens + len(input_ids[0]),
+                    output_scores=output_sequence_scores,
+                    return_dict_in_generate=output_sequence_scores,
+                    num_beams=num_beams,
+                    eos_token_id=eos_token_id,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
                     do_sample=do_sample,
-                    # repetition_penalty=repetition_penalty,
-                    # num_return_sequences=num_return_sequences,
-                    # **gen_kwargs,
+                    repetition_penalty=repetition_penalty,
+                    num_return_sequences=num_return_sequences,
+                    **gen_kwargs,
                 )
             except:
                 logger.exception(sys.exc_info()[0])
@@ -576,6 +577,8 @@ def run_generate():
     parser.add_argument("--eos_token_id", type=int,
                         default=None, required=False,
                         help="id fo the end-of-sequence token")
+    parser.add_argument("--stop_token", type=str,
+                        help="truncate results to this token", default=None, required=False)
     parser.add_argument("--temperature", type=float,
                         default=None, required=False,
                         help="The value used to module the next token probabilities.")
@@ -648,6 +651,7 @@ def run_generate():
             use_slow_tokenizer=args.use_slow_tokenizer,
             )
     else:
+        assert (not args.max_gen_length), "--max_gen_length is not supported, use --max_new_tokens instead"
         generate_summaries_or_translations_fast(
             args.input_path,
             args.save_path,
@@ -666,13 +670,13 @@ def run_generate():
             truncation=not args.no_truncation,
             padding=args.padding,
             max_tokenizer_length=args.max_tokenizer_length,
-            max_gen_length=args.max_gen_length,
             max_new_tokens=args.max_new_tokens,
             use_causal_lm=args.causal_lm,
             output_summaries_only=args.output_summaries_only,
             output_sequence_scores=args.output_sequence_scores,
             num_beams=args.beam,
             eos_token_id=args.eos_token_id,
+            stop_token=args.stop_token,
             temperature=args.temperature,
             top_k=args.top_k,
             top_p=args.top_p,
