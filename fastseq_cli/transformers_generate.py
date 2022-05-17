@@ -652,6 +652,9 @@ def run_generate():
             )
     else:
         assert (not args.max_gen_length), "--max_gen_length is not supported, use --max_new_tokens instead"
+        max_new_tokens = args.max_new_tokens
+        if not args.max_new_tokens:
+            max_new_tokens = 5
         generate_summaries_or_translations_fast(
             args.input_path,
             args.save_path,
