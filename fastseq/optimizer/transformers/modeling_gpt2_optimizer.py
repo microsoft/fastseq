@@ -83,7 +83,7 @@ class GPT2AttentionV2(GPT2Attention):
             self.cache_input_value)
         attn = attn.reshape((-1,) + attn.shape[2:])
         assert(w2.shape[-1] == value.shape[-2])
-            attn += torch.matmul(w2, value) 
+        attn += torch.matmul(w2, value) 
         attn_output = attn
         return attn_output, attn_weights
 
