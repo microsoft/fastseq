@@ -72,8 +72,9 @@ class GPT2AttentionV2(GPT2Attention):
             attn_output = torch.matmul(attn_weights, value)
             return attn_output, attn_weights
 
-        split_weights = attn_weights.split(self.cache_input_len, dim=-1)
-        w1 = split_weights[0]
+        assert(len(attn_weights.shape) == 4)
+        w1 = attn_weights[:, :, :, :self.cache_input_len]
+        w2 = attn_weights[:, :, :, self.cache_input_len:]
         w1 = w1.view(
             (w1.size(0)//self.num_beams, self.num_beams) + w1.shape[1:])
         attn = torch.einsum(
@@ -81,8 +82,8 @@ class GPT2AttentionV2(GPT2Attention):
             w1,
             self.cache_input_value)
         attn = attn.reshape((-1,) + attn.shape[2:])
-        if len(split_weights) == 2:
-            attn += torch.matmul(split_weights[1], value)
+        assert(w2.shape[-1] == value.shape[-2])
+        attn += torch.matmul(w2, value) 
         attn_output = attn
         return attn_output, attn_weights
 
