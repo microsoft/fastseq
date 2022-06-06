@@ -11,7 +11,7 @@ CPP Binding for CUDA OP
 */
 
 // CUDA forward declarations
-void ngram_repeat_block_cuda_forward(const long* tokens, const int max_predict_len,
+void ngram_repeat_block_cuda_forward(const int64_t* tokens, const int max_predict_len,
                                      float* lprobs, const int vocab_size,
                                      int bsz, int step, int beam_size,
                                      int no_repeat_ngram_size);
@@ -40,7 +40,7 @@ torch::Tensor ngram_repeat_block_forward(torch::Tensor tokens,
   const int max_predict_len = tokens.size(1);
   const int vocab_size = lprobs.size(1);
 
-  ngram_repeat_block_cuda_forward(tokens.data_ptr<long>(),
+  ngram_repeat_block_cuda_forward(tokens.data_ptr<int64_t>(),
                                   max_predict_len,
                                   lprobs.data_ptr<float>(),
                                   vocab_size,
