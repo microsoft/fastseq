@@ -15,14 +15,14 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: huggingface/transformers-pytorch-gpu:latest
+      image: adsbrainwestus2.azurecr.io/fastseq11:fs-0.10.2_hf-4.12.0
       options: --gpus device=3
     steps:
     - script: |
         #install fastseq
         pip install --upgrade pip
         pip install sentencepiece==0.1.96
-        pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
+        pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 
         echo "******* Installing fairseq *******"
         pip install fairseq==0.10.2
