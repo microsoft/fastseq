@@ -72,7 +72,7 @@ class TokenizeDataset(torch.utils.data.Dataset):
 
 class IOProcess (Process):
     """ Write detokenized output to file in order."""
-    def __init__(self, msg_queue, out_file, stop_token):
+    def __init__(self, msg_queue, out_file):
         """Async output writer.
         Args:
             msg_queue : Multiprocess message Queue
@@ -81,7 +81,6 @@ class IOProcess (Process):
         super(IOProcess, self).__init__()
         self.msg_queue = msg_queue
         self.out_file = out_file
-        self.stop_token = stop_token
         self.waiting_for=0
         self.dec_buf = {}
 
@@ -95,8 +94,6 @@ class IOProcess (Process):
             score = ''
             if scores is not None:
                 score = scores[i]
-            if self.stop_token:
-                hypothesis = hypothesis[: hypothesis.find(self.stop_token)]
             hypothesis = hypothesis.replace('\n', ' ')
             tsv_writer.writerow([score, hypothesis])
 
@@ -127,7 +124,7 @@ class IOProcess (Process):
 class PostProcess(Process):
     """ Parallel detokenization """
     def __init__(self, tokenizer, data_queue, msg_queue,
-            skip_special_tokens, clean_up_tokenization_spaces):
+            skip_special_tokens, clean_up_tokenization_spaces, stop_token):
         """Async Postprocess.
         Args:
             data_queue : Multiprocess data Queue
@@ -143,6 +140,7 @@ class PostProcess(Process):
         self.clean_up_tokenization_spaces = clean_up_tokenization_spaces
         self.skip_special_tokens = skip_special_tokens
         self.delimeter = "####"
+        self.stop_token = stop_token
 
     def run(self):
         while True:
@@ -163,9 +161,11 @@ class PostProcess(Process):
                         current = summaries[i,:,:].reshape([num_ret_seq, seq_len])
                         cur_dec = []
                         for j in range(num_ret_seq):
-                            cur_dec += [self.tokenizer.decode(summaries[i,j,:],
+                            hypothesis = self.tokenizer.decode(summaries[i,j,:],
                                                               skip_special_tokens=self.skip_special_tokens,
-                                                              clean_up_tokenization_spaces=self.clean_up_tokenization_spaces).strip()]
+                                                              clean_up_tokenization_spaces=self.clean_up_tokenization_spaces)
+                            hypothesis = hypothesis[: hypothesis.find(self.stop_token) if self.stop_token else None]
+                            cur_dec += [hypothesis]
                         dec += [self.delimeter.join(cur_dec)]
                         if scores is not None:
                             current_scores = ""
@@ -390,11 +390,11 @@ def generate_summaries_or_translations_fast(
 
     for _ in range(postprocess_workers):
         p = PostProcess(tokenizer, data_queue, msg_queue,
-            skip_special_tokens, clean_up_tokenization_spaces)
+            skip_special_tokens, clean_up_tokenization_spaces, stop_token)
         p_list.append(p)
         p.start()
 
-    io_process = IOProcess(msg_queue, out_file, stop_token)
+    io_process = IOProcess(msg_queue, out_file)
     io_process.start()
 
     loader = pd.read_csv(examples, sep='\t', header=None, iterator=True, chunksize=batch_size)
