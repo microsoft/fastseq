@@ -15,14 +15,10 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: mcr.microsoft.com/mirror/nvcr/nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+      image: mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:22.02-py3
       options: --gpus device=3
     steps:
     - script: |
-        #install python and pip
-        apt-get update
-        apt-get install python3.6
-
         #install fastseq
         pip install --upgrade pip
         pip install sentencepiece==0.1.96
