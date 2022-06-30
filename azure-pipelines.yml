@@ -15,18 +15,10 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: mcr.microsoft.com/mirror/nvcr/nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+      image: mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:22.02-py3
       options: --gpus device=3
     steps:
     - script: |
-        which conda
-        export CONDA_PATH= /
-        wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py39_4.9.2-Linux-x86_64.sh -O ${PWD}/miniconda.sh --no-check-certificate && /bin/bash ${PWD}/miniconda.sh -b -p ${CONDA_PATH} && rm ${PWD}/miniconda.sh && $(eval echo "${CONDA_PATH}/bin/conda clean -ya")
-        export PATH=${CONDA_PATH}/bin:${PATH}
-        conda info
-        conda install pip
-        which conda
-
         #install fastseq
         pip install --upgrade pip
         pip install sentencepiece==0.1.96
