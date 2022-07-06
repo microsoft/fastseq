@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:22.03-py3
+ENV image_name=$IMAGE_NAME
+FROM ${image_name}
 
 MAINTAINER FastSeq Team (fastseq@microsoft.com)
 
