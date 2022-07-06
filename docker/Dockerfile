@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:20.03-py3
+FROM mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:22.03-py3
 
 MAINTAINER FastSeq Team (fastseq@microsoft.com)
 
