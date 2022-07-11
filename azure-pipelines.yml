@@ -15,16 +15,13 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:22.03-py3
+      image: mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:21.10-py3
       options: --gpus device=3
     steps:
     - script: |
         #install fastseq
         pip install --upgrade pip
         pip install sentencepiece==0.1.96
-        pip show torch
-        pip uninstall -y torch; pip uninstall -y torch
-        pip install torch==1.10.0
         pip show torch
 
         echo "******* Installing fairseq *******"
