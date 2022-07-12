@@ -22,6 +22,7 @@ jobs:
         #install fastseq
         pip install --upgrade pip
         pip install sentencepiece==0.1.96
+        pip install torch==1.10.0
         pip show torch
 
         echo "******* Installing fairseq *******"
