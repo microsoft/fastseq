@@ -11,10 +11,10 @@ CPP Binding for CUDA OP
 */
 
 // CUDA forward declarations
-torch::Tensor ngram_repeat_block_cuda_forward(torch::Tensor tokens,
-                                              torch::Tensor lprobs, int bsz,
-                                              int step, int beam_size,
-                                              int no_repeat_ngram_size);
+void ngram_repeat_block_cuda_forward(const int64_t* tokens, const int max_predict_len,
+                                     float* lprobs, const int vocab_size,
+                                     int bsz, int step, int beam_size,
+                                     int no_repeat_ngram_size);
 
 #define CHECK_CUDA(x) \
   TORCH_CHECK(x.type().is_cuda(), #x " must be a CUDA tensor")
@@ -37,8 +37,16 @@ torch::Tensor ngram_repeat_block_forward(torch::Tensor tokens,
   assert(beam_size > 0);
   assert(no_repeat_ngram_size > 0);
 
-  return ngram_repeat_block_cuda_forward(tokens, lprobs, bsz, step, beam_size,
-                                         no_repeat_ngram_size);
+  const int max_predict_len = tokens.size(1);
+  const int vocab_size = lprobs.size(1);
+
+  ngram_repeat_block_cuda_forward(tokens.data_ptr<int64_t>(),
+                                  max_predict_len,
+                                  lprobs.data_ptr<float>(),
+                                  vocab_size,
+                                  bsz, step, beam_size,
+                                  no_repeat_ngram_size);
+  return lprobs;
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
