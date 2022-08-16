@@ -23,7 +23,6 @@ jobs:
         pip install --upgrade pip
         pip install sentencepiece==0.1.96
         pip install torch==1.10.0
-        pip show torch
         pip install torchvision==0.11.1
 
         echo "******* Installing fairseq *******"
