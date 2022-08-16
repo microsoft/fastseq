@@ -46,7 +46,13 @@ FastSeq develops multiple speedup techniques, including an attention cache optim
 - [rouge-score](https://pypi.org/project/rouge-score/) >= 0.0.4
 
 If you use fairseq or transformers, you only need to install one of them. If you use both, you need to install both.
-
+### Building the Dockerfile
+The dockerfile requires the specification of a base image.
+```bash
+cd fastseq/docker
+# pass the base image name as a build-arg when building the image from the dockerfile
+docker build --build-arg BASE_IMAGE=nvcr.io/nvidia/pytorch:20.03-py3 .
+```
 ### Install from the source
 
 ```bash

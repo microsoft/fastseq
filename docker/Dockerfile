@@ -1,5 +1,5 @@
-ENV image_name=$IMAGE_NAME
-FROM ${image_name}
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 
 MAINTAINER FastSeq Team (fastseq@microsoft.com)
 
