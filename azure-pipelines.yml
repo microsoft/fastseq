@@ -15,7 +15,7 @@ jobs:
       demands:
         - agent.name -equals gpu3
     container:
-      image: huggingface/transformers-pytorch-gpu:latest
+      image: mcr.microsoft.com/mirror/nvcr/nvidia/pytorch:20.03-py3
       options: --gpus device=3
     steps:
     - script: |

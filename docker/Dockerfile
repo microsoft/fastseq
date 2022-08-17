@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/pytorch:20.03-py3
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
 
 MAINTAINER FastSeq Team (fastseq@microsoft.com)
 
